@@ -1,0 +1,45 @@
+package membersys;
+
+message Member {
+	// Membership ID number (if assigned).
+	optional uint64 id = 1;
+
+        // The name of the member (first and last name or whatever the
+        // appropriate format is).
+        required string name = 2;
+
+	// Street and house number or another appropriate format.
+	required string street = 3;
+
+	// City the person lives in.
+	required string city = 4;
+
+	// Zip code, if applicable.
+	optional string zipcode = 5;
+
+	// ISO two-letter country ID.
+	required string country = 6;
+
+	// email address the member can be reached under. Must be
+	// verified.
+	optional string email = 7;
+	optional bool email_verified = 8;
+
+	// A phone number the member can be reached under.
+	optional string phone = 9;
+
+	// The membership fee we agreed on for the member.
+	required uint64 fee = 10;
+
+	// User name and password hash the user desires.
+	optional string username = 11;
+	optional string pwhash = 12;
+}
+
+message MembershipAgreement {
+	// PDF containing the membership request and a signature.
+	required bytes agreement_pdf = 1;
+
+	// Parsed information from the PDF.
+	optional Member member_data = 2;
+}
