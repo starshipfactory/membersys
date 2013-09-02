@@ -1,0 +1,58 @@
+/* Base styles */
+
+* {
+	margin: 0;
+	padding: 0;
+	background-repeat: no-repeat;
+}
+
+html {
+	height: 100%;
+}
+
+body {
+  position: relative;
+	font: 100.01%/130% Helvetica, Arial, sans-serif;
+	color: #000000; 
+	background: #FFFFFF;
+  text-align: center;
+	overflow: -moz-scrollbars-vertical;
+	padding-bottom: 0px;
+}
+
+a {
+	text-decoration: none;
+}
+
+.hidden {
+	display: none;
+}
+
+ul {
+	list-style: none;
+}
+
+/* Form styles */ 
+legend {
+	display: none;
+}
+
+fieldset {
+	border: 0 solid;
+}
+
+/* Clearfix-Hack */
+.clearfix:after {
+    content: ".";
+    display: block;
+    height: 0;
+    clear: both;
+    visibility: hidden;
+}
+
+.clearfix {display: inline-table;}
+
+/* Hides from IE-mac \*/
+* html .clearfix {height: 1%;}
+.clearfix {display: block;}
+/* End hide from IE-mac */

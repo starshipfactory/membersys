@@ -1,0 +1,188 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Starship Factory - Mitgliedschaftsantrag</title>
+		<!-- <base href="http://www.starship-factory.ch/" /> -->
+		<link rel="stylesheet" href="./css/base.css" type="text/css" />
+		<link rel="stylesheet" href="./css/layout.css" type="text/css" media="screen" />
+		<link rel="stylesheet" href="./css/content.css" type="text/css" />
+		<link rel="stylesheet" href="./css/print.css" type="text/css" media="print" />
+		<script src="js/jquery.js" type="text/javascript"></script>
+		<script src="js/jquery.validate.min.js" type="text/javascript"></script>
+		<script src="js/jquery.mockjax.js" type="text/javascript"></script>
+		<script src="js/additional-methods.min.js" type="text/javascript"></script>
+		<script src="js/form-handling.js" type="text/javascript"></script>
+	</head>
+	
+	<body>
+		<div id="main">
+			<div class="content">
+				<h1>Starship Factory - Mitgliedschaftsantrag</h1>
+				<!-- <img src="images/starship-factory-logo.jpg" title="Starship Factory Logo" alt="Starship Factory Logo" /> -->
+				
+				<form id="membershipRequest" action="" method="post">
+					<h2>Personalien</h2>
+					<fieldset class="stdForm" title="Personalien">
+						<div class="formRow">
+							<label for="name">Name <span class="required">*</span></label>
+							<input type="text" id="name" name="mr[name]" value="" />
+						</div>
+						<div class="formRow">
+							<label for="address">Strasse / Nr. <span class="required">*</span></label>
+							<input type="text" id="address" name="mr[address]" value="" />
+						</div>
+						<div class="formRow">
+							<label for="city">Ort <span class="required">*</span></label>
+							<input type="text" id="city" name="mr[city]" value="" />
+						</div>
+						<div class="formRow">
+							<label for="zip">PLZ <span class="required">*</span></label>
+							<input type="text" id="zip" name="mr[zip]" value="" />
+						</div>
+						<div class="formRow">
+							<label for="country">Land <span class="required">*</span></label>
+							<input type="text" id="country" name="mr[country]" value="" />
+						</div>
+						<div class="formRow">
+							<label for="email">E-Mail Adresse <span class="required">*</span></label>
+							<input type="email" id="email" name="mr[email]" value="" />
+						</div>
+						<div class="formRow">
+							<label for="telephone">Telefon-Nummer</label>
+							<input type="text" id="telephone" name="mr[telephone]" value="" />
+						</div>
+					</fieldset>
+					
+					<h2>Monatlicher Mitgliederbeitrag <span class="required">*</span></h2>
+					<fieldset class="stdForm radio" title="Mitgliederbeitrag">
+						<div class="formRow">
+							<input class="radio groupFee" type="radio" id="fee1" name="mr[fee]" value="SFr. 50.--" />
+							<label class="radio" for="fee1">SFr. 50.-- (Mindestbeitrag)</label>
+						</div>
+						<div class="formRow">
+							<!-- JS: move focuts to customFee field when corresponding option selected. -->
+							<label for="customFee" onclick="$('#customFee:input').focus()">
+								<input class="radio groupFee" type="radio" id="fee2" name="mr[fee]" value="custom" checked="checked" />
+								<label class="radio" for="fee2">Betrag in SFr.</label>
+							</label>
+							<input type="text" id="customFee" name="mr[customFee]" value="" />
+						</div>
+						<div class="formRow">
+							<input class="checkbox" type="checkbox" id="reduction" name="mr[reduction]" value="requested" />
+							<label class="checkbox" for="reduction">Ich beantrage Ermässigung des Mitglieder-Mindestbeitrages.</label>
+						</div>
+						<!-- different proposal for the fee fields -->
+						<!-- <div class="formRow">
+							<input class="radio" type="radio" id="fee2" name="mr[fee]" value="" />
+							<label class="radio" for="fee2">Ich will mehr bezahlen.</label>
+						</div> 
+						<div class="formRow">
+							<label for="morepay">Beitrag in SFr.</label>
+							<input type="text" id="morepay" name="mr[morepay]" value="" />
+						</div> 
+						<div class="formRow">
+							<input class="radio" type="radio" id="fee3" name="mr[fee]" value="" />
+							<label class="radio" for="fee3">Ich beantrage Ermässigung des Mitglieder-Mindestbeitrages.</label>
+						</div>-->
+					</fieldset>
+					
+					<script type="">
+						// enable field "customFee" when corresponding option is selected,
+						// disable it if not.
+						$('.groupFee')
+						.change(function () {
+							if ($('#fee2').prop('checked')) {
+								$('#customFee:input').removeAttr('disabled');
+								$('#customFee:input').focus()
+							}
+							else {
+								$('#customFee:input').attr('disabled', 'disabled');
+							}
+						});
+					</script>
+					
+					<!-- 
+						Format of username? (allowed set of characters)
+						Format of password?
+					-->
+					<h2>Mitgliedschaft</h2>
+					<fieldset class="stdForm" title="Mitgliedschaft">
+						<legend>Mitgliedschaft</legend>
+						<p class="help">
+							Um aktiv an unseren Projekten mitzuwirken, wirst du einen Benutzernamen und ein Passwort benötigen.
+						</p>
+						<div class="formRow">
+							<label for="username">Benutzername</label>
+							<input type="text" id="username" name="mr[username]" value="" />
+						</div>
+						<div class="formRow">
+							<label for="password">Passwort</label>
+							<input type="password" id="password" name="mr[password]" value="" />
+						</div>
+						<div class="formRow">
+							<label for="passwordConfirm">Passwort (wiederholen)</label>
+							<input type="password" id="passwordConfirm" name="mr[passwordConfirm]" value="" />
+						</div>
+						<p><br /></p>
+						<h3>Vereinsstatuten &amp; Reglement</h3>
+						<p class="help">
+							Um in der <span class="starship-factory">Starship Factory</span> Mitglied
+							zu werden, musst du den <a href="#" title="Vereinsstatuten">Vereinsstatuten</a>
+							und dem <a href="#" title="Reglement">Reglement</a> zustimmen.
+						</p>
+						<div class="formRow">
+							<input class="checkbox" type="checkbox" id="statutes" name="mr[statutes]" value="accepted" />
+							<label class="checkbox" for="statutes">Ich habe die Statuten gelesen und akzeptiere diese. <span class="required">*</span></label>
+						</div>
+						<div class="formRow">
+							<input class="checkbox" type="checkbox" id="rules" name="mr[rules]" value="accepted" />
+							<label class="checkbox" for="rules">Ich habe das Reglement gelesen und akzeptiere dieses. <span class="required">*</span></label>
+						</div>
+						<div class="formRow">
+							<input class="checkbox" type="checkbox" id="ipay" name="mr[ipay]" value="accepted" />
+							<label class="checkbox" for="ipay">Ich werde verbindlich den Mitgliederbeitrag monatlich auf das Vereinskonto überweisen. <span class="required">*</span></label>
+						</div>
+						<div class="formRow">
+							<!-- date of birth required? -->
+							<input class="checkbox" type="checkbox" id="gt18" name="mr[gt18]" value="yes" />
+							<label class="checkbox" for="gt18">Ich bin mindestens 18 Jahre alt. <span class="required">*</span></label>
+						</div>
+					</fieldset>
+					
+					<h2>Kommentare</h2>
+					<fieldset class="stdForm" title="Kommentare">
+						<div class="formRow">
+							<label for="comments">Gibt's noch was zu sagen?</label>
+							<!-- maxlength? -->
+							<textarea id="comments "cols="80" rows="3"></textarea>
+						</div>
+					</fieldset>
+					
+					<fieldset class="stdForm" title="Antrag abschicken">
+						<p><span class="required">*</span> Information muss angegeben werden.</p>
+						
+						<p>
+							<strong>Die Mitgliedschaft muss durch das monatliche Plenum der
+							Mitgliederversammlung bestätigt werden. Die Mitgliedschaft wird
+							erst durch diese Bestätigung rechtsgültig.</strong>
+						</p>
+						
+						<p>
+							Der Antrag wird anschliessend im Drucklayout angezeigt.
+							Ausdrucken, unterschreiben und an unterstehende Adresse senden oder
+							an einem der Treffen persönlich vorbeibringen.
+						</p>
+						<p>
+							<em>Starship Factory<br />
+							4000 Basel<br />
+							Switzerland</em>
+						</p>
+						<div class="formRow">
+							<input type="submit" id="submit" name="mr[submit]" value="Antrag abschicken" />
+						</div>
+					</fieldset>
+				</form>
+			</div>
+		</div>
+	</body>
+</html>

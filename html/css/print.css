@@ -1,0 +1,53 @@
+/* Print styles */
+
+@page { size:landscape; margin:1cm 1.5cm 1cm 1.5cm;}
+
+body {
+	overflow: visible !important;
+	overflow: auto;
+	background-color: #FFFFFF;
+}
+
+* {
+	font-family: Helvetica, Arial, sans-serif;
+	font-size: 12pt;
+	line-height: 128.5%;
+}
+
+#main {
+	position: static;
+	margin: 24pt;
+	text-align: left;
+	box-shadow: none;
+	padding: 0px;
+}
+
+.print h1 {
+	font-size: 18pt;
+	font-weight: normal;
+	color: #3E5F81;
+	margin-bottom: 24pt;
+}
+
+#addressLabel {
+	/* display: none; */
+	position: absolute;
+	top: 0pt;
+	right: 24pt;
+}
+
+/* logo
+#head h1 img {
+	position: absolute;
+	left: 10px;
+	top: 10px;
+	border: none;
+} */
+
+.noprint {
+	display: none;
+}
+
+.content {
+	position: relative;
+}
