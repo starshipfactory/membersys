@@ -1,0 +1,350 @@
+/* Content styles */
+
+h1 {
+	font-size: 24px;
+	color: #3E5F81;
+	margin-bottom: 16px;
+}
+.content p,
+.content ul li,
+.content ol li,
+.content table td,
+.content label {
+	line-height: 18px;
+	padding-bottom: 10px;
+}
+
+.content em {
+	color: #3E5F81;
+	font-size: 16px;
+}
+
+.content p.align-justify {
+	text-align: justify;
+}
+
+.content p.align-center {
+	text-align: center;
+}  
+
+.content p.align-right {
+	text-align: right;
+}
+
+.content a {
+	color: #3E5F81;
+	text-decoration: underline;
+}
+.content a:hover {
+	color: #5F813E;
+	text-decoration: underline;
+}
+
+.content p.help {
+	font-size: 12px;
+	color: #777777;
+}
+.content p.help * {
+	font-size: 12px;
+}
+
+
+.content ul {
+	padding-bottom: 16px;
+}
+
+.content ul ul {
+	margin-left: 10px;
+}
+
+.content ul li {
+	padding: 0 0 10px 22px;
+	/* background-image: url(./images/bullet.jpg); */
+	background-position: 6px 5px;
+}
+
+.content ol {
+	padding-left: 42px;
+}
+
+.content blockquote {
+	padding-left: 20px;
+}
+
+.content h2 {
+	padding-bottom: 2px;
+}
+
+.content h2,
+.content h2 a {
+	color: #3E5F81;
+	font-weight: normal;
+	font-size: 18px;
+	line-height: 22px;
+  white-space: nowrap;
+}
+
+.content h3 {
+	padding-bottom: 2px;
+}
+
+.content h3,
+.content h3 a {
+	color: #998888;
+	font-weight: normal;
+	font-size: 14px;
+	line-height: 18px;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.content h4 {
+	padding-bottom: 2px;
+}
+
+.content h4,
+.content h4 a {
+	color: #888888;
+	font-weight:bold;
+	font-size: 14px;
+	line-height: 16px;
+}
+
+/* 2 cols */
+.c2Columns {
+	clear: both;
+}
+
+.c2Columns .leftCol {
+	float: left;
+	width: 49% !important;
+	width: 48%;
+}
+
+.c2Columns .leftCol .content {
+	margin-right: 5px;
+	margin-bottom: 20px;
+}
+
+.c2Columns .rightCol {
+	float: right;
+	width: 49% !important;
+	width: 48%;
+}
+
+.c2Columns .rightCol .content {
+	margin-left: 5px;
+	margin-bottom: 20px;
+}
+
+/* Forms */
+fieldset.stdForm {
+	padding-top: 8px;
+	padding-bottom: 16px;
+	border: none;
+}
+
+fieldset.stdForm div.formRow {
+	clear: both;
+	padding: 6px 0;
+}
+
+.content span.required {
+	color: #BD0926;
+}
+
+.stdForm label {
+	float: left;
+	width: 170px !important;
+	width: 180px;
+	display: block;
+	margin-bottom: 6px;
+	margin-right: 0 !important;
+	margin-right: -3px;
+	padding-right: 10px;
+	padding-bottom: 0px;
+	padding-top: 3px;
+}
+
+.stdForm label.checkbox {
+	float: none;
+	width: 400px !important;
+	width: 410px;
+	display: block;
+	margin-bottom: 6px;
+	margin-right: 0 !important;
+	margin-right: -3px;
+	padding-right: 10px;
+	padding-bottom: 0px;
+	padding-top: 0px;
+}
+
+.stdForm .formRowNoMargin label {
+	float: none;
+}
+
+.stdForm label.error {
+	float: right;
+	color: #BD0926;
+	width: 278px !important;
+	width: 278px;
+}
+
+.stdForm label.checked {
+	color: #33663E;
+}
+
+.stdForm input,
+.stdForm select,
+.stdForm textarea,
+.stdForm button {
+	width: 200px;
+	background-color: #E8E8E8;
+	color: black;
+	border: 1px solid #888888;
+	padding: 4px;
+	moz-border-radius: 2px;
+	border-radius: 2px;
+}
+
+.stdForm input.error,
+.stdForm select.error,
+.stdForm textarea.error {
+	border: 2px solid #BD0926;
+	margin: -1px;
+}
+
+.stdForm input.file {
+	width: auto;
+}
+
+.stdForm textarea {
+	height: 60px;
+}
+
+.stdForm select {
+	width: 174px;
+}
+
+.stdForm option {
+	background-color: #FFFFFF;
+	color: black;
+}
+
+.stdForm input.checkbox {
+	width: 13px;
+	height: 13px;
+	margin-bottom: 12px;
+	/* margin-top: 4px; */
+	margin-right: 10px;
+	border: none;
+	float: left;
+}
+
+.stdForm input.submit,
+.stdForm button,
+.stdForm .submit input {
+	margin-left: 140px !important;
+	margin-left: 143px;
+	width: auto;
+	padding: 0 10px !important;
+	padding: 0;
+}
+
+.stdForm .formRowNoMargin input.submit,
+.stdForm .formRowNoMargin button {
+	margin-left: 0 !important;
+	margin-left: 0;
+}
+
+.stdForm div.radio {
+	padding-bottom: 5px;
+}
+
+.stdForm label.radio {
+	width: auto;
+	display: inline;
+	float: none;
+}
+
+.stdForm .radio {
+	padding: 0;
+	width: auto;
+	margin: 0 5px 2px 0;
+	background-color: transparent;
+	border: none;
+}
+
+.stdForm input[type=text]:focus,input[type=password]:focus,input[type=email]:focus,textarea:focus {
+	background:#FFFFFF; 
+	color: black;
+}
+
+.stdForm input[disabled=disabled] {
+	color: #999999;
+}
+
+/* printed form styles */
+
+.printRow {
+	border-bottom: 1pt dotted #888;
+	margin-top: 0.5cm;
+}
+
+.printRowOpen {
+	border-bottom: 1pt solid #444;
+	margin-top: 2cm;
+}
+
+.printRowTitle {
+	display: block;
+	font-weight: bold;
+	width: 5cm;
+	float: left;
+	margin-bottom: 0.2cm;
+}
+
+.printRowData {
+	display: block;
+	color: #444;
+	width: 8cm;
+	margin-left: 5.5cm;
+	margin-bottom: 0.2cm;
+}
+
+.printRow .colL {
+	width: 48%;
+	float: left;
+	margin-left: 0;
+	padding-right: 0.2cm;
+}
+
+.printRow .colM {
+	width: 49%;
+	padding-right: 0.2cm;
+}
+
+.printRow .colR {
+	width: auto;
+	margin-left: 66%; 
+}
+
+.printRowOpen .printRowTitle {
+	width: 45%;
+}
+
+.printRowOpen .printRowData {
+	color: #000000;
+	width: 55%;
+}
+
+#addressLabel {
+	position: absolute;
+	top: 24pt;
+	right: 24pt;
+}
+
+.starship-factory {
+	text-transform: uppercase;
+	color: #1C3D5E;
+}
