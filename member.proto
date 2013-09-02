@@ -1,5 +1,25 @@
 package membersys;
 
+message MembershipMetadata {
+	// The time at which the membership request was filed, as a
+	// timestamp in seconds since January 1, 1970, 00:00:00 UTC.
+	optional uint64 request_timestamp = 1;
+
+	// The IP the membership request was filed from.
+	optional string request_source_ip = 2;
+
+	// The exact contents of the response mail the email
+	// address was verified with.
+	optional string verification_email = 3;
+
+	// The time at which the membership request was approved, as a
+	// timestamp in seconds since January 1, 1970, 00:00:00 UTC.
+	optional uint64 approval_timestamp = 4;
+
+	// Who approved the request? (User name)
+	optional string approver_uid = 5;
+}
+
 message Member {
 	// Membership ID number (if assigned).
 	optional uint64 id = 1;
@@ -38,8 +58,11 @@ message Member {
 
 message MembershipAgreement {
 	// PDF containing the membership request and a signature.
-	required bytes agreement_pdf = 1;
+	optional bytes agreement_pdf = 1;
 
 	// Parsed information from the PDF.
 	optional Member member_data = 2;
+
+	// Metadata about the membership submission.
+	optional MembershipMetadata metadata = 3;
 }
