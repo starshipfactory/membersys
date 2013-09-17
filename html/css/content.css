@@ -307,9 +307,15 @@ fieldset.stdForm div.formRow {
 .printRowData {
 	display: block;
 	color: #444;
-	width: 8cm;
+	width: 10cm;
 	margin-left: 5.5cm;
 	margin-bottom: 0.2cm;
+}
+
+.printRow .empty {
+	border-right: 1px dotted #888;
+  height: 25px;
+  margin-bottom: 0;
 }
 
 .printRow .colL {
@@ -327,6 +333,15 @@ fieldset.stdForm div.formRow {
 .printRow .colR {
 	width: auto;
 	margin-left: 66%; 
+}
+
+.printRow strong.marked {
+	border: 1px solid #AAAAAA;
+	display: block;
+	float: left;
+	line-height: 0.5cm;
+	margin: -0.1cm 0 0 -1cm;
+	padding: 3px 0.16cm 0;
 }
 
 .printRowOpen .printRowTitle {
