@@ -51,3 +51,7 @@ body {
 .content {
 	position: relative;
 }
+
+.stdForm button {
+	display: none;
+}
