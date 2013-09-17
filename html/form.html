@@ -56,7 +56,7 @@
 					<h2>Monatlicher Mitgliederbeitrag <span class="required">*</span></h2>
 					<fieldset class="stdForm radio" title="Mitgliederbeitrag">
 						<div class="formRow">
-							<input class="radio groupFee" type="radio" id="fee1" name="mr[fee]" value="SFr. 50.--" />
+							<input class="radio groupFee" type="radio" id="fee1" name="mr[fee]" value="SFr. 50.--" onchange="$('#customFee').valid()"/>
 							<label class="radio" for="fee1">SFr. 50.-- (Mindestbeitrag)</label>
 						</div>
 						<div class="formRow">
@@ -68,7 +68,7 @@
 							<input type="text" id="customFee" name="mr[customFee]" value="" />
 						</div>
 						<div class="formRow">
-							<input class="checkbox" type="checkbox" id="reduction" name="mr[reduction]" value="requested" />
+							<input class="checkbox" type="checkbox" id="reduction" name="mr[reduction]" value="requested" onchange="$('#customFee').valid()" />
 							<label class="checkbox" for="reduction">Ich beantrage Ermässigung des Mitglieder-Mindestbeitrages.</label>
 						</div>
 						<!-- different proposal for the fee fields -->

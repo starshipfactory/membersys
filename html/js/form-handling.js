@@ -18,20 +18,36 @@ $(document).ready(function() {
 		},
 		responseTime: 500
 	});
-
-	/* $.validator.addMethod("feeSelect", function(value, element, params) {
-			var target = $(param[0]);
-			if ( this.settings.onfocusout ) {
-				target.unbind(".validate-feeSelect").bind("blur.validate-feeSelect", function() {
+	
+	/** current edit BEGIN */
+	
+	$.validator.addMethod("feeSelect", function(value, element, params) {
+			/**
+			params[0] : id of the radiobutton (fee2)
+			element : input id="customFee"
+			value : contents of "element"
+			
+			*/
+			if ( this.settings.onfocusout) {
+				$(params[1]).unbind(".validate-feeSelect").bind("blur.validate-feeSelect", function() {
 					$(element).valid();
 				});
 			}
-			if(target.prop('checked') && value >= 50) {
+			
+			if($(params[0]).prop('checked')) {
 				return true;
 			}
-			return value === target.prop('checked');
+			else if($(params[1]).prop('checked') && value >= 50) {
+				return true;
+			}
+			else if( $(params[2]).prop('checked')) {
+				return true;
+			}
+			//return value === target.prop('checked');
 			//return this.optional(element) || value == $(params[0]).value();
-	}, $.validator.format("Mitgliederbeitrag???")); */
+	}, $.validator.format("--> Mitgliederbeitrag???"));
+	
+	/** current edit END */
 
 	// validate request form on keyup and submit
 	var validator = $("#membershipRequest").validate({
@@ -42,8 +58,11 @@ $(document).ready(function() {
 			"mr[zip]": "required",
 			"mr[country]": "required",
 			"mr[email]": "required",
-			"mr[fee]" : "required",
-			"mr[customFee]" : {
+			/* "mr[fee]" : {
+				feeSelect: ["#fee1","#fee2","#reduction"]
+			}, */
+			/* "mr[fee]" : "required", */
+			/* "mr[customFee]" : {
 				required: true,
 				digits: {
 					// doesn't work, AT ALL
@@ -52,7 +71,13 @@ $(document).ready(function() {
 					}
 				}
 						//return $('#fee2:checked')
+			}, */
+			"mr[customFee]" : {
+				feeSelect: ["#fee1","#fee2","#reduction"]
 			},
+			/* "mr[reduction]" : {
+				feeSelect: ["#fee1","#fee2","#reduction"]
+			}, */
 			"mr[statutes]": "required",
 			"mr[rules]": "required",
 			"mr[ipay]": "required",
