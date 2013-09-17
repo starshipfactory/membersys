@@ -296,6 +296,11 @@ fieldset.stdForm div.formRow {
 	margin-top: 2cm;
 }
 
+.printRow *,
+.printRowOpen * {
+	font-size: 10pt;
+}
+
 .printRowTitle {
 	display: block;
 	font-weight: bold;
@@ -314,7 +319,7 @@ fieldset.stdForm div.formRow {
 
 .printRow .empty {
 	border-right: 1px dotted #888;
-  height: 25px;
+  height: 23px;
   margin-bottom: 0;
 }
 
@@ -336,7 +341,7 @@ fieldset.stdForm div.formRow {
 }
 
 .printRow strong.marked {
-	border: 1px solid #AAAAAA;
+	border: 1pt solid #AAAAAA;
 	display: block;
 	float: left;
 	line-height: 0.5cm;
