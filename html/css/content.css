@@ -110,6 +110,10 @@ h1 {
 	line-height: 16px;
 }
 
+.content sup {
+	font-size: 9px;
+}
+
 /* 2 cols */
 .c2Columns {
 	clear: both;
@@ -291,14 +295,36 @@ fieldset.stdForm div.formRow {
 	margin-top: 0.5cm;
 }
 
+.small {
+	margin-top: 0.4cm;
+}
+
 .printRowOpen {
 	border-bottom: 1pt solid #444;
-	margin-top: 2cm;
+	margin-top: 1.5cm;
 }
 
 .printRow *,
 .printRowOpen * {
 	font-size: 10pt;
+}
+
+.printRowFooter {
+	margin-top: 0.5cm;
+}
+.printRowFooter * {
+	color: #666666;
+	font-size: 9pt;
+}
+
+.printRowFooter sup {
+	float: left;
+	display: block;
+}
+
+.printRowFooter p {
+	margin: 0 0 0 0.2cm;
+	padding: 0;
 }
 
 .printRowTitle {
