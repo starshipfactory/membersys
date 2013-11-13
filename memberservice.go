@@ -93,9 +93,9 @@ func main() {
 
 	// Register the URL handler to be invoked.
 	http.Handle("/", &FormInputHandler{
-		application_tmpl: application_tmpl,
-		print_tmpl:       print_tmpl,
-		passthrough:      http.FileServer(http.Dir(template_dir)),
+		applicationTmpl: application_tmpl,
+		printTmpl:       print_tmpl,
+		passthrough:     http.FileServer(http.Dir(template_dir)),
 	})
 
 	// If a lock server was specified, attempt to use an anonymous port as

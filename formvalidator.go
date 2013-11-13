@@ -34,29 +34,102 @@ package main
 import (
 	"expvar"
 	"html/template"
+	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
+var requiredFields []string = []string{
+	"name",
+	"address",
+	"city",
+	"zip",
+	"country",
+}
+
 // Statistics
-var num_requests *expvar.Int = expvar.NewInt("num-http-requests")
-var num_submitted *expvar.Int = expvar.NewInt("num-successful-form-submissions")
-var num_submit_errors *expvar.Map = expvar.NewMap("num-form-submission-errors")
+var numRequests *expvar.Int = expvar.NewInt("num-http-requests")
+var numSubmitted *expvar.Int = expvar.NewInt("num-successful-form-submissions")
+var numSubmitErrors *expvar.Map = expvar.NewMap("num-form-submission-errors")
+
+var emailRe *regexp.Regexp
+var phoneRe *regexp.Regexp
 
 type FormInputHandler struct {
-	application_tmpl *template.Template
-	print_tmpl       *template.Template
+	applicationTmpl *template.Template
+	printTmpl       *template.Template
 	passthrough      http.Handler
 }
 
+type FormInputData struct {
+	MemberData *Member
+	CommonErr  string
+	FieldErr   map[string]string
+}
+
 func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	num_requests.Add(1)
+	var err error
+	var data FormInputData
+	var field string
+	var ok bool
+	numRequests.Add(1)
 
 	// Pass JavaScript and CSS requests through to the passthrough handler.
-	if strings.HasPrefix(req.URL.Path, "/css/") || strings.HasPrefix(req.URL.Path, "/js/") {
+	if strings.HasPrefix(req.URL.Path, "/css/") ||
+		strings.HasPrefix(req.URL.Path, "/js/") {
 		self.passthrough.ServeHTTP(w, req)
+		return
 	}
 
-	var member *Member
-	self.application_tmpl.Execute(w, member)
+	data.FieldErr = make(map[string]string)
+
+	if err = req.ParseForm(); err != nil {
+		data.CommonErr = err.Error()
+		numSubmitErrors.Add(err.Error(), 1)
+		self.applicationTmpl.Execute(w, data)
+		return
+	}
+
+	for _, field = range requiredFields {
+		if len(req.PostFormValue("mr[" + field + "]")) <= 0 {
+			numSubmitErrors.Add("no-" + field, 1)
+			ok = false
+		}
+	}
+
+	if !emailRe.MatchString(req.PostFormValue("mr[email]")) {
+		if len(req.PostFormValue("mr[email]")) > 0 {
+			data.FieldErr["email"] = "Mailadresse sollte im Format a@b.ch sein"
+			numSubmitErrors.Add("bad-email-format", 1)
+		} else {
+			numSubmitErrors.Add("no-email", 1)
+		}
+		ok = false
+	}
+
+	if len(req.PostFormValue("mr[telephone]")) > 0 &&
+		!phoneRe.MatchString("mr[telephone]") {
+		data.FieldErr["telephone"] = "Telephonnummer sollte im Format +41 79 123 45 67 sein"
+		numSubmitErrors.Add("bad-phone-format", 1)
+		ok = false
+	}
+
+	if ok {
+		numSubmitted.Add(1)
+		err = self.printTmpl.Execute(w, data)
+		if err != nil {
+			log.Print("Error executing print template: ", err)
+		}
+	} else {
+		err = self.applicationTmpl.Execute(w, data)
+		if err != nil {
+			log.Print("Error executing request form template: ", err)
+		}
+	}
+}
+
+func init() {
+	emailRe = regexp.MustCompile(`^[A-Za-z0-9-_\.]+@[A-Za-z0-9-_\.]+$`)
+	phoneRe = regexp.MustCompile(`^\+?[0-9 -\.]+$`)
 }
