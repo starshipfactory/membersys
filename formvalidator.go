@@ -77,7 +77,8 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 
 	// Pass JavaScript and CSS requests through to the passthrough handler.
 	if strings.HasPrefix(req.URL.Path, "/css/") ||
-		strings.HasPrefix(req.URL.Path, "/js/") {
+		strings.HasPrefix(req.URL.Path, "/js/") ||
+		req.URL.Path == "/favicon.ico" {
 		self.passthrough.ServeHTTP(w, req)
 		return
 	}
