@@ -38,6 +38,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"strconv"
 )
 
 var requiredFields []string = []string{
@@ -72,7 +73,8 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	var err error
 	var data FormInputData
 	var field string
-	var ok bool
+	var fee float64
+	var ok bool = true
 	numRequests.Add(1)
 
 	// Pass JavaScript and CSS requests through to the passthrough handler.
@@ -90,6 +92,13 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		numSubmitErrors.Add(err.Error(), 1)
 		self.applicationTmpl.Execute(w, data)
 		return
+	}
+
+	// No data entered: the user is probably just going to the web site
+	// for the first time, so data validation is useless.
+	if len(req.PostForm) == 0 {
+		self.applicationTmpl.Execute(w, data)
+		return		
 	}
 
 	for _, field = range requiredFields {
@@ -112,7 +121,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	}
 
 	if len(req.PostFormValue("mr[telephone]")) > 0 &&
-		!phoneRe.MatchString("mr[telephone]") {
+		!phoneRe.MatchString(req.PostFormValue("mr[telephone]")) {
 		data.FieldErr["telephone"] = "Telephonnummer sollte im Format +41 79 123 45 67 sein"
 		numSubmitErrors.Add("bad-phone-format", 1)
 		ok = false
@@ -149,9 +158,39 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		ok = false
 	}
 
-	log.Print("Request URI: ", req.RequestURI, ", form values: ", req.PostForm.Encode())
-	for key, val := range req.PostForm {
-		log.Print(key, ": ", val)
+	if len(req.PostFormValue("mr[customFee]")) > 0 {
+		fee, err = strconv.ParseFloat(req.PostFormValue("mr[customFee]"), 64)
+		if err == strconv.ErrRange {
+			data.FieldErr["customFee"] = "Der Betrag ist irgendwie etwas gross/klein, oder?"
+			numSubmitErrors.Add("fee-out-of-range", 1)
+			ok = false
+		} else if err == strconv.ErrSyntax {
+			data.FieldErr["customFee"] = "Der Mitgliedsbeitrag kann nicht als Zahl identifiziert werden"
+			numSubmitErrors.Add("fee-not-a-number", 1)
+			log.Print("Unable to parse ", req.PostFormValue("mr[customFee]"),
+				" as a valid fee")
+			ok = false
+		} else if err != nil {
+			// No idea? This shouldn't really happen.
+			data.FieldErr["customFee"] = err.Error()
+			log.Print("Error converting ", req.PostFormValue("mr[customFee]"),
+				" to a number: ", err)
+			ok = false
+		}
+	}
+	if req.PostFormValue("mr[fee]") == "custom" {
+		if fee < 50 && req.PostFormValue("mr[reduction]") != "requested" {
+			data.FieldErr["customFee"] = "Für einen Betrag unter 50 CHF muss eine Ermässigung beantragt werden"
+			numSubmitErrors.Add("low-fee-without-reduction", 1)
+			ok = false
+		} else if len(req.PostFormValue("mr[customFee]")) <= 0 {
+			data.FieldErr["customFee"] = "Die Angabe eines Mitgliedsbeitrages ist notwendig"
+			ok = false
+		}
+	} else if req.PostFormValue("mr[fee]") != "SFr. 50.--" {
+		data.FieldErr["fee"] = "Unbekannter Wert für den Mitgliedsbeitrag"
+		numSubmitErrors.Add("unknown-fee-value", 1)
+		ok = false
 	}
 
 	if ok {
