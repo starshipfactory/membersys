@@ -1,0 +1,30 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Implement proof of concept web service which displays and accepts the membership form
+desc: |-
+  As a first step, implement a proof of concept HTTP server which just displays the membership application form and lets people submit it, leading to the printable application.
+  Add some amount of input validation here so what people submit actually makes sense.
+type: :task
+component: membersys
+release: "0.1"
+reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
+status: :closed
+disposition: :fixed
+creation_time: 2013-11-15 18:21:15.526302 Z
+references: []
+
+id: 1955e9b2e8e63f6e0ed18c92275b886fe70662cb
+log_events: 
+- - 2013-11-15 18:21:20.941293 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - created
+  - ""
+- - 2013-11-15 18:50:24.747403 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - changed status from unstarted to in_progress
+  - ""
+- - 2013-11-15 18:51:34.509836 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - closed with disposition fixed
+  - |-
+    It displays the web sites just fine now.
+    The input is also verified. Tested with some random input.
