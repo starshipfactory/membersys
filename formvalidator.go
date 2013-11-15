@@ -95,6 +95,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	for _, field = range requiredFields {
 		if len(req.PostFormValue("mr[" + field + "]")) <= 0 {
 			numSubmitErrors.Add("no-" + field, 1)
+			data.FieldErr[field] = "Muss angegeben werden"
 			ok = false
 		}
 	}
@@ -104,6 +105,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			data.FieldErr["email"] = "Mailadresse sollte im Format a@b.ch sein"
 			numSubmitErrors.Add("bad-email-format", 1)
 		} else {
+			data.FieldErr["email"] = "Muss angegeben werden"
 			numSubmitErrors.Add("no-email", 1)
 		}
 		ok = false
@@ -114,6 +116,42 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		data.FieldErr["telephone"] = "Telephonnummer sollte im Format +41 79 123 45 67 sein"
 		numSubmitErrors.Add("bad-phone-format", 1)
 		ok = false
+	}
+
+	if req.PostFormValue("mr[password]") !=
+		req.PostFormValue("mr[passwordConfirm]") {
+		data.FieldErr["password"] = "Passworte stimmen nicht überein"
+		numSubmitErrors.Add("password-mismatch", 1)
+		ok = false
+	}
+
+	if req.PostFormValue("mr[statutes]") != "accepted" {
+		data.FieldErr["statutes"] = "Statuten müssen akzeptiert werden"
+		numSubmitErrors.Add("statutes-not-accepted", 1)
+		ok = false
+	}
+
+	if req.PostFormValue("mr[ipay]") != "accepted" {
+		data.FieldErr["ipay"] = "Zahlungsbereitschaft ist notwendig"
+		numSubmitErrors.Add("payment-not-accepted", 1)
+		ok = false
+	}
+
+	if req.PostFormValue("mr[rules]") != "accepted" {
+		data.FieldErr["rules"] = "Reglement muss akzeptiert werden"
+		numSubmitErrors.Add("rules-not-accepted", 1)
+		ok = false
+	}
+
+	if req.PostFormValue("mr[gt18]") != "yes" {
+		data.FieldErr["gt18"] = "Man muss mindestens 18 Jahre sein, um uns beizutreten"
+		numSubmitErrors.Add("not-gt18", 1)
+		ok = false
+	}
+
+	log.Print("Request URI: ", req.RequestURI, ", form values: ", req.PostForm.Encode())
+	for key, val := range req.PostForm {
+		log.Print(key, ": ", val)
 	}
 
 	if ok {
