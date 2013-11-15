@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Integrate data and error messages into the application template
+desc: The application template is currently static and contains no previously entered data. It should be filled with logic and data.
+type: :task
+component: membersys
+release: "0.1"
+reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+status: :unstarted
+disposition: 
+creation_time: 2013-11-15 18:30:35.757255 Z
+references: []
+
+id: fed4068148c1696eaca4408788ed93ac6bb7093e
+log_events: 
+- - 2013-11-15 18:30:37.535194 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - created
+  - ""

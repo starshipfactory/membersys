@@ -1,0 +1,34 @@
+--- !ditz.rubyforge.org,2008-03-06/project 
+name: membersys
+version: "0.1"
+components: 
+- !ditz.rubyforge.org,2008-03-06/component 
+  name: membersys
+releases: 
+- !ditz.rubyforge.org,2008-03-06/release 
+  name: "0.1"
+  status: :unreleased
+  release_time: 
+  log_events: 
+  - - 2013-11-15 16:31:20.483725 Z
+    - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    - created
+    - Proof of Concept release featuring just the web interface
+- !ditz.rubyforge.org,2008-03-06/release 
+  name: "0.2"
+  status: :unreleased
+  release_time: 
+  log_events: 
+  - - 2013-11-15 19:01:36.926968 Z
+    - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    - created
+    - Enhanced version with Cassandra backend
+- !ditz.rubyforge.org,2008-03-06/release 
+  name: "0.3"
+  status: :unreleased
+  release_time: 
+  log_events: 
+  - - 2013-11-15 19:01:52.990244 Z
+    - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    - created
+    - Version with e-mail verification codes

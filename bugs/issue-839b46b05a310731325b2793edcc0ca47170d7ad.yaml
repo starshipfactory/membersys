@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Add unit tests for the input validation code
+desc: We do input validation but we don't validate it; would be nice to have some tests.
+type: :feature
+component: membersys
+release: 
+reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+status: :unstarted
+disposition: 
+creation_time: 2013-11-15 18:55:36.244345 Z
+references: []
+
+id: 839b46b05a310731325b2793edcc0ca47170d7ad
+log_events: 
+- - 2013-11-15 18:55:57.336296 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - created
+  - ""
