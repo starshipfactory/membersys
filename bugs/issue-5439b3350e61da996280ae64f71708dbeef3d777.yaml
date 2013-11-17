@@ -1,0 +1,21 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Add a barcode for ease of finding the correct record to the print template
+desc: |-
+  In the print template we'll need to be able to show a barcode for the Cassandra row ID of the just-created record.
+  Ideally this would be shown as a small barcode so it can just be scanned, but with the text ID underneath. This should solve any problems with finding the right database record associated with the membership request.
+  There shouldn't be any privacy concerns in this as we would only expose to an external attacker which row IDs we assigned, but they're 128-bit random GUIDs. It should be hard to guess them, and even if they're guessed they don't expose any information about the requestor.
+type: :feature
+component: membersys
+release: "0.2"
+reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+status: :unstarted
+disposition: 
+creation_time: 2013-11-17 19:51:55.003728 Z
+references: []
+
+id: 5439b3350e61da996280ae64f71708dbeef3d777
+log_events: 
+- - 2013-11-17 19:51:58.278674 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - created
+  - ""
