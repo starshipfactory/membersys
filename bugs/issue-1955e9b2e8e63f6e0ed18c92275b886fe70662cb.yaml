@@ -1,8 +1,12 @@
 --- !ditz.rubyforge.org,2008-03-06/issue 
 title: Implement proof of concept web service which displays and accepts the membership form
 desc: |-
-  As a first step, implement a proof of concept HTTP server which just displays the membership application form and lets people submit it, leading to the printable application.
-  Add some amount of input validation here so what people submit actually makes sense.
+  As a first step, implement a proof of concept HTTP server which just displays
+  the membership application form and lets people submit it, leading to the
+  printable application.
+
+  Add some amount of input validation here so what people submit actually makes
+  sense.
 type: :task
 component: membersys
 release: "0.1"
