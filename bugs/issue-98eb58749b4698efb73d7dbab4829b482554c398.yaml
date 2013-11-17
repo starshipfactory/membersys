@@ -1,7 +1,9 @@
 --- !ditz.rubyforge.org,2008-03-06/issue 
 title: Fill the data into the print template
 desc: |-
-  Currently the print template just shows example data, which isn't terribly useful.
+  Currently the print template just shows example data, which isn't terribly
+  useful.
+
   We should fill it with the data the user entered instead.
 type: :task
 component: membersys

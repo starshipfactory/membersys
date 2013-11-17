@@ -1,7 +1,9 @@
 --- !ditz.rubyforge.org,2008-03-06/issue 
 title: Store the filled-out form data in a Cassandra database
 desc: |-
-  We fill the data in for the user but it doesn't get saved, so we need to read it from the application form again.
+  We fill the data in for the user but it doesn't get saved, so we need to read
+  it from the application form again.
+
   It should be stored in Cassandra and processed later.
 type: :task
 component: membersys
