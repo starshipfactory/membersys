@@ -32,7 +32,10 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
 	"expvar"
+	"hash"
 	"html/template"
 	"log"
 	"net/http"
@@ -152,8 +155,9 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		}
 	}
 
-	if !emailRe.MatchString(req.PostFormValue("mr[email]")) {
-		if len(req.PostFormValue("mr[email]")) > 0 {
+	var email string = req.PostFormValue("mr[email]")
+	if !emailRe.MatchString(email) {
+		if len(email) > 0 {
 			data.FieldErr["email"] = "Mailadresse sollte im Format a@b.ch sein"
 			numSubmitErrors.Add("bad-email-format", 1)
 		} else {
@@ -161,20 +165,35 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			numSubmitErrors.Add("no-email", 1)
 		}
 		ok = false
+	} else {
+		data.MemberData.Email = &email
 	}
 
-	if len(req.PostFormValue("mr[telephone]")) > 0 &&
-		!phoneRe.MatchString(req.PostFormValue("mr[telephone]")) {
+	var phone string = req.PostFormValue("mr[telephone]")
+	if len(phone) > 0 && !phoneRe.MatchString(phone) {
 		data.FieldErr["telephone"] = "Telephonnummer sollte im Format +41 79 123 45 67 sein"
 		numSubmitErrors.Add("bad-phone-format", 1)
 		ok = false
+	} else {
+		data.MemberData.Phone = &phone
 	}
 
-	if req.PostFormValue("mr[password]") !=
-		req.PostFormValue("mr[passwordConfirm]") {
+	// TODO(caoimhe): Verify the user name field.
+	var username string = req.PostFormValue("mr[username]")
+	if len(username) > 0 {
+		data.MemberData.Username = &username
+	}
+
+	var pw string = req.PostFormValue("mr[password]")
+	if pw != req.PostFormValue("mr[passwordConfirm]") {
 		data.FieldErr["password"] = "Passworte stimmen nicht überein"
 		numSubmitErrors.Add("password-mismatch", 1)
 		ok = false
+	} else {
+		var h hash.Hash = sha1.New()
+		h.Write([]byte(pw))
+		pw = "{SHA}" + base64.StdEncoding.EncodeToString(h.Sum([]byte{}))
+		data.MemberData.Pwhash = &pw
 	}
 
 	if req.PostFormValue("mr[statutes]") != "accepted" {
@@ -229,11 +248,17 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		} else if len(req.PostFormValue("mr[customFee]")) <= 0 {
 			data.FieldErr["customFee"] = "Die Angabe eines Mitgliedsbeitrages ist notwendig"
 			ok = false
+		} else {
+			var intfee uint64 = uint64(fee)
+			data.MemberData.Fee = &intfee
 		}
 	} else if req.PostFormValue("mr[fee]") != "SFr. 50.--" {
 		data.FieldErr["fee"] = "Unbekannter Wert für den Mitgliedsbeitrag"
 		numSubmitErrors.Add("unknown-fee-value", 1)
 		ok = false
+	} else {
+		var intfee uint64 = 50
+		data.MemberData.Fee = &intfee
 	}
 
 	if ok {
