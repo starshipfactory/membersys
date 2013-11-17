@@ -36,10 +36,20 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 )
+
+var fmap = template.FuncMap{
+	"html": template.HTMLEscaper,
+	"url":  UserInputFormatter,
+}
+
+func UserInputFormatter(v ...interface{}) string {
+	return template.HTMLEscapeString(url.QueryEscape(v[0].(string)))
+}
 
 var requiredFields []string = []string{
 	"name",

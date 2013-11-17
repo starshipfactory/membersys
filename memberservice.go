@@ -36,20 +36,10 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 
 	"ancient-solutions.com/doozer/exportedservice"
 )
-
-var fmap = template.FuncMap{
-	"html": template.HTMLEscaper,
-	"url":  UserInputFormatter,
-}
-
-func UserInputFormatter(v ...interface{}) string {
-	return template.HTMLEscapeString(url.QueryEscape(v[0].(string)))
-}
 
 func main() {
 	var help bool
