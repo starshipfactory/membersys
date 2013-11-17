@@ -51,6 +51,30 @@ func UserInputFormatter(v ...interface{}) string {
 	return template.HTMLEscapeString(url.QueryEscape(v[0].(string)))
 }
 
+// These fields must be specified but the contents are pretty much free
+// form, so we don't do any further verification on them. We could check
+// them for spamminess later, but at this point there's not much we can do.
+//
+// You might think that it would be a good idea to split the name field
+// into first and last name, which might even work for this specific,
+// localized use case, but it is bad practice, because some countries don't
+// have the concept of last names, and would set a bad precedent for people
+// reading and using this code.
+//
+// The same applies to the address. There just is no globally common format
+// for home addresses, not everything has a house number, and we don't want
+// to encourage people to think so. We could look up city names in a list,
+// but then again that would be relatively useless.
+//
+// As for zip codes, you don't even have to go to India to find out why
+// enforcing a format there doesn't work. Many people around here believe
+// that a 4-5 digit number is enough to represent a zip code. But then
+// the Netherlands have zip codes like «4201 EB» (where EB is part of the
+// zip code). If you consider adding an exception for this, please note
+// that British zip codes look like «G1 1PP». The only realistic way to
+// deal with these is to allow free text for zip codes.
+//
+// The country could arguably be a list.
 var requiredFields []string = []string{
 	"name",
 	"address",
@@ -59,26 +83,35 @@ var requiredFields []string = []string{
 	"country",
 }
 
-// Statistics
+// Statistics.
 var numRequests *expvar.Int = expvar.NewInt("num-http-requests")
 var numSubmitted *expvar.Int = expvar.NewInt("num-successful-form-submissions")
 var numSubmitErrors *expvar.Map = expvar.NewMap("num-form-submission-errors")
 
+// Regular expressions for verification of the email and phone number fields.
 var emailRe *regexp.Regexp
 var phoneRe *regexp.Regexp
 
+// Data type for the HTTP handler which takes the requests. We require the
+// templates and a passthrough object for static content requests, so we
+// need to hold some state.
 type FormInputHandler struct {
 	applicationTmpl *template.Template
 	printTmpl       *template.Template
 	passthrough      http.Handler
 }
 
+// Data used by the HTML template. Contains not just data entered so far,
+// but also some error texts in case there was a problem submitting data.
 type FormInputData struct {
 	MemberData *Member
 	CommonErr  string
 	FieldErr   map[string]string
 }
 
+// Parse the form data from the membership signup form and verify that it
+// can be considered acceptable. If the data looks correct, return the
+// print template for the user to sign and send in.
 func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var err error
 	var data FormInputData
