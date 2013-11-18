@@ -54,38 +54,6 @@ func UserInputFormatter(v ...interface{}) string {
 	return template.HTMLEscapeString(url.QueryEscape(v[0].(string)))
 }
 
-// These fields must be specified but the contents are pretty much free
-// form, so we don't do any further verification on them. We could check
-// them for spamminess later, but at this point there's not much we can do.
-//
-// You might think that it would be a good idea to split the name field
-// into first and last name, which might even work for this specific,
-// localized use case, but it is bad practice, because some countries don't
-// have the concept of last names, and would set a bad precedent for people
-// reading and using this code.
-//
-// The same applies to the address. There just is no globally common format
-// for home addresses, not everything has a house number, and we don't want
-// to encourage people to think so. We could look up city names in a list,
-// but then again that would be relatively useless.
-//
-// As for zip codes, you don't even have to go to India to find out why
-// enforcing a format there doesn't work. Many people around here believe
-// that a 4-5 digit number is enough to represent a zip code. But then
-// the Netherlands have zip codes like «4201 EB» (where EB is part of the
-// zip code). If you consider adding an exception for this, please note
-// that British zip codes look like «G1 1PP». The only realistic way to
-// deal with these is to allow free text for zip codes.
-//
-// The country could arguably be a list.
-var requiredFields []string = []string{
-	"name",
-	"address",
-	"city",
-	"zip",
-	"country",
-}
-
 // Statistics.
 var numRequests *expvar.Int = expvar.NewInt("num-http-requests")
 var numSubmitted *expvar.Int = expvar.NewInt("num-successful-form-submissions")
@@ -118,7 +86,6 @@ type FormInputData struct {
 func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var err error
 	var data FormInputData
-	var field string
 	var fee float64
 	var ok bool = true
 	numRequests.Add(1)
@@ -147,12 +114,61 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		return		
 	}
 
-	for _, field = range requiredFields {
-		if len(req.PostFormValue("mr[" + field + "]")) <= 0 {
-			numSubmitErrors.Add("no-" + field, 1)
-			data.FieldErr[field] = "Muss angegeben werden"
-			ok = false
-		}
+	// You might think that it would be a good idea to split the name
+	// field into first and last name, which might even work for this
+	// specific, localized use case, but it is bad practice, because
+	// some countries don't have the concept of last names, and would
+	// set a bad precedent for people reading and using this code.
+	var name string = req.PostFormValue("mr[name]");
+	if len(name) <= 0 {
+		numSubmitErrors.Add("no-name", 1)
+		data.FieldErr["name"] = "Ein Name ist erforderlich"
+	} else {
+		data.MemberData.Name = &name
+	}
+
+	// The same applies to the address. There just is no globally common
+	// format for home addresses, not everything has a house number, and
+	// we don't want to encourage people to think so.
+	var address string = req.PostFormValue("mr[address]");
+	if len(address) <= 0 {
+		numSubmitErrors.Add("no-street", 1)
+		data.FieldErr["address"] = "Eine Adresse ist erforderlich"
+	} else {
+		data.MemberData.Street = &address
+	}
+
+	var city string = req.PostFormValue("mr[city]");
+	if len(city) <= 0 {
+		numSubmitErrors.Add("no-city", 1)
+		data.FieldErr["city"] = "Ein Wohnort ist erforderlich"
+	} else {
+		data.MemberData.Street = &city
+	}
+
+	// As for zip codes, you don't even have to go to India to find out
+	// why enforcing a format there doesn't work. Many people around
+	// here believe that a 4-5 digit number is enough to represent a zip
+	// code. But then the Netherlands have zip codes like «4201 EB»
+	// (where EB is part of the zip code). If you consider adding an
+	// exception for this, please note that British zip codes look like
+	// «G1 1PP». The only realistic way to deal with these is to allow
+	// free text for zip codes.
+	var zip string = req.PostFormValue("mr[zip]");
+	if len(zip) <= 0 {
+		numSubmitErrors.Add("no-zip", 1)
+		data.FieldErr["zip"] = "Eine Postleitzahl ist erforderlich"
+	} else {
+		data.MemberData.Zipcode = &zip
+	}
+
+	// The country could arguably be a list.
+	var country string = req.PostFormValue("mr[country]");
+	if len(country) <= 0 {
+		numSubmitErrors.Add("no-country", 1)
+		data.FieldErr["country"] = "Ein Wohnland ist erforderlich"
+	} else {
+		data.MemberData.Country = &country
 	}
 
 	var email string = req.PostFormValue("mr[email]")
