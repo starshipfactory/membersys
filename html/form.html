@@ -1,7 +1,8 @@
+<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-		<title>Starship Factory - Mitgliedschaftsantrag</title>
+		<title>Starship Factory &mdash; Mitgliedschaftsantrag</title>
 		<!-- <base href="http://www.starship-factory.ch/" /> -->
 		<link rel="stylesheet" href="./css/base.css" type="text/css" />
 		<link rel="stylesheet" href="./css/layout.css" type="text/css" media="screen" />
@@ -17,7 +18,7 @@
 	<body>
 		<div id="main">
 			<div class="content">
-				<h1>Starship Factory - Mitgliedschaftsantrag</h1>
+				<h1>Starship Factory &mdash; Mitgliedschaftsantrag</h1>
 				<!-- <img src="images/starship-factory-logo.jpg" title="Starship Factory Logo" alt="Starship Factory Logo" /> -->
 				
 				<form id="membershipRequest" action="" method="post">
@@ -49,7 +50,7 @@
 						</div>
 						<div class="formRow">
 							<label for="telephone">Telefon-Nummer</label>
-							<input type="text" id="telephone" name="mr[telephone]" value="" />
+							<input type="tel" id="telephone" name="mr[telephone]" value="" />
 						</div>
 					</fieldset>
 					
@@ -65,7 +66,7 @@
 								<input class="radio groupFee" type="radio" id="fee2" name="mr[fee]" value="custom" checked="checked" />
 								<label class="radio" for="fee2">Betrag in SFr.</label>
 							</label>
-							<input type="text" id="customFee" name="mr[customFee]" value="" />
+							<input type="number" id="customFee" name="mr[customFee]" min="1" value="" />
 						</div>
 						<div class="formRow">
 							<input class="checkbox" type="checkbox" id="reduction" name="mr[reduction]" value="requested" onchange="$('#customFee').valid()" />
@@ -86,7 +87,7 @@
 						</div>-->
 					</fieldset>
 					
-					<script type="">
+					<script type="text/javascript">
 						// enable field "customFee" when corresponding option is selected,
 						// disable it if not.
 						$('.groupFee')
@@ -154,7 +155,7 @@
 						<div class="formRow">
 							<label for="comments">Gibt's noch was zu sagen?</label>
 							<!-- maxlength? -->
-							<textarea id="comments "cols="80" rows="3"></textarea>
+							<textarea id="comments" cols="80" rows="3"></textarea>
 						</div>
 					</fieldset>
 					
