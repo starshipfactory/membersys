@@ -3,14 +3,14 @@ title: Fill the data into the print template
 desc: |-
   Currently the print template just shows example data, which isn't terribly
   useful.
-
+  
   We should fill it with the data the user entered instead.
 type: :task
 component: membersys
 release: "0.1"
 reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2013-11-15 18:32:03.915379 Z
 references: []
 
@@ -20,3 +20,7 @@ log_events:
   - Caoimhe Chaos <caoimhechaos@protonmail.com>
   - created
   - ""
+- - 2013-11-19 12:31:58.208669 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - closed with disposition fixed
+  - All filled in now.
