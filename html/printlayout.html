@@ -32,37 +32,37 @@
 					<h2>Personalien</h2>
 					<div class="printRow">
 						<div class="printRowTitle">Name:</div>
-						<div class="printRowData">Cedric Spindler</div>
+						<div class="printRowData">{{.MemberData.Name}}</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">Strasse, Nr.:</div>
-						<div class="printRowData">Leonhardstrasse 6</div>
+						<div class="printRowData">{{.MemberData.Street}}</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">PLZ, Ort:</div>
-						<div class="printRowData">4002 Basel</div>
+						<div class="printRowData">{{.MemberData.Zipcode}} {{.MemberData.City}}</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">Land:</div>
-						<div class="printRowData">Schweiz</div>
+						<div class="printRowData">{{.MemberData.Country}}</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">E-Mail Adresse:</div>
-						<div class="printRowData">cedric.spindler@gmail.com</div>
+						<div class="printRowData">{{.MemberData.Email}}</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">Telefonnummer:</div>
-						<div class="printRowData">+41 76 517 22 88</div>
+						<div class="printRowData">{{if .MemberData.Phone}}{{.MemberData.Phone}}{{end}}</div>
 					</div>
 					<p><br /></p>
 					<h2>Mitgliedschaft</h2>
 					<div class="printRow">
 						<div class="printRowTitle">Mitgliederbeitrag:</div>
-						<div class="printRowData">SFr. 1'000.-- / Monat</div>
+						<div class="printRowData">SFr. {{.MemberData.Fee}}.-- / Monat</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">Benutzername:</div>
-						<div class="printRowData">blubberblipp</div>
+						<div class="printRowData">{{if .MemberData.Username}}{{.MemberData.Username}}{{end}}</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle"></div>
@@ -82,7 +82,7 @@
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">Kommentare</div>
-						<div class="printRowData">Lorem ipsum dolor sit amet.</div>
+						<div class="printRowData">{{.Comment}}</div>
 					</div>
 					<!-- alternative layout of the three checked questions -->
 					<!-- <div class="printRow">
