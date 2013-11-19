@@ -18,6 +18,9 @@ message MembershipMetadata {
 
 	// Who approved the request? (User name)
 	optional string approver_uid = 5;
+
+	// Comment which the applicant might have left.
+	optional string comment = 6;
 }
 
 message Member {
