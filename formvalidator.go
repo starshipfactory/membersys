@@ -120,7 +120,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	// specific, localized use case, but it is bad practice, because
 	// some countries don't have the concept of last names, and would
 	// set a bad precedent for people reading and using this code.
-	var name string = req.PostFormValue("mr[name]");
+	var name string = req.PostFormValue("mr[name]")
 	if len(name) <= 0 {
 		numSubmitErrors.Add("no-name", 1)
 		data.FieldErr["name"] = "Ein Name ist erforderlich"
@@ -131,7 +131,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	// The same applies to the address. There just is no globally common
 	// format for home addresses, not everything has a house number, and
 	// we don't want to encourage people to think so.
-	var address string = req.PostFormValue("mr[address]");
+	var address string = req.PostFormValue("mr[address]")
 	if len(address) <= 0 {
 		numSubmitErrors.Add("no-street", 1)
 		data.FieldErr["address"] = "Eine Adresse ist erforderlich"
@@ -139,7 +139,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		data.MemberData.Street = &address
 	}
 
-	var city string = req.PostFormValue("mr[city]");
+	var city string = req.PostFormValue("mr[city]")
 	if len(city) <= 0 {
 		numSubmitErrors.Add("no-city", 1)
 		data.FieldErr["city"] = "Ein Wohnort ist erforderlich"
@@ -155,7 +155,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	// exception for this, please note that British zip codes look like
 	// «G1 1PP». The only realistic way to deal with these is to allow
 	// free text for zip codes.
-	var zip string = req.PostFormValue("mr[zip]");
+	var zip string = req.PostFormValue("mr[zip]")
 	if len(zip) <= 0 {
 		numSubmitErrors.Add("no-zip", 1)
 		data.FieldErr["zip"] = "Eine Postleitzahl ist erforderlich"
@@ -164,7 +164,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	}
 
 	// The country could arguably be a list.
-	var country string = req.PostFormValue("mr[country]");
+	var country string = req.PostFormValue("mr[country]")
 	if len(country) <= 0 {
 		numSubmitErrors.Add("no-country", 1)
 		data.FieldErr["country"] = "Ein Wohnland ist erforderlich"
