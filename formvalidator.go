@@ -100,18 +100,27 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	}
 
 	data.FieldErr = make(map[string]string)
+	data.MemberData = &Member{}
 
 	if err = req.ParseForm(); err != nil {
 		data.CommonErr = err.Error()
 		numSubmitErrors.Add(err.Error(), 1)
-		self.applicationTmpl.Execute(w, data)
+		err = self.applicationTmpl.Execute(w, data)
+		if err != nil {
+			log.Print("Error executing application template: ",
+				err)
+		}
 		return
 	}
 
 	// No data entered: the user is probably just going to the web site
 	// for the first time, so data validation is useless.
 	if len(req.PostForm) == 0 {
-		self.applicationTmpl.Execute(w, data)
+		err = self.applicationTmpl.Execute(w, data)
+		if err != nil {
+			log.Print("Error executing application template: ",
+				err)
+		}
 		return
 	}
 
@@ -289,7 +298,8 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	} else {
 		err = self.applicationTmpl.Execute(w, data)
 		if err != nil {
-			log.Print("Error executing request form template: ", err)
+			log.Print("Error executing request form template: ",
+				err)
 		}
 	}
 }
