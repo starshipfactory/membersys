@@ -5,8 +5,8 @@ type: :task
 component: membersys
 release: "0.1"
 reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2013-11-15 18:30:35.757255 Z
 references: []
 
@@ -16,3 +16,7 @@ log_events:
   - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
   - created
   - ""
+- - 2013-11-19 12:31:48.654375 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - closed with disposition fixed
+  - All filled in now.
