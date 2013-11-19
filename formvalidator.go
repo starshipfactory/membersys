@@ -76,6 +76,7 @@ type FormInputHandler struct {
 // but also some error texts in case there was a problem submitting data.
 type FormInputData struct {
 	MemberData *Member
+	Comment    string
 	CommonErr  string
 	FieldErr   map[string]string
 }
@@ -276,6 +277,8 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		var intfee uint64 = 50
 		data.MemberData.Fee = &intfee
 	}
+
+	data.Comment = req.PostFormValue("mr[comments]")
 
 	if ok {
 		numSubmitted.Add(1)
