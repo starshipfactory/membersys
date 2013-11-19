@@ -144,7 +144,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		numSubmitErrors.Add("no-city", 1)
 		data.FieldErr["city"] = "Ein Wohnort ist erforderlich"
 	} else {
-		data.MemberData.Street = &city
+		data.MemberData.City = &city
 	}
 
 	// As for zip codes, you don't even have to go to India to find out
