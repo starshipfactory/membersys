@@ -68,6 +68,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if len(template_dir) <= 0 {
+		log.Fatal("The --template-dir flag must not be empty")
+	}
+
 	// Load and parse the HTML templates to be displayed.
 	application_tmpl, err = template.ParseFiles(template_dir + "/form.html")
 	if err != nil {
