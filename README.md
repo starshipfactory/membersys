@@ -90,3 +90,17 @@ If they are identified to be in a given scope, they will be able to accept
 or reject applicants from the web interface. Applicants can either be
 searched for by given criteria or looked up directly by their row ID,
 which can be scanned from the printed form using a barcode scanner.
+
+
+BUGS
+----
+
+Bugs for this project are tracked using ditz in the source code tree itself.
+The current state of bug squashing can be viewed at
+http://bugs.starship-factory.ch/membersys/
+
+To report bugs, either send a pull request with the ditz bug added to the
+project
+[starship-factory/membersys](https://github.com/starshipfactory/membersys)
+on GitHub, or send an e-mail to
+[the Starship Factory open list](http://wiki.starship-factory.ch/Mailingliste.html#index1h1).
