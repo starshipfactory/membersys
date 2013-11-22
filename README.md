@@ -70,3 +70,23 @@ Like any good Go program, membersys exports a few variables under
 * num-form-submission-errors: maps by error type the different reasons why
   requests have been rejected (e.g. no name was specified), and how many
   requests of the type have been rejected.
+
+
+Roadmap
+-------
+
+For future releases, we are planning to add the following features:
+
+For release 0.2, we plan to store all successfully submitted requests in an
+Apache Cassandra database. The print form will get a barcode with the row
+ID of the record, making the record easier to find using a barcode scanner.
+
+Release 0.3 will get mail verification functionality. Applicants will
+receive an e-mail to the address they provided, and requests will only be
+considered when a link given in the e-mail has been followed.
+
+Release 1.0 will get administrative functionality for authenticated users.
+If they are identified to be in a given scope, they will be able to accept
+or reject applicants from the web interface. Applicants can either be
+searched for by given criteria or looked up directly by their row ID,
+which can be scanned from the printed form using a barcode scanner.
