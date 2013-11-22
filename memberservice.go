@@ -49,7 +49,7 @@ func main() {
 	var err error
 
 	flag.BoolVar(&help, "help", false, "Display help")
-	flag.StringVar(&bindto, "bind", "0.0.0.0",
+	flag.StringVar(&bindto, "bind", "127.0.0.1:8080",
 		"The address to bind the web server to")
 	flag.StringVar(&lockserv, "lockserver-uri",
 		os.Getenv("DOOZER_URI"),
