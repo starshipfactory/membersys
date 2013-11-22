@@ -102,7 +102,7 @@ func main() {
 				lockboot, "): ", err)
 		}
 
-		err = exporter.ListenAndServeNamedHTTP("helloweb", bindto, nil)
+		err = exporter.ListenAndServeNamedHTTP(servicename, bindto, nil)
 		if err != nil {
 			log.Fatal("ListenAndServe: ", err)
 		}
