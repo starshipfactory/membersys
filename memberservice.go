@@ -102,6 +102,7 @@ func main() {
 				lockboot, "): ", err)
 		}
 
+		defer exporter.UnexportPort()
 		err = exporter.ListenAndServeNamedHTTP(servicename, bindto, nil)
 		if err != nil {
 			log.Fatal("ListenAndServe: ", err)
