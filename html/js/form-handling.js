@@ -93,11 +93,7 @@ $(document).ready(function() {
 				minlength: 5
 			},
 			"mr[passwordConfirm]": {
-				required: {
-					depends: function(element) {
-						return $("mr[password]")
-					}
-				},
+				required: false,
 				minlength: 5,
 				equalTo: "#password"
 			}
