@@ -45,7 +45,7 @@ $(document).ready(function() {
 			}
 			//return value === target.prop('checked');
 			//return this.optional(element) || value == $(params[0]).value();
-	}, $.validator.format("--> Mitgliederbeitrag???"));
+	}, $.validator.format("Der Betrag muss grösser als der Mindestbetrag (50.-- CHF) sein, andernfalls musst du Reduktion beantragen."));
 	
 	/** current edit END */
 
