@@ -7,13 +7,17 @@ components:
 releases: 
 - !ditz.rubyforge.org,2008-03-06/release 
   name: "0.1"
-  status: :unreleased
-  release_time: 
+  status: :released
+  release_time: 2013-12-02 01:56:32.807880 Z
   log_events: 
   - - 2013-11-15 16:31:20.483725 Z
     - Caoimhe Chaos <caoimhechaos@protonmail.com>
     - created
     - Proof of Concept release featuring just the web interface
+  - - 2013-12-02 01:56:32.807890 Z
+    - Caoimhe Chaos <caoimhechaos@protonmail.com>
+    - released
+    - With no bugs left and none reported, it seems time to release version 0.1.
 - !ditz.rubyforge.org,2008-03-06/release 
   name: "0.2"
   status: :unreleased
