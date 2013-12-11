@@ -1,0 +1,7 @@
+[gerrit]
+host=review.ancient-solutions.com
+port=29418
+project=membersys
+defaultbranch=master
+defaultremote=gerrit
+defaultrebase=1
