@@ -267,8 +267,8 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		}
 	}
 	if req.PostFormValue("mr[fee]") == "custom" {
-		if fee < 50 && req.PostFormValue("mr[reduction]") != "requested" {
-			data.FieldErr["customFee"] = "Für einen Betrag unter 50 CHF muss eine Ermässigung beantragt werden"
+		if fee < 20 && req.PostFormValue("mr[reduction]") != "requested" {
+			data.FieldErr["customFee"] = "Für einen Betrag unter 20 CHF muss eine Ermässigung beantragt werden"
 			numSubmitErrors.Add("low-fee-without-reduction", 1)
 			ok = false
 		} else if len(req.PostFormValue("mr[customFee]")) <= 0 {
@@ -278,12 +278,12 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			var intfee uint64 = uint64(fee)
 			data.MemberData.Fee = &intfee
 		}
-	} else if req.PostFormValue("mr[fee]") != "SFr. 50.--" {
+	} else if req.PostFormValue("mr[fee]") != "SFr. 20.--" {
 		data.FieldErr["fee"] = "Unbekannter Wert für den Mitgliedsbeitrag"
 		numSubmitErrors.Add("unknown-fee-value", 1)
 		ok = false
 	} else {
-		var intfee uint64 = 50
+		var intfee uint64 = 20
 		data.MemberData.Fee = &intfee
 	}
 
