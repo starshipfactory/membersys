@@ -37,7 +37,7 @@ $(document).ready(function() {
 			if($(params[0]).prop('checked')) {
 				return true;
 			}
-			else if($(params[1]).prop('checked') && value >= 50) {
+			else if($(params[1]).prop('checked') && value >= 20) {
 				return true;
 			}
 			else if( $(params[2]).prop('checked')) {
@@ -45,7 +45,7 @@ $(document).ready(function() {
 			}
 			//return value === target.prop('checked');
 			//return this.optional(element) || value == $(params[0]).value();
-	}, $.validator.format("Der Betrag muss grösser als der Mindestbetrag (50.-- CHF) sein, andernfalls musst du Reduktion beantragen."));
+	}, $.validator.format("Der Betrag muss grösser als der Mindestbetrag (20.-- CHF) sein, andernfalls musst du Reduktion beantragen."));
 	
 	/** current edit END */
 
