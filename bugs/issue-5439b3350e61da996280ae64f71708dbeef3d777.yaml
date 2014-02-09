@@ -14,7 +14,7 @@ desc: |-
   don't expose any information about the requestor.
 type: :feature
 component: membersys
-release: "0.2"
+release: "0.3"
 reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
 status: :unstarted
 disposition: 
