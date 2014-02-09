@@ -20,13 +20,17 @@ releases:
     - With no bugs left and none reported, it seems time to release version 0.1.
 - !ditz.rubyforge.org,2008-03-06/release 
   name: "0.2"
-  status: :unreleased
-  release_time: 
+  status: :released
+  release_time: 2014-02-09 04:19:25.832198 Z
   log_events: 
   - - 2014-02-09 04:59:50.263568 Z
     - Caoimhe Chaos <caoimhechaos@protonmail.com>
     - created
     - Split yearly/monthly payment and logo.
+  - - 2014-02-09 04:19:25.832209 Z
+    - Caoimhe Chaos <caoimhechaos@protonmail.com>
+    - released
+    - ""
 - !ditz.rubyforge.org,2008-03-06/release 
   name: "0.3"
   status: :unreleased
