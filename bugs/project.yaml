@@ -23,12 +23,21 @@ releases:
   status: :unreleased
   release_time: 
   log_events: 
+  - - 2014-02-09 04:59:50.263568 Z
+    - Caoimhe Chaos <caoimhechaos@protonmail.com>
+    - created
+    - Split yearly/monthly payment and logo.
+- !ditz.rubyforge.org,2008-03-06/release 
+  name: "0.3"
+  status: :unreleased
+  release_time: 
+  log_events: 
   - - 2013-11-15 19:01:36.926968 Z
     - Caoimhe Chaos <caoimhechaos@protonmail.com>
     - created
     - Enhanced version with Cassandra backend
 - !ditz.rubyforge.org,2008-03-06/release 
-  name: "0.3"
+  name: "0.4"
   status: :unreleased
   release_time: 
   log_events: 

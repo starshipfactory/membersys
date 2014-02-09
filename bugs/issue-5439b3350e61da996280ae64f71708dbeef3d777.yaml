@@ -14,7 +14,7 @@ desc: |-
   don't expose any information about the requestor.
 type: :feature
 component: membersys
-release: "0.2"
+release: "0.3"
 reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
 status: :unstarted
 disposition: 

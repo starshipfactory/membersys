@@ -3,7 +3,7 @@ title: Verify requestor email addresses
 desc: We currently accept any e-mail address. We should verify at least that someone is listening who agrees to become a member.
 type: :feature
 component: membersys
-release: "0.3"
+release: "0.4"
 reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
 status: :unstarted
 disposition: 

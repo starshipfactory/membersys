@@ -7,7 +7,7 @@ desc: |-
   It should be stored in Cassandra and processed later.
 type: :task
 component: membersys
-release: "0.2"
+release: "0.3"
 reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
 status: :unstarted
 disposition: 
@@ -22,5 +22,5 @@ log_events:
   - ""
 - - 2013-11-15 19:09:18.649668 Z
   - Caoimhe Chaos <caoimhechaos@protonmail.com>
-  - assigned to release 0.2 from 0.1
+  - assigned to release 0.3 from 0.1
   - Moved to its own release.
