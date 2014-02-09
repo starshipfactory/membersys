@@ -1,0 +1,27 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Add a logo to the join website
+desc: We should have the logo of the organization on the web site.
+type: :feature
+component: membersys
+release: "0.2"
+reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+status: :closed
+disposition: :fixed
+creation_time: 2014-02-09 04:13:19.321538 Z
+references: []
+
+id: edbe0186dbad411b64281bed2afda541192ff6f7
+log_events: 
+- - 2014-02-09 04:13:22.918504 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - created
+  - ""
+- - 2014-02-09 04:17:44.213126 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - closed with disposition fixed
+  - |-
+    commit 9d4f55aab28fcde95782b0f28178201398e01cfe
+    Author: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    Date:   Sun Feb 9 04:29:04 2014 +0100
+    
+        Add a logo to the join website (but not the printed form).
