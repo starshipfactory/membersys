@@ -153,6 +153,11 @@ fieldset.stdForm div.formRow {
 	padding: 6px 0;
 }
 
+fieldset.stdForm div.formRow div.formGroup {
+	display: inline-block;
+	width: 180px;
+}
+
 .content span.required {
 	color: #BD0926;
 }

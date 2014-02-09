@@ -12,7 +12,7 @@ $(document).ready(function() {
 			var user = settings.data.username,
 				users = ["asdf", "Peter", "Peter2", "George"];
 			this.responseText = "true";
-			if ( $.inArray( user, users ) !== -1 ) {
+			if ($.inArray( user, users ) !== -1) {
 				this.responseText = "false";
 			}
 		},
@@ -26,26 +26,32 @@ $(document).ready(function() {
 			params[0] : id of the radiobutton (fee2)
 			element : input id="customFee"
 			value : contents of "element"
-			
 			*/
-			if ( this.settings.onfocusout) {
+			var minfee;
+
+			if (this.settings.onfocusout) {
 				$(params[1]).unbind(".validate-feeSelect").bind("blur.validate-feeSelect", function() {
 					$(element).valid();
 				});
 			}
+
+			if ($('#yearly').prop('checked'))
+				minfee = 200;
+			else
+				minfee = 20;
 			
-			if($(params[0]).prop('checked')) {
+			if ($(params[0]).prop('checked')) {
 				return true;
 			}
-			else if($(params[1]).prop('checked') && value >= 20) {
+			else if ($(params[1]).prop('checked') && value >= minfee) {
 				return true;
 			}
-			else if( $(params[2]).prop('checked')) {
+			else if ($(params[2]).prop('checked')) {
 				return true;
 			}
 			//return value === target.prop('checked');
 			//return this.optional(element) || value == $(params[0]).value();
-	}, $.validator.format("Der Betrag muss grösser als der Mindestbetrag (20.-- CHF) sein, andernfalls musst du Reduktion beantragen."));
+	}, $.validator.format("Der Betrag muss grösser als der Mindestbetrag sein, andernfalls musst du Reduktion beantragen."));
 	
 	/** current edit END */
 
