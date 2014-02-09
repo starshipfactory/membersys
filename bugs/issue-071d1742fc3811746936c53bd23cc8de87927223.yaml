@@ -1,0 +1,29 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Hide the print button from the final printed document
+desc: |-
+  There's a rogue print button in the document which is printed.
+  It should be invisible in the print.
+type: :bugfix
+component: membersys
+release: "0.2"
+reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
+status: :closed
+disposition: :fixed
+creation_time: 2014-02-09 04:09:12.841266 Z
+references: []
+
+id: 071d1742fc3811746936c53bd23cc8de87927223
+log_events: 
+- - 2014-02-09 04:09:14.309292 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - created
+  - ""
+- - 2014-02-09 04:09:30.244899 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - closed with disposition fixed
+  - |-
+    commit 71026b980710dc7234161fca8f37a19e01173b02
+    Author: Caoimhe Chaos <caoimhechaos@protonmail.com>
+    Date:   Sun Feb 9 04:27:53 2014 +0100
+    
+        Hide the print button from the final printed document.
