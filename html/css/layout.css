@@ -30,7 +30,17 @@ body {
 .content {
 	/* margin-bottom: 36px; */
 	/* margin: 24px 24px 36px 24px; */
-  /* padding: 18px 18px 0; */
+	/* padding: 18px 18px 0; */
+}
+
+.content h1 {
+	background-image: url(../img/logo_44px.png);
+	background-repeat: no-repeat;
+	background-position: top left;
+	font-size: 22px;
+	padding-left: 84px;
+	padding-top: 8px;
+	padding-bottom: 8px;
 }
 
 #footer {
@@ -40,23 +50,23 @@ body {
 	height: 32px;
 }
 
-	#copyright {
-		display: none;
-		font-size: 11px;
-		line-height: 12px;
-		position: absolute;
-		/* left: 838px;
-		top: 50px; */
-	}
-	
-	#copyright a {
-		font-size: 11px;
-		line-height: 12px;
-		color: #525050;
-		margin-left: 2px;
-	}
-	
-	#copyright a span {
-		display: none;
-	}
+#copyright {
+	display: none;
+	font-size: 11px;
+	line-height: 12px;
+	position: absolute;
+	/* left: 838px;
+	top: 50px; */
+}
+
+#copyright a {
+	font-size: 11px;
+	line-height: 12px;
+	color: #525050;
+	margin-left: 2px;
+}
+
+#copyright a span {
+	display: none;
+}
 
