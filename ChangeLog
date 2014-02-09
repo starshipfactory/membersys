@@ -1,6 +1,7 @@
 == 0.2 / unreleased
 * bugfix: Hide the print button from the final printed document
 * Make it possible to have different prices for monthly and yearly payments
+* Add a logo to the join website
 
 == 0.1 / 2013-12-02
 * Implement proof of concept web service which displays and accepts the membership form
