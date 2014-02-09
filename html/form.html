@@ -62,8 +62,18 @@
 					<h2>Monatlicher Mitgliederbeitrag <span class="required">*</span></h2>
 					<fieldset class="stdForm radio" title="Mitgliederbeitrag">
 						<div class="formRow">
-							<input class="radio groupFee" type="radio" id="fee1" name="mr[fee]" value="SFr. 20.--" onchange="$('#customFee').valid()"/>
-							<label class="radio" for="fee1">SFr. 20.-- (Mindestbeitrag)</label>
+							<div class="formGroup">
+								<input class="radio groupYear" type="radio" id="monthly" name="mr[yearly]" value="no" onchange="$('#customFee').valid()" {{if not .MemberData.FeeYearly}}checked="checked"{{end}}/>
+								<label class="radio" for="monthly">Monatliche Zahlungen</label>
+							</div>
+							<div class="formGroup">
+								<input class="radio groupYear" type="radio" id="yearly" name="mr[yearly]" value="yes" onchange="$('#customFee').valid()" {{if .MemberData.FeeYearly}}checked="checked"{{end}}/>
+								<label class="radio" for="yearly">Jährliche Zahlungen</label>
+							</div>
+						</div>
+						<div class="formRow">
+							<input class="radio groupFee" type="radio" id="fee1" name="mr[fee]" value="SFr. {{if .MemberData.FeeYearly}}200{{else}}20{{end}}.--" onchange="$('#customFee').valid()"/>
+							<label class="radio" for="fee1" id="fee1_label">SFr. {{if .MemberData.FeeYearly}}200{{else}}20{{end}}.-- (Mindestbeitrag)</label>
 						</div>
 						<div class="formRow">
 							<!-- JS: move focuts to customFee field when corresponding option selected. -->
@@ -96,7 +106,7 @@
 						// enable field "customFee" when corresponding option is selected,
 						// disable it if not.
 						$('.groupFee')
-						.change(function () {
+						.change(function() {
 							if ($('#fee2').prop('checked')) {
 								$('#customFee:input').removeAttr('disabled');
 								$('#customFee:input').focus()
@@ -104,6 +114,22 @@
 							else {
 								$('#customFee:input').attr('disabled', 'disabled');
 							}
+						});
+						$('.groupYear')
+						.change(function() {
+							var fl = $('#fee1_label')[0];
+							var val = '';
+							if ($('#yearly').prop('checked')) {
+								val = 'SFr. 200.--';
+							} else {
+								val = 'SFr. 20.--';
+							}
+
+							while (fl.childNodes.length > 0)
+								fl.removeChild(fl.firstChild);
+
+							fl.appendChild(document.createTextNode(val + ' (Mindestbeitrag)'));
+							$('#fee1')[0].value = val;
 						});
 					</script>
 					

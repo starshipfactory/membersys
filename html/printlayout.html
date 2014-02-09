@@ -58,32 +58,40 @@
 					<h2>Mitgliedschaft</h2>
 					<div class="printRow">
 						<div class="printRowTitle">Mitgliederbeitrag:</div>
-						<div class="printRowData">SFr. {{.MemberData.Fee}}.-- / Monat</div>
+						<div class="printRowData">SFr. {{.MemberData.Fee}}.-- / {{if .MemberData.FeeYearly}}Jahr{{else}}Monat{{end}}</div>
 					</div>
+{{if .MemberData.Username}}
 					<div class="printRow">
 						<div class="printRowTitle">Benutzername:</div>
-						<div class="printRowData">{{if .MemberData.Username}}{{.MemberData.Username}}{{end}}</div>
+						<div class="printRowData">{{.MemberData.Username}}</div>
+					</div>
+{{end}}
+					<div class="printRow">
+						<div class="printRowTitle"></div>
+						<div class="printRowData"><strong class="marked">X</strong>
+							Ich habe die Statuten gelesen und akzeptiere diese.</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle"></div>
-						<div class="printRowData"><strong class="marked">X</strong> Ich habe die Statuten gelesen und akzeptiere diese.</div>
+						<div class="printRowData"><strong class="marked">X</strong>
+							Ich habe das Reglement gelesen und akzeptiere dieses.</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle"></div>
-						<div class="printRowData"><strong class="marked">X</strong> Ich habe das Reglement gelesen und akzeptiere dieses.</div>
-					</div>
-					<div class="printRow">
-						<div class="printRowTitle"></div>
-						<div class="printRowData"><strong class="marked">X</strong> Ich werde verbindlich den Mitgliederbeitrag monatlich oder jährlich im Voraus auf das Vereinskonto überweisen.</div>
+						<div class="printRowData"><strong class="marked">X</strong>
+							Ich werde verbindlich den Mitgliederbeitrag {{if .MemberData.FeeYearly}}jährlich{{else}}monatlich{{end}}
+							im Voraus auf das Vereinskonto überweisen.</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle"></div>
 						<div class="printRowData"><strong class="marked">X</strong> Ich bin mindestens 18 Jahre alt.</div>
 					</div>
+{{if .Comment}}
 					<div class="printRow">
 						<div class="printRowTitle">Kommentare</div>
 						<div class="printRowData">{{.Comment}}</div>
 					</div>
+{{end}}
 					<!-- alternative layout of the three checked questions -->
 					<!-- <div class="printRow">
 						<div style="float:left;width: 66%">

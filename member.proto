@@ -57,6 +57,9 @@ message Member {
 	// User name and password hash the user desires.
 	optional string username = 11;
 	optional string pwhash = 12;
+
+	// Whether the user pays monthly or yearly.
+	required bool fee_yearly = 13 [default=false];
 }
 
 message MembershipAgreement {

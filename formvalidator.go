@@ -35,14 +35,15 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"expvar"
+	"fmt"
 	"hash"
 	"html/template"
 	"log"
 	"net/http"
 	"net/url"
 	"regexp"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 var fmap = template.FuncMap{
@@ -69,7 +70,7 @@ var phoneRe *regexp.Regexp
 type FormInputHandler struct {
 	applicationTmpl *template.Template
 	printTmpl       *template.Template
-	passthrough      http.Handler
+	passthrough     http.Handler
 }
 
 // Data used by the HTML template. Contains not just data entered so far,
@@ -88,7 +89,10 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	var err error
 	var data FormInputData
 	var fee float64
+	var yearly bool = false
+	var minfee float64
 	var ok bool = true
+
 	numRequests.Add(1)
 
 	// Pass JavaScript and CSS requests through to the passthrough handler.
@@ -121,7 +125,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			log.Print("Error executing application template: ",
 				err)
 		}
-		return		
+		return
 	}
 
 	// You might think that it would be a good idea to split the name
@@ -246,6 +250,18 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		ok = false
 	}
 
+	// Determine whether the user requests yearly payments.
+	if req.PostFormValue("mr[yearly]") == "yes" {
+		yearly = true
+		data.MemberData.FeeYearly = &yearly
+	}
+
+	if yearly {
+		minfee = 200
+	} else {
+		minfee = 20
+	}
+
 	if len(req.PostFormValue("mr[customFee]")) > 0 {
 		fee, err = strconv.ParseFloat(req.PostFormValue("mr[customFee]"), 64)
 		if err == strconv.ErrRange {
@@ -267,8 +283,8 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		}
 	}
 	if req.PostFormValue("mr[fee]") == "custom" {
-		if fee < 20 && req.PostFormValue("mr[reduction]") != "requested" {
-			data.FieldErr["customFee"] = "Für einen Betrag unter 20 CHF muss eine Ermässigung beantragt werden"
+		if fee < minfee && req.PostFormValue("mr[reduction]") != "requested" {
+			data.FieldErr["customFee"] = fmt.Sprintf("Für einen Betrag unter %d CHF muss eine Ermässigung beantragt werden", minfee)
 			numSubmitErrors.Add("low-fee-without-reduction", 1)
 			ok = false
 		} else if len(req.PostFormValue("mr[customFee]")) <= 0 {
@@ -278,12 +294,12 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			var intfee uint64 = uint64(fee)
 			data.MemberData.Fee = &intfee
 		}
-	} else if req.PostFormValue("mr[fee]") != "SFr. 20.--" {
+	} else if req.PostFormValue("mr[fee]") != fmt.Sprintf("SFr. %d.--", int64(minfee)) {
 		data.FieldErr["fee"] = "Unbekannter Wert für den Mitgliedsbeitrag"
 		numSubmitErrors.Add("unknown-fee-value", 1)
 		ok = false
 	} else {
-		var intfee uint64 = 20
+		var intfee uint64 = uint64(minfee)
 		data.MemberData.Fee = &intfee
 	}
 
