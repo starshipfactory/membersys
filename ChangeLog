@@ -1,4 +1,4 @@
-== 0.2 / unreleased
+== 0.2 / 2014-02-09
 * bugfix: Hide the print button from the final printed document
 * Make it possible to have different prices for monthly and yearly payments
 * Add a logo to the join website
