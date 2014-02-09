@@ -1,3 +1,6 @@
+== 0.2 / unreleased
+* Make it possible to have different prices for monthly and yearly payments
+
 == 0.1 / 2013-12-02
 * Implement proof of concept web service which displays and accepts the membership form
 * Integrate data and error messages into the application template

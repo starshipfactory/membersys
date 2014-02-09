@@ -1,0 +1,29 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Make it possible to have different prices for monthly and yearly payments
+desc: |-
+  Right now it's only possible to pay monthly but it would make sense to pay less
+  if the membership fee is paid per year.
+type: :feature
+component: membersys
+release: "0.2"
+reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
+status: :closed
+disposition: :fixed
+creation_time: 2014-02-09 04:05:25.814225 Z
+references: []
+
+id: 08f8211536ed7df190795bc02c8af259593176ae
+log_events: 
+- - 2014-02-09 04:05:28.729592 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - created
+  - ""
+- - 2014-02-09 04:06:17.813007 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - closed with disposition fixed
+  - |-
+    commit fa143193655d5b5844f8197151fcc52740115230
+    Author: Caoimhe Chaos <caoimhechaos@protonmail.com>
+    Date:   Sun Feb 9 02:25:15 2014 +0100
+    
+        Allow people to pay per year rather than per month.
