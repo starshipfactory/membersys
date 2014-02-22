@@ -27,6 +27,10 @@ body {
 	font-weight: normal;
 	color: #3E5F81;
 	margin-bottom: 24pt;
+	background-image: none;
+}
+.content h1 img {
+	display: inline;
 }
 
 #addressLabel {

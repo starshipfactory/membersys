@@ -34,13 +34,15 @@ body {
 }
 
 .content h1 {
-	background-image: url(../img/logo_44px.png);
-	background-repeat: no-repeat;
-	background-position: top left;
 	font-size: 22px;
-	padding-left: 84px;
 	padding-top: 8px;
 	padding-bottom: 8px;
+}
+.content h1 img {
+	display: none;
+	margin-bottom: -15px;
+    margin-right: 4px;
+    padding-top: 0;
 }
 
 #footer {
