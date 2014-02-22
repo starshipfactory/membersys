@@ -297,16 +297,16 @@ fieldset.stdForm div.formRow div.formGroup {
 
 .printRow {
 	border-bottom: 1pt dotted #888;
-	margin-top: 0.5cm;
+	margin-top: 0.4cm;
 }
 
 .small {
-	margin-top: 0.4cm;
+	margin-top: 0.2cm;
 }
 
 .printRowOpen {
 	border-bottom: 1pt solid #444;
-	margin-top: 1.5cm;
+	margin-top: 1.4cm;
 }
 
 .printRow *,
