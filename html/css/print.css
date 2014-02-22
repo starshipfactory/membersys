@@ -16,7 +16,7 @@ body {
 
 #main {
 	position: static;
-	margin: 24pt;
+	margin: 12pt 24pt;
 	text-align: left;
 	box-shadow: none;
 	padding: 0px;
@@ -28,16 +28,27 @@ body {
 	color: #3E5F81;
 	margin-bottom: 24pt;
 	background-image: none;
+	padding: 0;
 }
 .content h1 img {
 	display: inline;
+	margin-bottom: -24px;
+	margin-right: 4px;
+	padding-top: 0;
+}
+
+.content h1 span {
+	display: block;
+	margin-left: 88px;
+	font-weight: normal;
+	font-size: 18px;
 }
 
 #addressLabel {
 	/* display: none; */
 	position: absolute;
 	top: 0pt;
-	right: 24pt;
+	right: 0;
 }
 
 /* logo

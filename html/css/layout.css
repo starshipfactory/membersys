@@ -35,14 +35,20 @@ body {
 
 .content h1 {
 	font-size: 22px;
-	padding-top: 8px;
 	padding-bottom: 8px;
 }
 .content h1 img {
-	display: none;
-	margin-bottom: -15px;
-    margin-right: 4px;
-    padding-top: 0;
+	display: inline;
+	margin-bottom: -24px;
+	margin-right: 4px;
+	padding-top: 0;
+}
+
+.content h1 span {
+	display: block;
+	margin-left: 86px;
+	font-weight: normal;
+	font-size: 18px;
 }
 
 #footer {
