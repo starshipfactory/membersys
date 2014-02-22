@@ -23,16 +23,6 @@ body {
 	padding: 48px 36px 24px 36px;
 }
 
-#main-innerWrap {
-	/* background: transparent url(./../images/l1_footer_bg.jpg) no-repeat left bottom; */
-}
-	
-.content {
-	/* margin-bottom: 36px; */
-	/* margin: 24px 24px 36px 24px; */
-	/* padding: 18px 18px 0; */
-}
-
 .content h1 {
 	font-size: 22px;
 	padding-bottom: 8px;
@@ -43,7 +33,6 @@ body {
 	margin-right: 4px;
 	padding-top: 0;
 }
-
 .content h1 span {
 	display: block;
 	margin-left: 86px;
@@ -63,8 +52,6 @@ body {
 	font-size: 11px;
 	line-height: 12px;
 	position: absolute;
-	/* left: 838px;
-	top: 50px; */
 }
 
 #copyright a {
