@@ -45,19 +45,10 @@ body {
 }
 
 #addressLabel {
-	/* display: none; */
 	position: absolute;
 	top: 0pt;
 	right: 0;
 }
-
-/* logo
-#head h1 img {
-	position: absolute;
-	left: 10px;
-	top: 10px;
-	border: none;
-} */
 
 .noprint {
 	display: none;
