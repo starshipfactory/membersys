@@ -1,0 +1,36 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Fix print layout to fit onto a single page.
+desc: |-
+  Currently, the print layout tends to span 2 pages. That makes no sense.
+  
+  Change it to only use 1 page.
+type: :bugfix
+component: membersys
+release: 0.2.1
+reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+status: :closed
+disposition: :fixed
+creation_time: 2014-02-09 04:19:53.170708 Z
+references: []
+
+id: c95dd393dfa70f8c8d1bf6add58ca9ce5b041937
+log_events: 
+- - 2014-02-09 04:19:53.156144 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - created
+  - ""
+- - 2014-02-22 16:34:09.531472 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - closed with disposition fixed
+  - |-
+    commit 53ee099599f52ebecb29e6560cd247853e8be97a
+    Author: Cedric Spindler <cedric.spindler@gmail.com>
+    Date:   Sat Feb 22 16:27:52 2014 +0100
+    
+        Update the HTML-printlayout and the CSS for printing
+    
+    commit 90bce6ce7d8ff8751df328cb0cc98992f374e312
+    Author: Zed Cat <cedric.spindler@gmail.com>
+    Date:   Sat Feb 22 17:34:09 2014 +0100
+    
+        Fine tuning of print-layouts. Logo visible for printing and on screen. Generated new PDF for printing.

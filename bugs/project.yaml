@@ -49,3 +49,16 @@ releases:
     - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
     - created
     - Version with e-mail verification codes
+- !ditz.rubyforge.org,2008-03-06/release 
+  name: 0.2.1
+  status: :released
+  release_time: 2014-06-05 01:53:55.047815 Z
+  log_events: 
+  - - 2014-02-09 05:19:53.993010 Z
+    - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    - created
+    - First patch release of version 0.2.
+  - - 2014-06-05 01:53:55.047825 Z
+    - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    - released
+    - ""
