@@ -1,0 +1,27 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Reglement and statues don't link anywhere.
+desc: The membership document contains links to accept the regulations and statues but they don't link anywhere.
+type: :bugfix
+component: membersys
+release: 0.2.1
+reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
+status: :closed
+disposition: :fixed
+creation_time: 2014-06-05 01:51:30.617221 Z
+references: []
+
+id: 3a996bf906ca19fb080932f4214073b762817e16
+log_events: 
+- - 2014-06-05 01:51:55.935287 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - created
+  - ""
+- - 2014-06-05 01:53:03.661980 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - closed with disposition fixed
+  - |-
+    commit 142d1cc0ee6ff293beb3d61b652012f836ab1bd3
+    Author: Caoimhe Chaos <caoimhechaos@protonmail.com>
+    Date:   Fri Mar 7 12:07:06 2014 +0100
+    
+        Point the statutes and reglement links to actual web pages.
