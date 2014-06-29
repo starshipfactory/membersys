@@ -72,13 +72,14 @@ type FormInputHandler struct {
 	database        *MembershipDB
 	passthrough     http.Handler
 	printTmpl       *template.Template
+	useProxyRealIP  bool
 }
 
 // Data used by the HTML template. Contains not just data entered so far,
 // but also some error texts in case there was a problem submitting data.
 type FormInputData struct {
 	MemberData *Member
-	Comment    string
+	Metadata   *MembershipMetadata
 	Key        string
 	CommonErr  string
 	FieldErr   map[string]string
@@ -306,10 +307,22 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		data.MemberData.Fee = &intfee
 	}
 
-	data.Comment = req.PostFormValue("mr[comments]")
+	data.Metadata = new(MembershipMetadata)
+	data.Metadata.Comment = new(string)
+	*data.Metadata.Comment = req.PostFormValue("mr[comments]")
+
+	data.Metadata.RequestSourceIp = new(string)
+	if self.useProxyRealIP {
+		*data.Metadata.RequestSourceIp = req.Header.Get("X-Real-IP")
+	} else {
+		*data.Metadata.RequestSourceIp = req.RemoteAddr
+	}
+
+	data.Metadata.UserAgent = new(string)
+	*data.Metadata.UserAgent = req.Header.Get("User-Agent")
 
 	if ok {
-		data.Key, err = self.database.StoreMembershipRequest(data.MemberData)
+		data.Key, err = self.database.StoreMembershipRequest(&data)
 		if err != nil {
 			log.Print("Error storing membership request for ", data.MemberData.GetName(),
 				" in database: ", err)

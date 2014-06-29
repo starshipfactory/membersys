@@ -84,12 +84,12 @@
 						<div class="printRowTitle"></div>
 						<div class="printRowData"><strong class="marked">X</strong> Ich bin mindestens 18 Jahre alt.</div>
 					</div>
-{{if .Comment}}
+{{if .Metadata}}{{if .Metadata.Comment}}
 					<div class="printRow">
 						<div class="printRowTitle">Kommentare</div>
-						<div class="printRowData">{{.Comment}}</div>
+						<div class="printRowData">{{.Metadata.Comment}}</div>
 					</div>
-{{end}}
+{{end}}{{end}}
 					<div class="printRowOpen">
 						<div class="printRowTitle">Ort, Datum</div>
 						<div class="printRowData"><strong>Unterschrift</strong></div>

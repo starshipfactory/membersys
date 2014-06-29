@@ -49,6 +49,7 @@ func main() {
 	var cassandra_timeout uint64
 	var application_tmpl, print_tmpl *template.Template
 	var exporter *exportedservice.ServiceExporter
+	var use_proxy_real_ip bool
 	var db *MembershipDB
 	var err error
 
@@ -71,6 +72,8 @@ func main() {
 		"", "Service name to publish as to the lock server")
 	flag.Uint64Var(&cassandra_timeout, "cassandra-timeout", 0,
 		"Time (in milliseconds) to wait for a Cassandra connection, 0 means unlimited")
+	flag.BoolVar(&use_proxy_real_ip, "use-proxy-real-ip", false,
+		"Use the X-Real-IP header set by a proxy to determine remote addresses")
 	flag.Parse()
 
 	if help {
@@ -107,6 +110,7 @@ func main() {
 		database:        db,
 		passthrough:     http.FileServer(http.Dir(template_dir)),
 		printTmpl:       print_tmpl,
+		useProxyRealIP:  use_proxy_real_ip,
 	})
 
 	// If a lock server was specified, attempt to use an anonymous port as

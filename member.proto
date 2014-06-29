@@ -21,6 +21,9 @@ message MembershipMetadata {
 
 	// Comment which the applicant might have left.
 	optional string comment = 6;
+
+	// User agent which the request was submitted with.
+	optional string user_agent = 7;
 }
 
 message Member {
