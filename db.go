@@ -37,6 +37,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"time"
+
+	"code.google.com/p/goprotobuf/proto"
 )
 
 type MembershipDB struct {
@@ -100,7 +102,7 @@ func addMembershipRequestInfoString(mmap map[string][]*cassandra.Mutation, name 
 }
 
 // Store the given membership request in the database.
-func (m *MembershipDB) StoreMembershipRequest(req *Member) (key string, err error) {
+func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, err error) {
 	var bmods map[string]map[string][]*cassandra.Mutation
 	var ire *cassandra.InvalidRequestException
 	var ue *cassandra.UnavailableException
@@ -123,24 +125,41 @@ func (m *MembershipDB) StoreMembershipRequest(req *Member) (key string, err erro
 	bmods[c_key] = make(map[string][]*cassandra.Mutation)
 	bmods[c_key]["application"] = make([]*cassandra.Mutation, 0)
 
-	addMembershipRequestInfoString(bmods[c_key], "name", req.Name, &now)
-	addMembershipRequestInfoString(bmods[c_key], "street", req.Street, &now)
-	addMembershipRequestInfoString(bmods[c_key], "city", req.City, &now)
-	addMembershipRequestInfoString(bmods[c_key], "zipcode", req.Zipcode, &now)
-	addMembershipRequestInfoString(bmods[c_key], "country", req.Country, &now)
-	addMembershipRequestInfoString(bmods[c_key], "email", req.Email, &now)
+	addMembershipRequestInfoString(bmods[c_key], "name", req.MemberData.Name, &now)
+	addMembershipRequestInfoString(bmods[c_key], "street", req.MemberData.Street, &now)
+	addMembershipRequestInfoString(bmods[c_key], "city", req.MemberData.City, &now)
+	addMembershipRequestInfoString(bmods[c_key], "zipcode", req.MemberData.Zipcode, &now)
+	addMembershipRequestInfoString(bmods[c_key], "country", req.MemberData.Country, &now)
+	addMembershipRequestInfoString(bmods[c_key], "email", req.MemberData.Email, &now)
 	addMembershipRequestInfoBytes(bmods[c_key], "email_verified", []byte{0}, &now)
-	addMembershipRequestInfoString(bmods[c_key], "phone", req.Phone, &now)
+	addMembershipRequestInfoString(bmods[c_key], "phone", req.MemberData.Phone, &now)
 	bdata = make([]byte, 8)
-	binary.BigEndian.PutUint64(bdata, req.GetFee())
+	binary.BigEndian.PutUint64(bdata, req.MemberData.GetFee())
 	addMembershipRequestInfoBytes(bmods[c_key], "fee", bdata, &now)
-	addMembershipRequestInfoString(bmods[c_key], "username", req.Username, &now)
-	addMembershipRequestInfoString(bmods[c_key], "pwhash", req.Pwhash, &now)
-	if req.GetFeeYearly() {
+	addMembershipRequestInfoString(bmods[c_key], "username", req.MemberData.Username, &now)
+	addMembershipRequestInfoString(bmods[c_key], "pwhash", req.MemberData.Pwhash, &now)
+	if req.MemberData.GetFeeYearly() {
 		addMembershipRequestInfoBytes(bmods[c_key], "fee_yearly", []byte{1}, &now)
 	} else {
 		addMembershipRequestInfoBytes(bmods[c_key], "fee_yearly", []byte{0}, &now)
 	}
+
+	// Set the IP explicitly.
+	addMembershipRequestInfoString(bmods[c_key], "sourceip",
+		req.Metadata.RequestSourceIp, &now)
+	addMembershipRequestInfoString(bmods[c_key], "useragent",
+		req.Metadata.UserAgent, &now)
+
+	// Add the membership metadata.
+	if req.Metadata.RequestTimestamp == nil {
+		req.Metadata.RequestTimestamp = new(uint64)
+		*req.Metadata.RequestTimestamp = uint64(now.Unix())
+	}
+	bdata, err = proto.Marshal(req.Metadata)
+	if err != nil {
+		return
+	}
+	addMembershipRequestInfoBytes(bmods[c_key], "metadata", bdata, &now)
 
 	// Now execute the batch mutation.
 	ire, ue, te, err = m.conn.BatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
