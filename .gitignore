@@ -16,10 +16,15 @@ _test
 _cgo_defun.c
 _cgo_gotypes.go
 _cgo_export.*
+*.pb.go
 
 _testmain.go
 
 *.exe
+
+# Executables
+membersys
+get_column_binary/get_column_binary
 
 # ditz
 .ditz-config
