@@ -37,6 +37,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"ancient-solutions.com/doozer/exportedservice"
 )
@@ -45,8 +46,11 @@ func main() {
 	var help bool
 	var bindto, template_dir string
 	var lockserv, lockboot, servicename string
+	var dbhost, dbname string
+	var cassandra_timeout uint64
 	var application_tmpl, print_tmpl *template.Template
 	var exporter *exportedservice.ServiceExporter
+	var db *MembershipDB
 	var err error
 
 	flag.BoolVar(&help, "help", false, "Display help")
@@ -55,6 +59,10 @@ func main() {
 	flag.StringVar(&lockserv, "lockserver-uri",
 		os.Getenv("DOOZER_URI"),
 		"URI of a Doozer cluster to connect to")
+	flag.StringVar(&dbhost, "cassandra-db-host", "localhost:9160",
+		"Host:port pair of the Cassandra database server")
+	flag.StringVar(&dbname, "cassandra-db-name", "sfmembersys",
+		"Name of the keyspace on the cassandra server to use")
 	flag.StringVar(&template_dir, "template-dir", "",
 		"Path to the directory with the HTML templates")
 	flag.StringVar(&lockboot, "lockserver-boot-uri",
@@ -62,6 +70,8 @@ func main() {
 		"Boot URI to resolve the Doozer cluster name (if required)")
 	flag.StringVar(&servicename, "service-name",
 		"", "Service name to publish as to the lock server")
+	flag.Uint64Var(&cassandra_timeout, "cassandra-timeout", 0,
+		"Time (in milliseconds) to wait for a Cassandra connection, 0 means unlimited")
 	flag.Parse()
 
 	if help {
@@ -86,11 +96,18 @@ func main() {
 	}
 	print_tmpl.Funcs(fmap)
 
+	db, err = NewMembershipDB(dbhost, dbname, time.Duration(cassandra_timeout)*time.Millisecond)
+	if err != nil {
+		log.Fatal("Unable to connect to the cassandra DB ", dbname, " at ", dbhost,
+			": ", err)
+	}
+
 	// Register the URL handler to be invoked.
 	http.Handle("/", &FormInputHandler{
 		applicationTmpl: application_tmpl,
-		printTmpl:       print_tmpl,
+		database:        db,
 		passthrough:     http.FileServer(http.Dir(template_dir)),
+		printTmpl:       print_tmpl,
 	})
 
 	// If a lock server was specified, attempt to use an anonymous port as

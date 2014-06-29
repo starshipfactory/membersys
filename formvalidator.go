@@ -69,8 +69,9 @@ var phoneRe *regexp.Regexp
 // need to hold some state.
 type FormInputHandler struct {
 	applicationTmpl *template.Template
-	printTmpl       *template.Template
+	database        *MembershipDB
 	passthrough     http.Handler
+	printTmpl       *template.Template
 }
 
 // Data used by the HTML template. Contains not just data entered so far,
@@ -78,6 +79,7 @@ type FormInputHandler struct {
 type FormInputData struct {
 	MemberData *Member
 	Comment    string
+	Key        string
 	CommonErr  string
 	FieldErr   map[string]string
 }
@@ -307,10 +309,21 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	data.Comment = req.PostFormValue("mr[comments]")
 
 	if ok {
-		numSubmitted.Add(1)
-		err = self.printTmpl.Execute(w, data)
+		data.Key, err = self.database.StoreMembershipRequest(data.MemberData)
 		if err != nil {
-			log.Print("Error executing print template: ", err)
+			log.Print("Error storing membership request for ", data.MemberData.GetName(),
+				" in database: ", err)
+			numSubmitErrors.Add("cassandra-store", 1)
+
+			data.CommonErr = err.Error()
+			self.applicationTmpl.Execute(w, data)
+		} else {
+			numSubmitted.Add(1)
+			err = self.printTmpl.Execute(w, data)
+			if err != nil {
+				log.Print("Error executing print template: ", err)
+				numSubmitErrors.Add("template-errors", 1)
+			}
 		}
 	} else {
 		err = self.applicationTmpl.Execute(w, data)
