@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Starship Factory - Mitgliedschaftsantr&auml;ge</title>
+		<link rel="stylesheet" href="/css/base.css" type="text/css" />
+		<link rel="stylesheet" href="/css/layout.css" type="text/css" media="screen" />
+		<link rel="stylesheet" href="/css/content.css" type="text/css" />
+		<link rel="stylesheet" href="/css/print.css" type="text/css" media="print" />
+		<script src="/js/jquery.js" type="text/javascript"></script>
+		<script src="/js/jquery.validate.min.js" type="text/javascript"></script>
+		<script src="/js/jquery.mockjax.js" type="text/javascript"></script>
+		<script src="/js/additional-methods.min.js" type="text/javascript"></script>
+		<script src="/js/form-handling.js" type="text/javascript"></script>
+	</head>
+	
+	<body>
+		<div id="main">
+			<div class="content">
+				<h1>
+					<img src="/img/logo_44px.png" title="Starship Factory Logo" alt="Starship Factory Logo" />
+					</span>Starship Factory<br /><span>Mitgliedschaftsantr&auml;ge</span>
+				</h1>
+
+				<p>Die folgenden Mitgliedschaftsantr&auml;ge sind derzeit h&auml;ngig:</p>
+
+				<table id="memberlist">
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Adresse</th>
+							<th>Ort</th>
+							<th>Angestrebter Beitrag</th>
+							<th>Aktionen</th>
+						</tr>
+					</thead>
+					<tbody>
+{{range .}}
+						<tr>
+							<td>{{.Name}}</td>
+							<td>{{.Street}}</td>
+							<td>{{.City}}</td>
+							<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
+							<td>N&ouml;</td>
+						</tr>
+{{else}}
+						<tr><td colspan="5">Derzeit sind keine Mitgliedsantr&auml;ge h&auml;ngig.</td></tr>
+{{end}}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</body>
+</html>

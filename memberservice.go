@@ -32,6 +32,7 @@
 package main
 
 import (
+	"ancient-solutions.com/ancientauth"
 	"ancient-solutions.com/doozer/exportedservice"
 	"flag"
 	"html/template"
@@ -46,9 +47,12 @@ func main() {
 	var bindto, template_dir string
 	var lockserv, lockboot, servicename string
 	var dbhost, dbname string
+	var app_name, cert_file, key_file, ca_bundle, authserver, group string
 	var cassandra_timeout uint64
-	var application_tmpl, print_tmpl *template.Template
+	var result_page_size int
+	var application_tmpl, memberlist_tmpl, print_tmpl *template.Template
 	var exporter *exportedservice.ServiceExporter
+	var authenticator *ancientauth.Authenticator
 	var use_proxy_real_ip bool
 	var db *MembershipDB
 	var err error
@@ -74,6 +78,24 @@ func main() {
 		"Time (in milliseconds) to wait for a Cassandra connection, 0 means unlimited")
 	flag.BoolVar(&use_proxy_real_ip, "use-proxy-real-ip", false,
 		"Use the X-Real-IP header set by a proxy to determine remote addresses")
+
+	// Behavioral flags.
+	flag.IntVar(&result_page_size, "result-page-size", 25,
+		"Show this many records on a result page")
+
+	// AncientAuth flags.
+	flag.StringVar(&app_name, "app-name", "Starship Factory Membership System",
+		"Set the app name to this value. It may be displayed to the user when authenticating")
+	flag.StringVar(&cert_file, "cert", "membersys.crt",
+		"Path to the service X.509 certificate file for authenticating to the login service")
+	flag.StringVar(&key_file, "key", "membersys.key",
+		"Path to the key for the service certificate, in PEM encoded DER format")
+	flag.StringVar(&ca_bundle, "ca-bundle", "ca.crt",
+		"A bundle of X.509 certificates for authenticating the login service")
+	flag.StringVar(&authserver, "login-server", "login.ancient-solutions.com",
+		"DNS name of the login service to be used for authenticating users")
+	flag.StringVar(&group, "desired-group", "",
+		"Group an user should be a member of in order to use the admin interface")
 	flag.Parse()
 
 	if help {
@@ -98,6 +120,20 @@ func main() {
 	}
 	print_tmpl.Funcs(fmap)
 
+	memberlist_tmpl = template.New("memberlist")
+	memberlist_tmpl.Funcs(fmap)
+	memberlist_tmpl, err = memberlist_tmpl.ParseFiles(template_dir + "/memberlist.html")
+	if err != nil {
+		log.Fatal("Unable to parse member list template: ", err)
+	}
+	memberlist_tmpl.Funcs(fmap)
+
+	authenticator, err = ancientauth.NewAuthenticator(
+		app_name, cert_file, key_file, ca_bundle, authserver)
+	if err != nil {
+		log.Fatal("Unable to assemble authenticator: ", err)
+	}
+
 	db, err = NewMembershipDB(dbhost, dbname, time.Duration(cassandra_timeout)*time.Millisecond)
 	if err != nil {
 		log.Fatal("Unable to connect to the cassandra DB ", dbname, " at ", dbhost,
@@ -111,6 +147,14 @@ func main() {
 		passthrough:     http.FileServer(http.Dir(template_dir)),
 		printTmpl:       print_tmpl,
 		useProxyRealIP:  use_proxy_real_ip,
+	})
+
+	http.Handle("/admin/", &MemberListHander{
+		admingroup: group,
+		auth:       authenticator,
+		database:   db,
+		pagesize:   int32(result_page_size),
+		template:   memberlist_tmpl,
 	})
 
 	// If a lock server was specified, attempt to use an anonymous port as

@@ -44,6 +44,11 @@ type MembershipDB struct {
 	conn *cassandra.RetryCassandraClient
 }
 
+type MemberWithKey struct {
+	Key string
+	Member
+}
+
 // Create a new connection to the membership database on the given "host".
 // Will set the keyspace to "dbname".
 func NewMembershipDB(host, dbname string, timeout time.Duration) (*MembershipDB, error) {
@@ -178,4 +183,84 @@ func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, e
 		return
 	}
 	return
+}
+
+// Get a list of all membership applications currently in the database.
+// Returns a set of "num" entries beginning after "prev". If "criterion" is
+// given, it will be compared against the name of the member.
+func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num int32) (
+	[]*MemberWithKey, error) {
+	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
+	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
+	var r *cassandra.KeyRange = cassandra.NewKeyRange()
+	var kss []*cassandra.KeySlice
+	var ks *cassandra.KeySlice
+	var rv []*MemberWithKey
+	var ire *cassandra.InvalidRequestException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	// Fetch the name, street, city and fee columns of the application column family.
+	cp.ColumnFamily = "application"
+	pred.ColumnNames = [][]byte{
+		[]byte("name"), []byte("street"), []byte("city"), []byte("fee"),
+		[]byte("fee_yearly"),
+	}
+	if len(prev) > 0 {
+		var uuid cassandra.UUID
+		if uuid, err = cassandra.ParseUUID(prev); err != nil {
+			return rv, err
+		}
+		r.StartKey = []byte(uuid)
+	} else {
+		r.StartKey = make([]byte, 0)
+	}
+	r.EndKey = make([]byte, 0)
+	r.Count = num
+
+	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
+	if ire != nil {
+		err = errors.New(ire.Why)
+		return rv, err
+	}
+	if ue != nil {
+		err = errors.New("Cassandra unavailable: " + ue.String())
+		return rv, err
+	}
+	if te != nil {
+		err = errors.New("Timed out: " + te.String())
+		return rv, err
+	}
+	if err != nil {
+		return rv, err
+	}
+
+	for _, ks = range kss {
+		var member *MemberWithKey = new(MemberWithKey)
+		var scol *cassandra.ColumnOrSuperColumn
+		var uuid cassandra.UUID = cassandra.UUIDFromBytes(ks.Key)
+
+		member.Key = uuid.String()
+
+		for _, scol = range ks.Columns {
+			var col *cassandra.Column = scol.Column
+
+			if string(col.Name) == "name" {
+				member.Name = proto.String(string(col.Value))
+			} else if string(col.Name) == "street" {
+				member.Street = proto.String(string(col.Value))
+			} else if string(col.Name) == "city" {
+				member.City = proto.String(string(col.Value))
+			} else if string(col.Name) == "fee" {
+				member.Fee = proto.Uint64(binary.BigEndian.Uint64(col.Value))
+			} else if string(col.Name) == "fee_yearly" {
+				member.FeeYearly = proto.Bool(col.Value[0] == 1)
+			}
+		}
+
+		rv = append(rv, member)
+	}
+
+	return rv, nil
 }
