@@ -47,12 +47,18 @@ import (
 )
 
 var fmap = template.FuncMap{
-	"html": template.HTMLEscaper,
-	"url":  UserInputFormatter,
+	"html":      template.HTMLEscaper,
+	"url":       UserInputFormatter,
+	"derefbool": DereferenceBoolean,
 }
 
 func UserInputFormatter(v ...interface{}) string {
 	return template.HTMLEscapeString(url.QueryEscape(v[0].(string)))
+}
+
+func DereferenceBoolean(v ...interface{}) bool {
+	var bref *bool = v[0].(*bool)
+	return *bref
 }
 
 // Statistics.
