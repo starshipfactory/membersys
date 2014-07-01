@@ -32,18 +32,43 @@
 package main
 
 import (
+	"html/template"
+	"log"
 	"net/http"
 
 	"ancient-solutions.com/ancientauth"
 )
 
 type MemberListHander struct {
-	auth *ancientauth.Authenticator
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *MembershipDB
+	pagesize   int32
+	template   *template.Template
 }
 
 func (m *MemberListHander) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var applications []*MemberWithKey
+	var err error
+
 	if m.auth.GetAuthenticatedUser(req) == "" {
 		m.auth.RequestAuthorization(rw, req)
 		return
+	}
+
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.Header().Set("Location", "/")
+		rw.WriteHeader(http.StatusTemporaryRedirect)
+	}
+
+	applications, err = m.database.EnumerateMembershipRequests(
+		req.FormValue("criterion"), req.FormValue("start"), m.pagesize)
+	if err != nil {
+		log.Print("Unable to list members from ", req.FormValue("start"), ": ", err)
+	}
+
+	err = m.template.ExecuteTemplate(rw, "memberlist.html", applications)
+	if err != nil {
+		log.Print("Error executing member list template: ", err)
 	}
 }

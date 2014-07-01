@@ -40,6 +40,10 @@ body {
 	font-size: 18px;
 }
 
+#memberlist {
+	width: 100%;
+}
+
 #footer {
 	clear: both;
 	position: relative;
