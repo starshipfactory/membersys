@@ -142,20 +142,32 @@ func main() {
 	}
 
 	// Register the URL handler to be invoked.
+	http.Handle("/admin/api/accept", &MemberAcceptHandler{
+		admingroup: group,
+		auth:       authenticator,
+		database:   db,
+	})
+
+	http.Handle("/admin/api/reject", &MemberRejectHandler{
+		admingroup: group,
+		auth:       authenticator,
+		database:   db,
+	})
+
+	http.Handle("/admin", &ApplicantListHandler{
+		admingroup: group,
+		auth:       authenticator,
+		database:   db,
+		pagesize:   int32(result_page_size),
+		template:   memberlist_tmpl,
+	})
+
 	http.Handle("/", &FormInputHandler{
 		applicationTmpl: application_tmpl,
 		database:        db,
 		passthrough:     http.FileServer(http.Dir(template_dir)),
 		printTmpl:       print_tmpl,
 		useProxyRealIP:  use_proxy_real_ip,
-	})
-
-	http.Handle("/admin/", &MemberListHander{
-		admingroup: group,
-		auth:       authenticator,
-		database:   db,
-		pagesize:   int32(result_page_size),
-		template:   memberlist_tmpl,
 	})
 
 	// If a lock server was specified, attempt to use an anonymous port as

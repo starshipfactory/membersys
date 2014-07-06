@@ -10,8 +10,7 @@
 		<script src="/js/jquery.js" type="text/javascript"></script>
 		<script src="/js/jquery.validate.min.js" type="text/javascript"></script>
 		<script src="/js/jquery.mockjax.js" type="text/javascript"></script>
-		<script src="/js/additional-methods.min.js" type="text/javascript"></script>
-		<script src="/js/form-handling.js" type="text/javascript"></script>
+		<script src="/js/memberlist.js" type="text/javascript"></script>
 	</head>
 	
 	<body>
@@ -36,12 +35,15 @@
 					</thead>
 					<tbody>
 {{range .}}
-						<tr>
+						<tr id="{{.Key}}">
 							<td>{{.Name}}</td>
 							<td>{{.Street}}</td>
 							<td>{{.City}}</td>
 							<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
-							<td>N&ouml;</td>
+							<td>
+								<a href="javascript:acceptMember(&quot;{{.Key}}&quot;);">Annehmen</a>
+								<a href="javascript:rejectMember(&quot;{{.Key}}&quot;);">Ablehnen</a>
+							</td>
 						</tr>
 {{else}}
 						<tr><td colspan="5">Derzeit sind keine Mitgliedsantr&auml;ge h&auml;ngig.</td></tr>
