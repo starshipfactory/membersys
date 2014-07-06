@@ -58,6 +58,9 @@ func UserInputFormatter(v ...interface{}) string {
 
 func DereferenceBoolean(v ...interface{}) bool {
 	var bref *bool = v[0].(*bool)
+	if bref == nil {
+		return false
+	}
 	return *bref
 }
 
@@ -263,8 +266,8 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	// Determine whether the user requests yearly payments.
 	if req.PostFormValue("mr[yearly]") == "yes" {
 		yearly = true
-		data.MemberData.FeeYearly = &yearly
 	}
+	data.MemberData.FeeYearly = &yearly
 
 	if yearly {
 		minfee = 200
