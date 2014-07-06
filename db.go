@@ -49,6 +49,15 @@ type MemberWithKey struct {
 	Member
 }
 
+// List of all relevant columns; used for a few copies here.
+var allColumns [][]byte = [][]byte{
+	[]byte("name"), []byte("street"), []byte("city"), []byte("zipcode"),
+	[]byte("country"), []byte("email"), []byte("email_verified"),
+	[]byte("phone"), []byte("fee"), []byte("username"), []byte("pwhash"),
+	[]byte("fee_yearly"), []byte("sourceip"), []byte("useragent"),
+	[]byte("metadata"), []byte("pb_data"),
+}
+
 // Create a new connection to the membership database on the given "host".
 // Will set the keyspace to "dbname".
 func NewMembershipDB(host, dbname string, timeout time.Duration) (*MembershipDB, error) {
@@ -72,13 +81,17 @@ func NewMembershipDB(host, dbname string, timeout time.Duration) (*MembershipDB,
 }
 
 // Create a new mutation with the given name, value and time stamp.
-func newCassandraMutationBytes(name string, value []byte, now *time.Time) *cassandra.Mutation {
+func newCassandraMutationBytes(name string, value []byte, now *time.Time, ttl int32) *cassandra.Mutation {
 	var ret = cassandra.NewMutation()
 	var col = cassandra.NewColumn()
 
 	col.Timestamp = now.UnixNano()
 	col.Name = []byte(name)
 	col.Value = value
+
+	if ttl > 0 {
+		col.Ttl = ttl
+	}
 
 	ret.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
 	ret.ColumnOrSupercolumn.Column = col
@@ -88,13 +101,13 @@ func newCassandraMutationBytes(name string, value []byte, now *time.Time) *cassa
 
 // Create a new mutation with the given name, value and time stamp.
 func newCassandraMutationString(name, value string, now *time.Time) *cassandra.Mutation {
-	return newCassandraMutationBytes(name, []byte(value), now)
+	return newCassandraMutationBytes(name, []byte(value), now, 0)
 }
 
 // Funciton for lazy people to add a column to a membership request mutation map.
 func addMembershipRequestInfoBytes(mmap map[string][]*cassandra.Mutation, name string, value []byte, now *time.Time) {
 	mmap["application"] = append(mmap["application"],
-		newCassandraMutationBytes(name, value, now))
+		newCassandraMutationBytes(name, value, now, 0))
 }
 
 // Funciton for lazy people to add a column to a membership request mutation map.
@@ -108,6 +121,7 @@ func addMembershipRequestInfoString(mmap map[string][]*cassandra.Mutation, name 
 // Store the given membership request in the database.
 func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, err error) {
 	var bmods map[string]map[string][]*cassandra.Mutation
+	var pb *MembershipAgreement = new(MembershipAgreement)
 	var ire *cassandra.InvalidRequestException
 	var ue *cassandra.UnavailableException
 	var te *cassandra.TimedOutException
@@ -159,11 +173,14 @@ func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, e
 		req.Metadata.RequestTimestamp = new(uint64)
 		*req.Metadata.RequestTimestamp = uint64(now.Unix())
 	}
-	bdata, err = proto.Marshal(req.Metadata)
+	pb.MemberData = req.MemberData
+	pb.Metadata = req.Metadata
+
+	bdata, err = proto.Marshal(pb)
 	if err != nil {
 		return
 	}
-	addMembershipRequestInfoBytes(bmods[c_key], "metadata", bdata, &now)
+	addMembershipRequestInfoBytes(bmods[c_key], "pb_data", bdata, &now)
 
 	// Now execute the batch mutation.
 	ire, ue, te, err = m.conn.BatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
@@ -183,6 +200,48 @@ func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, e
 		return
 	}
 	return
+}
+
+// Retrieve an individual applicants data.
+func (m *MembershipDB) GetMembershipRequest(id string) (*MembershipAgreement, int64, error) {
+	var uuid cassandra.UUID
+	var member *MembershipAgreement = new(MembershipAgreement)
+	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
+	var r *cassandra.ColumnOrSuperColumn
+	var ire *cassandra.InvalidRequestException
+	var nfe *cassandra.NotFoundException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	if uuid, err = cassandra.ParseUUID(id); err != nil {
+		return nil, 0, err
+	}
+
+	cp.ColumnFamily = "application"
+	cp.Column = []byte("pb_data")
+
+	// Retrieve the protobuf with all data from Cassandra.
+	r, ire, nfe, ue, te, err = m.conn.Get([]byte(uuid), cp, cassandra.ConsistencyLevel_ONE)
+	if ire != nil {
+		return nil, 0, errors.New(ire.Why)
+	}
+	if nfe != nil {
+		return nil, 0, errors.New("Not found")
+	}
+	if ue != nil {
+		return nil, 0, errors.New("Unavailable")
+	}
+	if te != nil {
+		return nil, 0, errors.New("Timed out")
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Decode the protobuf which was written to the column.
+	err = proto.Unmarshal(r.Column.Value, member)
+	return member, r.Column.Timestamp, err
 }
 
 // Get a list of all membership applications currently in the database.
@@ -243,6 +302,10 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 
 		member.Key = uuid.String()
 
+		if len(ks.Columns) == 0 {
+			continue
+		}
+
 		for _, scol = range ks.Columns {
 			var col *cassandra.Column = scol.Column
 
@@ -263,4 +326,81 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 	}
 
 	return rv, nil
+}
+
+// Move the record of the given applicant to the queue of new users to be
+// processed. The approver will be set to "initiator".
+func (m *MembershipDB) MoveApplicantToNewMember(id, initiator string) error {
+	return m.moveApplicantToTable(id, initiator, "membership_queue", 0)
+}
+
+// Move the record of the given applicant to a temporary archive of deleted
+// applications. The deleter will be set to "initiator".
+func (m *MembershipDB) MoveApplicantToTrash(id, initiator string) error {
+	return m.moveApplicantToTable(id, initiator, "membership_archive",
+		int32(6*30*24*60*60))
+}
+
+// Move the record of the given applicant to a different column family.
+func (m *MembershipDB) moveApplicantToTable(id, initiator, table string, ttl int32) error {
+	var uuid cassandra.UUID
+	var bmods map[string]map[string][]*cassandra.Mutation
+	var now time.Time = time.Now()
+	var member *MembershipAgreement
+	var mutation *cassandra.Mutation = cassandra.NewMutation()
+	var value []byte
+	var timestamp int64
+	var ire *cassandra.InvalidRequestException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	uuid, err = cassandra.ParseUUID(id)
+	if err != nil {
+		return err
+	}
+
+	// First, retrieve the desired membership data.
+	if member, timestamp, err = m.GetMembershipRequest(id); err != nil {
+		return err
+	}
+
+	// Fill in details concerning the approval.
+	member.Metadata.ApproverUid = proto.String(initiator)
+	member.Metadata.ApprovalTimestamp = proto.Uint64(uint64(now.Unix()))
+
+	bmods = make(map[string]map[string][]*cassandra.Mutation)
+	bmods[string(uuid)] = make(map[string][]*cassandra.Mutation)
+	bmods[string(uuid)][table] = make([]*cassandra.Mutation, 0)
+	bmods[string(uuid)]["application"] = make([]*cassandra.Mutation, 0)
+
+	value, err = proto.Marshal(member)
+	if err != nil {
+		return err
+	}
+
+	// Add the application protobuf to the membership data.
+	bmods[string(uuid)][table] = append(bmods[string(uuid)][table],
+		newCassandraMutationBytes("pb_data", value, &now, ttl))
+
+	// Delete the application data.
+	mutation.Deletion = cassandra.NewDeletion()
+	mutation.Deletion.Predicate = cassandra.NewSlicePredicate()
+	mutation.Deletion.Predicate.ColumnNames = allColumns
+	mutation.Deletion.Timestamp = timestamp
+	bmods[string(uuid)]["application"] = append(
+		bmods[string(uuid)]["application"], mutation)
+
+	ire, ue, te, err = m.conn.AtomicBatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
+	if ire != nil {
+		return errors.New(ire.Why)
+	}
+	if ue != nil {
+		return errors.New("Unavailable")
+	}
+	if te != nil {
+		return errors.New("Timed out")
+	}
+
+	return err
 }

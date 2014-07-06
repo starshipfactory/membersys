@@ -38,7 +38,8 @@ import (
 	"net/http"
 )
 
-type MemberListHander struct {
+// Handler object for displaying the list of membership applications.
+type ApplicantListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
 	database   *MembershipDB
@@ -46,7 +47,8 @@ type MemberListHander struct {
 	template   *template.Template
 }
 
-func (m *MemberListHander) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+// Serve the list of current membership applications to the requestor.
+func (m *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var applications []*MemberWithKey
 	var err error
 
@@ -70,4 +72,70 @@ func (m *MemberListHander) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	if err != nil {
 		log.Print("Error executing member list template: ", err)
 	}
+}
+
+// Object for approving membership applications.
+type MemberAcceptHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *MembershipDB
+}
+
+func (m *MemberAcceptHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var user string = m.auth.GetAuthenticatedUser(req)
+	var id string = req.PostFormValue("uuid")
+	var err error
+
+	if user == "" {
+		rw.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusForbidden)
+	}
+
+	err = m.database.MoveApplicantToNewMember(id, user)
+	if err != nil {
+		log.Print("Error moving applicant ", id, " to new user: ", err)
+		rw.WriteHeader(http.StatusLengthRequired)
+		rw.Write([]byte(err.Error()))
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
+}
+
+// Object for rejecting membership applications.
+type MemberRejectHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *MembershipDB
+}
+
+func (m *MemberRejectHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var user string = m.auth.GetAuthenticatedUser(req)
+	var id string = req.PostFormValue("uuid")
+	var err error
+
+	if m.auth.GetAuthenticatedUser(req) == "" {
+		rw.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusForbidden)
+	}
+
+	err = m.database.MoveApplicantToTrash(id, user)
+	if err != nil {
+		log.Print("Error moving applicant ", id, " to trash: ", err)
+		rw.WriteHeader(http.StatusLengthRequired)
+		rw.Write([]byte(err.Error()))
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
 }
