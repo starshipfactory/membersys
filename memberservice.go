@@ -49,11 +49,13 @@ func main() {
 	var lockserv, lockboot, servicename string
 	var dbhost, dbname string
 	var app_name, cert_file, key_file, ca_bundle, authserver, group string
+	var x509keyserver string
+	var result_page_size, x509_cache_size int
 	var cassandra_timeout uint64
-	var result_page_size int
 	var application_tmpl, memberlist_tmpl, print_tmpl *template.Template
 	var exporter *exportedservice.ServiceExporter
 	var authenticator *ancientauth.Authenticator
+	var debug_authenticator bool
 	var use_proxy_real_ip bool
 	var db *MembershipDB
 	var err error
@@ -79,6 +81,8 @@ func main() {
 		"Time (in milliseconds) to wait for a Cassandra connection, 0 means unlimited")
 	flag.BoolVar(&use_proxy_real_ip, "use-proxy-real-ip", false,
 		"Use the X-Real-IP header set by a proxy to determine remote addresses")
+	flag.BoolVar(&debug_authenticator, "debug-authenticator", false,
+		"Debug the authenticator?")
 
 	// Behavioral flags.
 	flag.IntVar(&result_page_size, "result-page-size", 25,
@@ -97,6 +101,11 @@ func main() {
 		"DNS name of the login service to be used for authenticating users")
 	flag.StringVar(&group, "desired-group", "",
 		"Group an user should be a member of in order to use the admin interface")
+	flag.StringVar(&x509keyserver, "x509-keyserver", "",
+		"Specification of the X.509 key server to use for looking up certificates. "+
+			"Leave empty to disable certificate lookups.")
+	flag.IntVar(&x509_cache_size, "x509-cache-size", 4,
+		"Number of certificates to be cached")
 	flag.Parse()
 
 	if help {
@@ -130,9 +139,14 @@ func main() {
 	memberlist_tmpl.Funcs(fmap)
 
 	authenticator, err = ancientauth.NewAuthenticator(
-		app_name, cert_file, key_file, ca_bundle, authserver)
+		app_name, cert_file, key_file, ca_bundle, authserver, x509keyserver,
+		x509_cache_size)
 	if err != nil {
 		log.Fatal("Unable to assemble authenticator: ", err)
+	}
+
+	if debug_authenticator {
+		authenticator.Debug()
 	}
 
 	db, err = NewMembershipDB(dbhost, dbname, time.Duration(cassandra_timeout)*time.Millisecond)
