@@ -168,6 +168,12 @@ func main() {
 		database:   db,
 	})
 
+	http.Handle("/admin/api/agreement-upload", &MemberAgreementUploadHandler{
+		admingroup: group,
+		auth:       authenticator,
+		database:   db,
+	})
+
 	http.Handle("/admin", &ApplicantListHandler{
 		admingroup: group,
 		auth:       authenticator,

@@ -56,7 +56,7 @@ var allColumns [][]byte = [][]byte{
 	[]byte("country"), []byte("email"), []byte("email_verified"),
 	[]byte("phone"), []byte("fee"), []byte("username"), []byte("pwhash"),
 	[]byte("fee_yearly"), []byte("sourceip"), []byte("useragent"),
-	[]byte("metadata"), []byte("pb_data"),
+	[]byte("metadata"), []byte("pb_data"), []byte("application_pdf"),
 }
 
 // Create a new connection to the membership database on the given "host".
@@ -366,6 +366,10 @@ func (m *MembershipDB) moveApplicantToTable(id, initiator, table string, ttl int
 		return err
 	}
 
+	if len(member.AgreementPdf) == 0 {
+		return errors.New("No membership agreement scan has been uploaded")
+	}
+
 	// Fill in details concerning the approval.
 	member.Metadata.ApproverUid = proto.String(initiator)
 	member.Metadata.ApprovalTimestamp = proto.Uint64(uint64(now.Unix()))
@@ -391,6 +395,61 @@ func (m *MembershipDB) moveApplicantToTable(id, initiator, table string, ttl int
 	mutation.Deletion.Timestamp = timestamp
 	bmods[string(uuid)]["application"] = append(
 		bmods[string(uuid)]["application"], mutation)
+
+	ire, ue, te, err = m.conn.AtomicBatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
+	if ire != nil {
+		return errors.New(ire.Why)
+	}
+	if ue != nil {
+		return errors.New("Unavailable")
+	}
+	if te != nil {
+		return errors.New("Timed out")
+	}
+
+	return err
+}
+
+// Add the membership agreement form scan to the given membership request
+// record.
+func (m *MembershipDB) StoreMembershipAgreement(id string, agreement_data []byte) error {
+	var agreement *MembershipAgreement
+	var bmods map[string]map[string][]*cassandra.Mutation
+	var ire *cassandra.InvalidRequestException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var now = time.Now()
+	var uuid cassandra.UUID
+	var buuid []byte
+	var value []byte
+	var err error
+
+	uuid, err = cassandra.ParseUUID(id)
+	if err != nil {
+		return err
+	}
+	buuid = []byte(uuid)
+
+	agreement, _, err = m.GetMembershipRequest(id)
+	if err != nil {
+		return err
+	}
+
+	agreement.AgreementPdf = agreement_data
+
+	bmods = make(map[string]map[string][]*cassandra.Mutation)
+	bmods[string(buuid)] = make(map[string][]*cassandra.Mutation)
+	bmods[string(buuid)]["application"] = make([]*cassandra.Mutation, 0)
+
+	value, err = proto.Marshal(agreement)
+	if err != nil {
+		return err
+	}
+
+	addMembershipRequestInfoBytes(bmods[string(buuid)],
+		"pb_data", value, &now)
+	addMembershipRequestInfoBytes(bmods[string(buuid)],
+		"application_pdf", agreement_data, &now)
 
 	ire, ue, te, err = m.conn.AtomicBatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
 	if ire != nil {
