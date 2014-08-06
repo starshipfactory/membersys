@@ -3,14 +3,14 @@ title: Store the filled-out form data in a Cassandra database
 desc: |-
   We fill the data in for the user but it doesn't get saved, so we need to read
   it from the application form again.
-
+  
   It should be stored in Cassandra and processed later.
 type: :task
 component: membersys
 release: "0.3"
 reporter: Caoimhe Chaos <caoimhechaos@protonmail.com>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2013-11-15 18:41:47.272923 Z
 references: []
 
@@ -24,3 +24,7 @@ log_events:
   - Caoimhe Chaos <caoimhechaos@protonmail.com>
   - assigned to release 0.3 from 0.1
   - Moved to its own release.
+- - 2014-08-06 07:50:42.092151 Z
+  - Caoimhe Chaos <caoimhechaos@protonmail.com>
+  - closed with disposition fixed
+  - The few recent commits did this quite well.
