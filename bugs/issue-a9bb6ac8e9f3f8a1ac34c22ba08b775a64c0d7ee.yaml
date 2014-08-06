@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Keep members in the membership database too.
+desc: Currently, only applicants are tracked.
+type: :feature
+component: membersys
+release: "0.3"
+reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+status: :unstarted
+disposition: 
+creation_time: 2014-08-06 07:51:11.832356 Z
+references: []
+
+id: a9bb6ac8e9f3f8a1ac34c22ba08b775a64c0d7ee
+log_events: 
+- - 2014-08-06 07:51:13.301735 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - created
+  - ""
