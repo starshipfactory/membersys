@@ -34,8 +34,10 @@ package main
 import (
 	"ancient-solutions.com/ancientauth"
 	"ancient-solutions.com/doozer/exportedservice"
+	"code.google.com/p/goprotobuf/proto"
 	"flag"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -44,102 +46,71 @@ import (
 
 func main() {
 	var help bool
-	var bindto, template_dir string
-	var lockserv, lockboot, servicename string
-	var dbhost, dbname string
-	var app_name, cert_file, key_file, ca_bundle, authserver, group string
-	var x509keyserver string
-	var result_page_size, x509_cache_size int
-	var cassandra_timeout uint64
+	var bindto, config_file string
+	var config_contents []byte
 	var application_tmpl, memberlist_tmpl, print_tmpl *template.Template
 	var exporter *exportedservice.ServiceExporter
 	var authenticator *ancientauth.Authenticator
 	var debug_authenticator bool
-	var use_proxy_real_ip bool
+	var config MembersysConfig
 	var db *MembershipDB
 	var err error
 
 	flag.BoolVar(&help, "help", false, "Display help")
 	flag.StringVar(&bindto, "bind", "127.0.0.1:8080",
 		"The address to bind the web server to")
-	flag.StringVar(&lockserv, "lockserver-uri",
-		os.Getenv("DOOZER_URI"),
-		"URI of a Doozer cluster to connect to")
-	flag.StringVar(&dbhost, "cassandra-db-host", "localhost:9160",
-		"Host:port pair of the Cassandra database server")
-	flag.StringVar(&dbname, "cassandra-db-name", "sfmembersys",
-		"Name of the keyspace on the cassandra server to use")
-	flag.StringVar(&template_dir, "template-dir", "",
-		"Path to the directory with the HTML templates")
-	flag.StringVar(&lockboot, "lockserver-boot-uri",
-		os.Getenv("DOOZER_BOOT_URI"),
-		"Boot URI to resolve the Doozer cluster name (if required)")
-	flag.StringVar(&servicename, "service-name",
-		"", "Service name to publish as to the lock server")
-	flag.Uint64Var(&cassandra_timeout, "cassandra-timeout", 0,
-		"Time (in milliseconds) to wait for a Cassandra connection, 0 means unlimited")
-	flag.BoolVar(&use_proxy_real_ip, "use-proxy-real-ip", false,
-		"Use the X-Real-IP header set by a proxy to determine remote addresses")
+	flag.StringVar(&config_file, "config",
+		"", "Path to a file containing a MembersysConfig protocol buffer")
 	flag.BoolVar(&debug_authenticator, "debug-authenticator", false,
 		"Debug the authenticator?")
-
-	// Behavioral flags.
-	flag.IntVar(&result_page_size, "result-page-size", 25,
-		"Show this many records on a result page")
-
-	// AncientAuth flags.
-	flag.StringVar(&app_name, "app-name", "Starship Factory Membership System",
-		"Set the app name to this value. It may be displayed to the user when authenticating")
-	flag.StringVar(&cert_file, "cert", "membersys.crt",
-		"Path to the service X.509 certificate file for authenticating to the login service")
-	flag.StringVar(&key_file, "key", "membersys.key",
-		"Path to the key for the service certificate, in PEM encoded DER format")
-	flag.StringVar(&ca_bundle, "ca-bundle", "ca.crt",
-		"A bundle of X.509 certificates for authenticating the login service")
-	flag.StringVar(&authserver, "login-server", "login.ancient-solutions.com",
-		"DNS name of the login service to be used for authenticating users")
-	flag.StringVar(&group, "desired-group", "",
-		"Group an user should be a member of in order to use the admin interface")
-	flag.StringVar(&x509keyserver, "x509-keyserver", "",
-		"Specification of the X.509 key server to use for looking up certificates. "+
-			"Leave empty to disable certificate lookups.")
-	flag.IntVar(&x509_cache_size, "x509-cache-size", 4,
-		"Number of certificates to be cached")
 	flag.Parse()
 
-	if help {
+	if help || config_file == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	if len(template_dir) <= 0 {
-		log.Fatal("The --template-dir flag must not be empty")
+	config_contents, err = ioutil.ReadFile(config_file)
+	if err != nil {
+		log.Fatal("Unable to read ", config_file, ": ", err)
+	}
+	err = proto.Unmarshal(config_contents, &config)
+	if err != nil {
+		err = proto.UnmarshalText(string(config_contents), &config)
+	}
+	if err != nil {
+		log.Fatal("Error parsing ", config_file, ": ", err)
 	}
 
 	// Load and parse the HTML templates to be displayed.
-	application_tmpl, err = template.ParseFiles(template_dir + "/form.html")
+	application_tmpl, err = template.ParseFiles(
+		config.GetTemplateDir() + "/form.html")
 	if err != nil {
 		log.Fatal("Unable to parse form template: ", err)
 	}
-	application_tmpl.Funcs(fmap)
 
-	print_tmpl, err = template.ParseFiles(template_dir + "/printlayout.html")
+	print_tmpl, err = template.ParseFiles(
+		config.GetTemplateDir() + "/printlayout.html")
 	if err != nil {
 		log.Fatal("Unable to parse print layout template: ", err)
 	}
-	print_tmpl.Funcs(fmap)
 
 	memberlist_tmpl = template.New("memberlist")
 	memberlist_tmpl.Funcs(fmap)
-	memberlist_tmpl, err = memberlist_tmpl.ParseFiles(template_dir + "/memberlist.html")
+	memberlist_tmpl, err = memberlist_tmpl.ParseFiles(
+		config.GetTemplateDir() + "/memberlist.html")
 	if err != nil {
 		log.Fatal("Unable to parse member list template: ", err)
 	}
-	memberlist_tmpl.Funcs(fmap)
 
 	authenticator, err = ancientauth.NewAuthenticator(
-		app_name, cert_file, key_file, ca_bundle, authserver, x509keyserver,
-		x509_cache_size)
+		config.AuthenticationConfig.GetAppName(),
+		config.AuthenticationConfig.GetCertPath(),
+		config.AuthenticationConfig.GetKeyPath(),
+		config.AuthenticationConfig.GetCaBundlePath(),
+		config.AuthenticationConfig.GetAuthServerHost(),
+		config.AuthenticationConfig.GetX509KeyserverHost(),
+		int(config.AuthenticationConfig.GetX509CertificateCacheSize()))
 	if err != nil {
 		log.Fatal("Unable to assemble authenticator: ", err)
 	}
@@ -148,59 +119,66 @@ func main() {
 		authenticator.Debug()
 	}
 
-	db, err = NewMembershipDB(dbhost, dbname, time.Duration(cassandra_timeout)*time.Millisecond)
+	db, err = NewMembershipDB(config.DatabaseConfig.GetDatabaseServer(),
+		config.DatabaseConfig.GetDatabaseName(),
+		time.Duration(config.DatabaseConfig.GetDatabaseTimeout())*time.Millisecond)
 	if err != nil {
-		log.Fatal("Unable to connect to the cassandra DB ", dbname, " at ", dbhost,
-			": ", err)
+		log.Fatal("Unable to connect to the cassandra DB ",
+			config.DatabaseConfig.GetDatabaseServer(), " at ",
+			config.DatabaseConfig.GetDatabaseName(), ": ", err)
 	}
 
 	// Register the URL handler to be invoked.
 	http.Handle("/admin/api/accept", &MemberAcceptHandler{
-		admingroup: group,
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
 		database:   db,
 	})
 
 	http.Handle("/admin/api/reject", &MemberRejectHandler{
-		admingroup: group,
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
 		database:   db,
 	})
 
 	http.Handle("/admin/api/agreement-upload", &MemberAgreementUploadHandler{
-		admingroup: group,
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
 		database:   db,
 	})
 
 	http.Handle("/admin", &ApplicantListHandler{
-		admingroup: group,
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
 		database:   db,
-		pagesize:   int32(result_page_size),
+		pagesize:   config.GetResultPageSize(),
 		template:   memberlist_tmpl,
 	})
 
 	http.Handle("/", &FormInputHandler{
 		applicationTmpl: application_tmpl,
 		database:        db,
-		passthrough:     http.FileServer(http.Dir(template_dir)),
+		passthrough:     http.FileServer(http.Dir(config.GetTemplateDir())),
 		printTmpl:       print_tmpl,
-		useProxyRealIP:  use_proxy_real_ip,
+		useProxyRealIP:  config.GetUseProxyRealIp(),
 	})
 
 	// If a lock server was specified, attempt to use an anonymous port as
 	// a Doozer exported HTTP service. Otherwise, just bind to the address
 	// given in bindto, for debugging etc.
-	if len(lockserv) > 0 {
-		exporter, err = exportedservice.NewExporter(lockserv, lockboot)
+	if config.LockserviceConfig != nil {
+		exporter, err = exportedservice.NewExporter(
+			config.LockserviceConfig.GetLockserverUri(),
+			config.LockserviceConfig.GetLockserverBootUri())
 		if err != nil {
-			log.Fatal("doozer.DialUri ", lockserv, " (",
-				lockboot, "): ", err)
+			log.Fatal("doozer.DialUri ",
+				config.LockserviceConfig.GetLockserverUri(), " (",
+				config.LockserviceConfig.GetLockserverBootUri(), "): ", err)
 		}
 
 		defer exporter.UnexportPort()
-		err = exporter.ListenAndServeNamedHTTP(servicename, bindto, nil)
+		err = exporter.ListenAndServeNamedHTTP(
+			config.LockserviceConfig.GetDoozerServiceName(), bindto, nil)
 		if err != nil {
 			log.Fatal("ListenAndServe: ", err)
 		}
