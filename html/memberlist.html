@@ -44,41 +44,88 @@
 			</div>
 		</div>
 
+		<h1>
+			<img src="/img/logo_44px.png" title="Starship Factory Logo" alt="Starship Factory Logo" />
+			Starship Factory <small>Mitgliederverwaltung</small>
+		</h1>
+
+		<ul class="nav nav-tabs" role="tablist">
+			<li class="active"><a href="#members" role="tab" data-toggle="tab">Mitglieder</a></li>
+			<li><a href="#applicants" role="tab" data-toggle="tab">Mitgliedsantr&auml;ge</a></li>
+		</ul>
+
 		<div class="container">
-				<h1>
-					<img src="/img/logo_44px.png" title="Starship Factory Logo" alt="Starship Factory Logo" />
-					Starship Factory <small>Mitgliedschaftsantr&auml;ge</small>
-				</h1>
+			<div class="tab-content">
+				<div class="tab-pane fade in active" id="members">
+					<p>Folgende Leute sind Mitglied in der der Starship Factory:</p>
 
-				<p>Die folgenden Mitgliedschaftsantr&auml;ge sind derzeit h&auml;ngig:</p>
-
-				<table id="memberlist" class="table">
-					<thead>
-						<tr>
-							<th>Name</th>
-							<th>Adresse</th>
-							<th>Ort</th>
-							<th>Angestrebter Beitrag</th>
-							<th>Aktionen</th>
-						</tr>
-					</thead>
-					<tbody>
-{{range $app := .Applicants}}
-						<tr id="{{.Key}}">
-							<td>{{.Name}}</td>
-							<td>{{.Street}}</td>
-							<td>{{.City}}</td>
-							<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
-							<td>
-								<a href="javascript:openUploadAgreement(&quot;{{$app.Key}}&quot;, &quot;{{$.ApprovalCsrfToken}}&quot;, &quot;{{$.UploadCsrfToken}}&quot;);">Annehmen</a>
-								<a href="javascript:rejectMember(&quot;{{$app.Key}}&quot;, &quot;{{$.RejectionCsrfToken}}&quot;);">Ablehnen</a>
-							</td>
-						</tr>
+					<table id="applicantlist" class="table">
+						<thead>
+							<tr>
+								<th>Name</th>
+								<th>Adresse</th>
+								<th>Ort</th>
+								<th>Benutzer</th>
+								<th>Email</th>
+								<th>Beitrag</th>
+								<th>Aktionen</th>
+							</tr>
+						</thead>
+						<tbody>
+{{range $app := .Members}}
+							<tr id="{{.Email}}">
+								<td>{{.Name}}</td>
+								<td>{{.Street}}</td>
+								<td>{{.City}}</td>
+								<td>{{.Username}}</td>
+								<td>{{.Email}}</td>
+								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
+								<td>
+									&nbsp;
+								</td>
+							</tr>
 {{else}}
-						<tr><td colspan="5">Derzeit sind keine Mitgliedsantr&auml;ge h&auml;ngig.</td></tr>
+							<tr>
+								<td colspan="7">Derzeit verf&uuml;gen wir &uuml;ber keine Mitglieder.</td>
+							</tr>
 {{end}}
-					</tbody>
-				</table>
+						</tbody>
+					</table>
+				</div>
+				<div class="tab-pane fade" id="applicants">
+					<p>Die folgenden Mitgliedschaftsantr&auml;ge sind derzeit h&auml;ngig:</p>
+
+					<table id="applicantlist" class="table">
+						<thead>
+							<tr>
+								<th>Name</th>
+								<th>Adresse</th>
+								<th>Ort</th>
+								<th>Angestrebter Beitrag</th>
+								<th>Aktionen</th>
+							</tr>
+						</thead>
+						<tbody>
+{{range $app := .Applicants}}
+							<tr id="{{.Key}}">
+								<td>{{.Name}}</td>
+								<td>{{.Street}}</td>
+								<td>{{.City}}</td>
+								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
+								<td>
+									<a href="javascript:openUploadAgreement(&quot;{{$app.Key}}&quot;, &quot;{{$.ApprovalCsrfToken}}&quot;, &quot;{{$.UploadCsrfToken}}&quot;);">Annehmen</a>
+									<a href="javascript:rejectMember(&quot;{{$app.Key}}&quot;, &quot;{{$.RejectionCsrfToken}}&quot;);">Ablehnen</a>
+								</td>
+							</tr>
+{{else}}
+							<tr>
+								<td colspan="5">Derzeit sind keine Mitgliedsantr&auml;ge h&auml;ngig.</td>
+							</tr>
+{{end}}
+						</tbody>
+					</table>
+				</div>
 			</div>
+		</div>
 	</body>
 </html>
