@@ -1,0 +1,77 @@
+package main;
+
+// Lock service related configuration.
+message LockserviceConfig {
+	// URI of the Doozer lockservice used for locking and publishing.
+	required string lockserver_uri = 1;
+
+	// Boot URL of the lock server (e.g. to find other lock servers).
+	optional string lockserver_boot_uri = 2;
+
+	// Service name to publish as to the lock server
+	optional string doozer_service_name = 3;
+
+}
+
+// Database configuration.
+message DatabaseConfig {
+	// Host name of the Cassandra database server to use.
+	optional string database_server = 1 [default="localhost:9160"];
+
+	// Name of the Cassandra database to use.
+	optional string database_name = 2 [default="sfmembersys"];
+
+	// Time (in milliseconds) to wait for a Cassandra connection,
+	// 0 means unlimited.
+	optional uint64 database_timeout = 3 [default=0];
+}
+
+// Configuration for the authentication system.
+message AuthenticationConfig {
+	// Set the app name to this value. It may be displayed to the user when
+	// authenticating.
+	optional string app_name = 10 [default="Starship Factory Membership System"];
+
+	// Path to the service X.509 certificate file for authenticating to the login service.
+	required string cert_path = 11;
+
+	// Path to the key for the service certificate, in PEM encoded DER format.
+	required string key_path = 12;
+
+	// A bundle of X.509 certificates for authenticating the login service.
+	required string ca_bundle_path = 13;
+
+	// DNS name of the login service to be used for authenticating users.
+	optional string auth_server_host = 14 [default="login.ancient-solutions.com"];
+
+	// Group an user should be a member of in order to use the admin interface
+	required string auth_group = 15;
+
+	// Specification of the X.509 key server to use for looking up certificates.
+	// Leave empty to disable certificate lookups.
+	optional string x509_keyserver_host = 16;
+
+	// Number of certificates to be cached.
+	optional int32 x509_certificate_cache_size = 17;
+}
+
+// Main configuration for the Starship Factory membership management system.
+message MembersysConfig {
+	// Configuration for exporting to and reading from Doozer.
+	optional LockserviceConfig lockservice_config = 1;
+
+	// Database configuration.
+	required DatabaseConfig database_config = 2;
+
+	// Authentication configuration.
+	required AuthenticationConfig authentication_config = 3;
+
+	// Path to the directory with the HTML templates.
+	required string template_dir = 4;
+
+	// Use the X-Real-IP header set by a proxy to determine remote addresses.
+	optional bool use_proxy_real_ip = 5 [default=false];
+
+	// Show this many records on a result page.
+	required int32 result_page_size = 6 [default=25];
+}
