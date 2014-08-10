@@ -75,3 +75,39 @@ message MembersysConfig {
 	// Show this many records on a result page.
 	required int32 result_page_size = 6 [default=25];
 }
+
+// LDAP configuration for actual user editing.
+message LdapConfig {
+	// First, the LDAP server URI.
+	required string server = 1;
+
+	// Special LDAP user to bind as for creating new accounts.
+	required string super_user = 2;
+
+	// Password for the superuser.
+	required string super_password = 3;
+
+	// LDAP search base everyhing is a part of.
+	required string base = 4;
+
+	// Suffix to append to new users, without the base.
+	required string new_user_suffix = 5;
+
+	// Groups the new user should be made a member of.
+	repeated string new_user_group = 6;
+
+	// Primary GID which the new user should be assigned to.
+	required uint32 new_user_gid = 7;
+
+	// Default shell for new users.
+	optional string new_user_shell = 8 [default="/bin/bash"];
+}
+
+// Configuration for the process which creates new users from database wishes.
+message MemberCreatorConfig {
+	// Database configuration.
+	required DatabaseConfig database_config = 1;
+
+	// LDAP configuration.
+	required LdapConfig ldap_config = 2;
+}
