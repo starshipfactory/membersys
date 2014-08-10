@@ -25,6 +25,15 @@ _testmain.go
 # Executables
 membersys
 get_column_binary/get_column_binary
+member_creator/member_creator
+
+# Artifacts of local configuration
+*.conf
+*.crt
+*.key
+*.pem
+*.min.css
+*.min.js
 
 # ditz
 .ditz-config
