@@ -74,6 +74,7 @@ type ApplicantListHandler struct {
 
 type ApplicantRecordList struct {
 	Applicants         []*MemberWithKey
+	Members            []*Member
 	ApprovalCsrfToken  string
 	RejectionCsrfToken string
 	UploadCsrfToken    string
@@ -92,13 +93,22 @@ func (m *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
 		rw.Header().Set("Location", "/")
 		rw.WriteHeader(http.StatusTemporaryRedirect)
+		return
 	}
 
 	applications.Applicants, err = m.database.EnumerateMembershipRequests(
-		req.FormValue("criterion"), req.FormValue("start"), m.pagesize)
+		req.FormValue("applicant_criterion"),
+		req.FormValue("applicant_start"), m.pagesize)
 	if err != nil {
-		log.Print("Unable to list members from ", req.FormValue("start"),
-			": ", err)
+		log.Print("Unable to list applicants from ",
+			req.FormValue("applicant_start"), ": ", err)
+	}
+
+	applications.Members, err = m.database.EnumerateMembers(
+		req.FormValue("member_start"), m.pagesize)
+	if err != nil {
+		log.Print("Unable to list members from ",
+			req.FormValue("member_start"), ": ", err)
 	}
 
 	applications.ApprovalCsrfToken, err = m.auth.GenCSRFToken(

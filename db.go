@@ -57,6 +57,7 @@ var allColumns [][]byte = [][]byte{
 	[]byte("phone"), []byte("fee"), []byte("username"), []byte("pwhash"),
 	[]byte("fee_yearly"), []byte("sourceip"), []byte("useragent"),
 	[]byte("metadata"), []byte("pb_data"), []byte("application_pdf"),
+	[]byte("approval_ts"),
 }
 
 // Create a new connection to the membership database on the given "host".
@@ -243,6 +244,96 @@ func (m *MembershipDB) GetMembershipRequest(id string) (*MembershipAgreement, in
 	// Decode the protobuf which was written to the column.
 	err = proto.Unmarshal(r.Column.Value, member)
 	return member, r.Column.Timestamp, err
+}
+
+// Get a list of all members currently in the database. Returns a set of
+// "num" entries beginning after "prev".
+// Returns a filled-out member structure and the timestamp when the
+// membership was approved.
+func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
+	[]*Member, error) {
+	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
+	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
+	var r *cassandra.KeyRange = cassandra.NewKeyRange()
+	var kss []*cassandra.KeySlice
+	var ks *cassandra.KeySlice
+	var rv []*Member
+	var ire *cassandra.InvalidRequestException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	// Fetch all relevant non-protobuf columns of the members column family.
+	cp.ColumnFamily = "members"
+	pred.ColumnNames = [][]byte{
+		[]byte("name"), []byte("street"), []byte("city"), []byte("country"),
+		[]byte("email"), []byte("phone"), []byte("username"), []byte("fee"),
+		[]byte("fee_yearly"),
+	}
+	if len(prev) > 0 {
+		r.StartKey = []byte(prev)
+	} else {
+		r.StartKey = make([]byte, 0)
+	}
+	r.EndKey = make([]byte, 0)
+	r.Count = num
+
+	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
+	if ire != nil {
+		err = errors.New(ire.Why)
+		return rv, err
+	}
+	if ue != nil {
+		err = errors.New("Cassandra unavailable: " + ue.String())
+		return rv, err
+	}
+	if te != nil {
+		err = errors.New("Timed out: " + te.String())
+		return rv, err
+	}
+	if err != nil {
+		return rv, err
+	}
+
+	for _, ks = range kss {
+		var member *Member = new(Member)
+		var scol *cassandra.ColumnOrSuperColumn
+
+		if len(ks.Columns) == 0 {
+			continue
+		}
+
+		member.Email = proto.String(string(ks.Key))
+
+		for _, scol = range ks.Columns {
+			var col *cassandra.Column = scol.Column
+			var colname string = string(col.Name)
+
+			if colname == "name" {
+				member.Name = proto.String(string(col.Value))
+			} else if colname == "street" {
+				member.Street = proto.String(string(col.Value))
+			} else if colname == "city" {
+				member.City = proto.String(string(col.Value))
+			} else if colname == "country" {
+				member.Country = proto.String(string(col.Value))
+			} else if colname == "email" {
+				member.Email = proto.String(string(col.Value))
+			} else if colname == "phone" {
+				member.Phone = proto.String(string(col.Value))
+			} else if colname == "username" {
+				member.Username = proto.String(string(col.Value))
+			} else if colname == "fee" {
+				member.Fee = proto.Uint64(binary.BigEndian.Uint64(col.Value))
+			} else if colname == "fee_yearly" {
+				member.FeeYearly = proto.Bool(col.Value[0] == 1)
+			}
+		}
+
+		rv = append(rv, member)
+	}
+
+	return rv, nil
 }
 
 // Get a list of all membership applications currently in the database.
