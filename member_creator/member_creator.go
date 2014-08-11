@@ -223,6 +223,7 @@ func main() {
 			var col *cassandra.Column = csc.Column
 			var agreement MembershipAgreement
 			var attrs map[string][]string
+			var m *cassandra.Mutation
 
 			if col == nil {
 				continue
@@ -302,6 +303,16 @@ func main() {
 				now)
 			makeMutation(mmap[string(agreement.MemberData.GetEmail())], cf,
 				"agreement_pdf", agreement.GetAgreementPdf(), now)
+
+			// Now, delete the original record.
+			m = cassandra.NewMutation()
+			m.Deletion = cassandra.NewDeletion()
+			m.Deletion.Predicate = cassandra.NewSlicePredicate()
+			m.Deletion.Predicate.SliceRange = cassandra.NewSliceRange()
+			m.Deletion.Predicate.SliceRange.Start = make([]byte, 0)
+			m.Deletion.Predicate.SliceRange.Finish = make([]byte, 0)
+
+			mmap[string(ks.Key)]["membership_queue"] = []*cassandra.Mutation{m}
 		}
 	}
 
