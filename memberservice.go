@@ -147,6 +147,12 @@ func main() {
 		database:   db,
 	})
 
+	http.Handle("/admin/api/cancel-queued", &MemberQueueCancelHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+	})
+
 	http.Handle("/admin", &ApplicantListHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
