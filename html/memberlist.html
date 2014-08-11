@@ -53,6 +53,7 @@
 			<li class="active"><a href="#members" role="tab" data-toggle="tab">Mitglieder</a></li>
 			<li><a href="#applicants" role="tab" data-toggle="tab">Mitgliedsantr&auml;ge</a></li>
 			<li><a href="#queue" role="tab" data-toggle="tab">In Bearbeitung</a></li>
+			<li><a href="#trash" role="tab" data-toggle="tab">Gel&ouml;scht</a></li>
 		</ul>
 
 		<div class="container">
@@ -153,6 +154,34 @@
 {{else}}
 							<tr>
 								<td colspan="5">Derzeit sind keine Mitgliedsantr&auml;ge in Verarbeitung.</td>
+							</tr>
+{{end}}
+						</tbody>
+					</table>
+				</div>
+				<div class="tab-pane fade" id="trash">
+					<p>Die folgenden Mitgliedschaftsantr&auml;ge wurden gel&ouml;scht:</p>
+
+					<table id="trashlist" class="table">
+						<thead>
+							<tr>
+								<th>Name</th>
+								<th>Adresse</th>
+								<th>Ort</th>
+								<th>Angestrebter Beitrag</th>
+							</tr>
+						</thead>
+						<tbody>
+{{range $app := .Trash}}
+							<tr id="tr-{{.Key}}">
+								<td>{{.Name}}</td>
+								<td>{{.Street}}</td>
+								<td>{{.City}}</td>
+								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
+							</tr>
+{{else}}
+							<tr>
+								<td colspan="4">Derzeit sind keine Mitgliedsantr&auml;ge in Verarbeitung.</td>
 							</tr>
 {{end}}
 						</tbody>

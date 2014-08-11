@@ -496,6 +496,82 @@ func (m *MembershipDB) EnumerateQueuedMembers(prev string, num int32) ([]*Member
 	return rv, nil
 }
 
+// Get a list of all members which are currently in the trash.
+func (m *MembershipDB) EnumerateTrashedMembers(prev string, num int32) ([]*MemberWithKey, error) {
+	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
+	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
+	var r *cassandra.KeyRange = cassandra.NewKeyRange()
+	var kss []*cassandra.KeySlice
+	var ks *cassandra.KeySlice
+	var rv []*MemberWithKey
+	var ire *cassandra.InvalidRequestException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	// Fetch the protobuf column of the application column family.
+	cp.ColumnFamily = "membership_archive"
+	pred.ColumnNames = [][]byte{
+		[]byte("pb_data"),
+	}
+	if len(prev) > 0 {
+		var uuid cassandra.UUID
+		if uuid, err = cassandra.ParseUUID(prev); err != nil {
+			return rv, err
+		}
+		r.StartKey = []byte(uuid)
+	} else {
+		r.StartKey = make([]byte, 0)
+	}
+	r.EndKey = make([]byte, 0)
+	r.Count = num
+
+	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
+	if ire != nil {
+		err = errors.New(ire.Why)
+		return rv, err
+	}
+	if ue != nil {
+		err = errors.New("Cassandra unavailable: " + ue.String())
+		return rv, err
+	}
+	if te != nil {
+		err = errors.New("Timed out: " + te.String())
+		return rv, err
+	}
+	if err != nil {
+		return rv, err
+	}
+
+	for _, ks = range kss {
+		var member *MemberWithKey
+		var scol *cassandra.ColumnOrSuperColumn
+		var uuid cassandra.UUID = cassandra.UUIDFromBytes(ks.Key)
+
+		if len(ks.Columns) == 0 {
+			continue
+		}
+
+		for _, scol = range ks.Columns {
+			var col *cassandra.Column = scol.Column
+
+			if string(col.Name) == "pb_data" {
+				var agreement = new(MembershipAgreement)
+				member = new(MemberWithKey)
+				err = proto.Unmarshal(col.Value, agreement)
+				proto.Merge(&member.Member, agreement.GetMemberData())
+				member.Key = uuid.String()
+			}
+		}
+
+		if member != nil {
+			rv = append(rv, member)
+		}
+	}
+
+	return rv, nil
+}
+
 // Move the record of the given applicant to the queue of new users to be
 // processed. The approver will be set to "initiator".
 func (m *MembershipDB) MoveApplicantToNewMember(id, initiator string) error {
