@@ -77,9 +77,11 @@ type ApplicantListHandler struct {
 }
 
 type ApplicantRecordList struct {
-	Applicants         []*MemberWithKey
-	Members            []*Member
-	Queue              []*MemberWithKey
+	Applicants []*MemberWithKey
+	Members    []*Member
+	Queue      []*MemberWithKey
+	Trash      []*MemberWithKey
+
 	ApprovalCsrfToken  string
 	RejectionCsrfToken string
 	UploadCsrfToken    string
@@ -122,6 +124,13 @@ func (m *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 	if err != nil {
 		log.Print("Unable to list queued members from ",
 			req.FormValue("queued_start"), ": ", err)
+	}
+
+	applications.Trash, err = m.database.EnumerateTrashedMembers(
+		req.FormValue("trashed_start"), m.pagesize)
+	if err != nil {
+		log.Print("Unable to list trashed members from ",
+			req.FormValue("trashed_start"), ": ", err)
 	}
 
 	applications.ApprovalCsrfToken, err = m.auth.GenCSRFToken(
