@@ -1,4 +1,4 @@
-// Load the dialog for uploading the membership agreement.
+// Loads the dialog for uploading the membership agreement.
 function openUploadAgreement(id, approval_csrf_token, upload_csrf_token) {
 	var agreementIdField = $('#agreementId')[0];
 	var agreementCsrfTokenField = $('#agreementCsrfToken')[0];
@@ -16,7 +16,7 @@ function openUploadAgreement(id, approval_csrf_token, upload_csrf_token) {
 	agreementUploadCsrfTokenField.value = upload_csrf_token;
 }
 
-// Display the size of the agreement file.
+// Displays the size of the agreement file.
 function agreementFileSelected() {
 	var agreementFile = $('#agreementFile')[0].files[0];
 	var indicator = $('#agreementUploadProgress')[0];
@@ -38,7 +38,7 @@ function agreementFileSelected() {
     }
 }
 
-// Actually upload the file.
+// Actually uploads the file.
 function doUploadAgreement() {
 	var agreementForm = $('#agreementForm')[0];
 	var agreementProgress = $('#agreementUploadProgress')[0];
@@ -102,7 +102,27 @@ function doUploadAgreement() {
 	});
 }
 
-// Accept the membership request from the member with the given ID.
+// Cancels a queued membership application entry.
+function cancelQueued(id, csrf_token) {
+	new $.ajax({
+		url: '/admin/api/cancel-queued',
+		data: {
+			uuid: id,
+			csrf_token: csrf_token
+		},
+		type: 'POST',
+		success: function(response) {
+			var tr = $('#q-' + id);
+			var tbodies = tr.parent();
+			for (i = 0; i < tbodies.length; i++)
+				for (j = 0; j < tbodies[i].childNodes.length; j++)
+					if (tbodies[i].childNodes[j].id == 'q-' + id)
+						tbodies[i].removeChild(tbodies[i].childNodes[j]);
+		}
+	});
+}
+
+// Accepts the membership request from the member with the given ID.
 function acceptMember(id, csrf_token) {
 	new $.ajax({
 		url: '/admin/api/accept',

@@ -205,7 +205,7 @@ func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, e
 }
 
 // Retrieve an individual applicants data.
-func (m *MembershipDB) GetMembershipRequest(id string) (*MembershipAgreement, int64, error) {
+func (m *MembershipDB) GetMembershipRequest(id, table string) (*MembershipAgreement, int64, error) {
 	var uuid cassandra.UUID
 	var member *MembershipAgreement = new(MembershipAgreement)
 	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
@@ -220,7 +220,7 @@ func (m *MembershipDB) GetMembershipRequest(id string) (*MembershipAgreement, in
 		return nil, 0, err
 	}
 
-	cp.ColumnFamily = "application"
+	cp.ColumnFamily = table
 	cp.Column = []byte("pb_data")
 
 	// Retrieve the protobuf with all data from Cassandra.
@@ -420,21 +420,104 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 	return rv, nil
 }
 
+// Get a list of all future members which are currently in the queue.
+func (m *MembershipDB) EnumerateQueuedMembers(prev string, num int32) ([]*MemberWithKey, error) {
+	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
+	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
+	var r *cassandra.KeyRange = cassandra.NewKeyRange()
+	var kss []*cassandra.KeySlice
+	var ks *cassandra.KeySlice
+	var rv []*MemberWithKey
+	var ire *cassandra.InvalidRequestException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	// Fetch the protobuf column of the application column family.
+	cp.ColumnFamily = "membership_queue"
+	pred.ColumnNames = [][]byte{
+		[]byte("pb_data"),
+	}
+	if len(prev) > 0 {
+		var uuid cassandra.UUID
+		if uuid, err = cassandra.ParseUUID(prev); err != nil {
+			return rv, err
+		}
+		r.StartKey = []byte(uuid)
+	} else {
+		r.StartKey = make([]byte, 0)
+	}
+	r.EndKey = make([]byte, 0)
+	r.Count = num
+
+	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
+	if ire != nil {
+		err = errors.New(ire.Why)
+		return rv, err
+	}
+	if ue != nil {
+		err = errors.New("Cassandra unavailable: " + ue.String())
+		return rv, err
+	}
+	if te != nil {
+		err = errors.New("Timed out: " + te.String())
+		return rv, err
+	}
+	if err != nil {
+		return rv, err
+	}
+
+	for _, ks = range kss {
+		var member *MemberWithKey
+		var scol *cassandra.ColumnOrSuperColumn
+		var uuid cassandra.UUID = cassandra.UUIDFromBytes(ks.Key)
+
+		if len(ks.Columns) == 0 {
+			continue
+		}
+
+		for _, scol = range ks.Columns {
+			var col *cassandra.Column = scol.Column
+
+			if string(col.Name) == "pb_data" {
+				var agreement = new(MembershipAgreement)
+				member = new(MemberWithKey)
+				err = proto.Unmarshal(col.Value, agreement)
+				proto.Merge(&member.Member, agreement.GetMemberData())
+				member.Key = uuid.String()
+			}
+		}
+
+		if member != nil {
+			rv = append(rv, member)
+		}
+	}
+
+	return rv, nil
+}
+
 // Move the record of the given applicant to the queue of new users to be
 // processed. The approver will be set to "initiator".
 func (m *MembershipDB) MoveApplicantToNewMember(id, initiator string) error {
-	return m.moveApplicantToTable(id, initiator, "membership_queue", 0)
+	return m.moveRecordToTable(id, initiator, "application",
+		"membership_queue", 0)
 }
 
 // Move the record of the given applicant to a temporary archive of deleted
 // applications. The deleter will be set to "initiator".
 func (m *MembershipDB) MoveApplicantToTrash(id, initiator string) error {
-	return m.moveApplicantToTable(id, initiator, "membership_archive",
-		int32(6*30*24*60*60))
+	return m.moveRecordToTable(id, initiator, "application",
+		"membership_archive", int32(6*30*24*60*60))
+}
+
+//
+func (m *MembershipDB) MoveQueuedRecordToTrash(id, initiator string) error {
+	return m.moveRecordToTable(id, initiator, "membership_queue",
+		"membership_archive", int32(6*30*24*60*60))
 }
 
 // Move the record of the given applicant to a different column family.
-func (m *MembershipDB) moveApplicantToTable(id, initiator, table string, ttl int32) error {
+func (m *MembershipDB) moveRecordToTable(id, initiator, src_table, dst_table string, ttl int32) error {
 	var uuid cassandra.UUID
 	var bmods map[string]map[string][]*cassandra.Mutation
 	var now time.Time = time.Now()
@@ -453,7 +536,7 @@ func (m *MembershipDB) moveApplicantToTable(id, initiator, table string, ttl int
 	}
 
 	// First, retrieve the desired membership data.
-	if member, timestamp, err = m.GetMembershipRequest(id); err != nil {
+	if member, timestamp, err = m.GetMembershipRequest(id, src_table); err != nil {
 		return err
 	}
 
@@ -467,8 +550,8 @@ func (m *MembershipDB) moveApplicantToTable(id, initiator, table string, ttl int
 
 	bmods = make(map[string]map[string][]*cassandra.Mutation)
 	bmods[string(uuid)] = make(map[string][]*cassandra.Mutation)
-	bmods[string(uuid)][table] = make([]*cassandra.Mutation, 0)
-	bmods[string(uuid)]["application"] = make([]*cassandra.Mutation, 0)
+	bmods[string(uuid)][dst_table] = make([]*cassandra.Mutation, 0)
+	bmods[string(uuid)][src_table] = make([]*cassandra.Mutation, 0)
 
 	value, err = proto.Marshal(member)
 	if err != nil {
@@ -476,7 +559,7 @@ func (m *MembershipDB) moveApplicantToTable(id, initiator, table string, ttl int
 	}
 
 	// Add the application protobuf to the membership data.
-	bmods[string(uuid)][table] = append(bmods[string(uuid)][table],
+	bmods[string(uuid)][dst_table] = append(bmods[string(uuid)][dst_table],
 		newCassandraMutationBytes("pb_data", value, &now, ttl))
 
 	// Delete the application data.
@@ -484,8 +567,8 @@ func (m *MembershipDB) moveApplicantToTable(id, initiator, table string, ttl int
 	mutation.Deletion.Predicate = cassandra.NewSlicePredicate()
 	mutation.Deletion.Predicate.ColumnNames = allColumns
 	mutation.Deletion.Timestamp = timestamp
-	bmods[string(uuid)]["application"] = append(
-		bmods[string(uuid)]["application"], mutation)
+	bmods[string(uuid)][src_table] = append(
+		bmods[string(uuid)][src_table], mutation)
 
 	ire, ue, te, err = m.conn.AtomicBatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
 	if ire != nil {
@@ -521,7 +604,7 @@ func (m *MembershipDB) StoreMembershipAgreement(id string, agreement_data []byte
 	}
 	buuid = []byte(uuid)
 
-	agreement, _, err = m.GetMembershipRequest(id)
+	agreement, _, err = m.GetMembershipRequest(id, "application")
 	if err != nil {
 		return err
 	}
