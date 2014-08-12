@@ -79,6 +79,19 @@ func makeMutationBool(mmap map[string][]*cassandra.Mutation,
 	makeMutation(mmap, cf, name, []byte{b}, now)
 }
 
+func asciiFilter(in string) string {
+	var rv []rune
+	var rn rune
+
+	for _, rn = range []rune(in) {
+		if rn < 128 {
+			rv = append(rv, rn)
+		}
+	}
+
+	return string(rv)
+}
+
 func main() {
 	var cf string = "members"
 	var config_file string
@@ -264,6 +277,12 @@ func main() {
 				agreement.MemberData.GetPwhash(),
 			}
 
+			for key, ivalue := range attrs {
+				for i, value := range ivalue {
+					attrs[key][i] = asciiFilter(value)
+				}
+			}
+
 			err = ldap.Add("uid="+agreement.MemberData.GetUsername()+
 				","+config.LdapConfig.GetNewUserSuffix()+","+
 				config.LdapConfig.GetBase(), attrs)
@@ -302,16 +321,16 @@ func main() {
 				cf, "approval_ts", agreement.Metadata.GetApprovalTimestamp(),
 				now)
 			makeMutation(mmap[string(agreement.MemberData.GetEmail())], cf,
-				"agreement_pdf", agreement.GetAgreementPdf(), now)
+				"agreement_pdf", agreement.AgreementPdf, now)
 
 			// Now, delete the original record.
 			m = cassandra.NewMutation()
 			m.Deletion = cassandra.NewDeletion()
 			m.Deletion.Predicate = cassandra.NewSlicePredicate()
-			m.Deletion.Predicate.SliceRange = cassandra.NewSliceRange()
-			m.Deletion.Predicate.SliceRange.Start = make([]byte, 0)
-			m.Deletion.Predicate.SliceRange.Finish = make([]byte, 0)
+			m.Deletion.Predicate.ColumnNames = [][]byte{[]byte("pb_data")}
+			m.Deletion.Timestamp = col.Timestamp
 
+			mmap[string(ks.Key)] = make(map[string][]*cassandra.Mutation)
 			mmap[string(ks.Key)]["membership_queue"] = []*cassandra.Mutation{m}
 		}
 	}
