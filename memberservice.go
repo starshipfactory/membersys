@@ -153,6 +153,12 @@ func main() {
 		database:   db,
 	})
 
+	http.Handle("/admin/api/goodbye-member", &MemberGoodbyeHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+	})
+
 	http.Handle("/admin", &ApplicantListHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,

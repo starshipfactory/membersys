@@ -122,6 +122,30 @@ function cancelQueued(id, csrf_token) {
 	});
 }
 
+// Removes a member from the organization.
+function goodbyeMember(id, csrf_token, reason) {
+	new $.ajax({
+		url: '/admin/api/goodbye-member',
+		data: {
+			id: id,
+			csrf_token: csrf_token,
+			reason: reason
+		},
+		type: 'POST',
+		success: function(response) {
+			var bid = id.replace('@', '_').replace('.', '_');
+			var tr = $('#mem-' + bid);
+			var tbodies = tr.parent();
+			for (i = 0; i < tbodies.length; i++) {
+				for (j = 0; j < tbodies[i].childNodes.length; j++) {
+					if (tbodies[i].childNodes[j].id == 'mem-' + bid)
+						tbodies[i].removeChild(tbodies[i].childNodes[j]);
+				}
+			}
+		}
+	});
+}
+
 // Accepts the membership request from the member with the given ID.
 function acceptMember(id, csrf_token) {
 	new $.ajax({

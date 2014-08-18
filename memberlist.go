@@ -46,6 +46,7 @@ var applicantApprovalURL *url.URL
 var applicantRejectionURL *url.URL
 var applicantAgreementUploadURL *url.URL
 var queueCancelURL *url.URL
+var memberGoodbyeURL *url.URL
 
 func init() {
 	var err error
@@ -65,6 +66,10 @@ func init() {
 	if err != nil {
 		log.Fatal("Error parsing queue cancellation URL: ", err)
 	}
+	memberGoodbyeURL, err = url.Parse("/admin/api/goodbye-member")
+	if err != nil {
+		log.Fatal("Error parsing member goodbye URL: ", err)
+	}
 }
 
 // Handler object for displaying the list of membership applications.
@@ -78,7 +83,7 @@ type ApplicantListHandler struct {
 
 type ApplicantRecordList struct {
 	Applicants []*MemberWithKey
-	Members    []*Member
+	Members    []*MemberWithWeirdMail
 	Queue      []*MemberWithKey
 	Trash      []*MemberWithKey
 
@@ -86,6 +91,7 @@ type ApplicantRecordList struct {
 	RejectionCsrfToken string
 	UploadCsrfToken    string
 	CancelCsrfToken    string
+	GoodbyeCsrfToken   string
 }
 
 // Serve the list of current membership applications to the requestor.
@@ -152,6 +158,11 @@ func (m *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		req, queueCancelURL, 10*time.Minute)
 	if err != nil {
 		log.Print("Error generating queue cancellation CSRF token: ", err)
+	}
+	applications.GoodbyeCsrfToken, err = m.auth.GenCSRFToken(
+		req, memberGoodbyeURL, 10*time.Minute)
+	if err != nil {
+		log.Print("Error generating member goodbye CSRF token: ", err)
 	}
 
 	err = m.template.ExecuteTemplate(rw, "memberlist.html", applications)
@@ -223,7 +234,7 @@ func (m *MemberRejectHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 	var ok bool
 	var err error
 
-	if m.auth.GetAuthenticatedUser(req) == "" {
+	if user == "" {
 		rw.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -343,7 +354,7 @@ func (m *MemberQueueCancelHandler) ServeHTTP(rw http.ResponseWriter, req *http.R
 	var ok bool
 	var err error
 
-	if m.auth.GetAuthenticatedUser(req) == "" {
+	if user == "" {
 		rw.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -369,6 +380,55 @@ func (m *MemberQueueCancelHandler) ServeHTTP(rw http.ResponseWriter, req *http.R
 	err = m.database.MoveQueuedRecordToTrash(id, user)
 	if err != nil {
 		log.Print("Error moving queued record ", id, " to trash: ", err)
+		rw.WriteHeader(http.StatusLengthRequired)
+		rw.Write([]byte(err.Error()))
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
+}
+
+// Object for removing members from the organization.
+type MemberGoodbyeHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *MembershipDB
+}
+
+func (m *MemberGoodbyeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var user string = m.auth.GetAuthenticatedUser(req)
+	var reason string = req.PostFormValue("reason")
+	var id string = req.PostFormValue("id")
+	var ok bool
+	var err error
+
+	if user == "" {
+		rw.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusForbidden)
+	}
+
+	ok, err = m.auth.VerifyCSRFToken(req, req.PostFormValue("csrf_token"), false)
+	if err != nil && err != ancientauth.CSRFToken_WeakProtectionError {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(err.Error()))
+		log.Print("Error verifying CSRF token: ", err)
+		return
+	}
+	if !ok {
+		rw.WriteHeader(http.StatusForbidden)
+		rw.Write([]byte("CSRF token validation failed"))
+		log.Print("Invalid CSRF token reveived")
+		return
+	}
+
+	err = m.database.MoveMemberToTrash(id, user, reason)
+	if err != nil {
+		log.Print("Error moving member ", id, " to trash: ", err)
 		rw.WriteHeader(http.StatusLengthRequired)
 		rw.Write([]byte(err.Error()))
 		return
