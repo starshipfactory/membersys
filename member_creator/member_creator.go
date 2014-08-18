@@ -99,6 +99,7 @@ func main() {
 	var config MemberCreatorConfig
 	var greatestUid uint64 = 1000
 	var now time.Time
+	var noop bool
 
 	var ldap *openldap.Ldap
 	var msg *openldap.LdapMessage
@@ -118,6 +119,7 @@ func main() {
 
 	flag.StringVar(&config_file, "config", "",
 		"Path to the member creator configuration file")
+	flag.BoolVar(&noop, "dry-run", false, "Do a dry run")
 	flag.Parse()
 
 	if len(config_file) == 0 {
@@ -137,57 +139,59 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to parse ", config_file, ": ", err)
 	}
-
-	ldap, err = openldap.Initialize(config.LdapConfig.GetServer())
-	if err != nil {
-		log.Fatal("Error connecting to LDAP server ",
-			config.LdapConfig.GetServer(), ": ", err)
-	}
-
-	err = ldap.SetOption(openldap.LDAP_OPT_PROTOCOL_VERSION,
-		openldap.LDAP_VERSION3)
-	if err != nil {
-		log.Print("Error setting version to 3: ", err)
-	}
-
-	err = ldap.Bind(config.LdapConfig.GetSuperUser()+","+
-		config.LdapConfig.GetBase(), config.LdapConfig.GetSuperPassword())
-	if err != nil {
-		log.Fatal("Unable to bind as ", config.LdapConfig.GetSuperUser()+
-			","+config.LdapConfig.GetBase(), " to ",
-			config.LdapConfig.GetServer(), ": ", err)
-	}
-	defer ldap.Unbind()
-
 	now = time.Now()
-	// Find the highest assigned UID.
-	msg, err = ldap.Search(config.LdapConfig.GetBase(),
-		openldap.LDAP_SCOPE_SUBTREE, "(objectClass=posixAccount)",
-		[]string{"uidNumber"})
-	if err != nil {
-		log.Fatal("Unable to search for posix accounts in ",
-			config.LdapConfig.GetBase(), ": ", err)
-	}
-	for msg != nil {
-		var entry = msg.FirstEntry()
 
-		for entry != nil {
-			var uid string
-
-			for _, uid = range entry.GetValues("uidNumber") {
-				var uidNumber uint64
-				uidNumber, err = strconv.ParseUint(uid, 10, 64)
-				if err != nil {
-					log.Print("Error parsing \"", uid, "\" as a number: ",
-						err)
-				} else if uidNumber > greatestUid {
-					greatestUid = uidNumber
-				}
-			}
-			entry = entry.NextEntry()
+	if !noop {
+		ldap, err = openldap.Initialize(config.LdapConfig.GetServer())
+		if err != nil {
+			log.Fatal("Error connecting to LDAP server ",
+				config.LdapConfig.GetServer(), ": ", err)
 		}
 
-		msg = msg.NextMessage()
+		err = ldap.SetOption(openldap.LDAP_OPT_PROTOCOL_VERSION,
+			openldap.LDAP_VERSION3)
+		if err != nil {
+			log.Print("Error setting version to 3: ", err)
+		}
+
+		err = ldap.Bind(config.LdapConfig.GetSuperUser()+","+
+			config.LdapConfig.GetBase(), config.LdapConfig.GetSuperPassword())
+		if err != nil {
+			log.Fatal("Unable to bind as ", config.LdapConfig.GetSuperUser()+
+				","+config.LdapConfig.GetBase(), " to ",
+				config.LdapConfig.GetServer(), ": ", err)
+		}
+		defer ldap.Unbind()
+
+		// Find the highest assigned UID.
+		msg, err = ldap.Search(config.LdapConfig.GetBase(),
+			openldap.LDAP_SCOPE_SUBTREE, "(objectClass=posixAccount)",
+			[]string{"uidNumber"})
+		if err != nil {
+			log.Fatal("Unable to search for posix accounts in ",
+				config.LdapConfig.GetBase(), ": ", err)
+		}
+		for msg != nil {
+			var entry = msg.FirstEntry()
+
+			for entry != nil {
+				var uid string
+
+				for _, uid = range entry.GetValues("uidNumber") {
+					var uidNumber uint64
+					uidNumber, err = strconv.ParseUint(uid, 10, 64)
+					if err != nil {
+						log.Print("Error parsing \"", uid, "\" as a number: ",
+							err)
+					} else if uidNumber > greatestUid {
+						greatestUid = uidNumber
+					}
+				}
+				entry = entry.NextEntry()
+			}
+
+			msg = msg.NextMessage()
+		}
 	}
 
 	// Connect to Cassandra so we can get a list of records to be processed.
@@ -283,13 +287,17 @@ func main() {
 				}
 			}
 
-			err = ldap.Add("uid="+agreement.MemberData.GetUsername()+
-				","+config.LdapConfig.GetNewUserSuffix()+","+
-				config.LdapConfig.GetBase(), attrs)
-			if err != nil {
-				log.Print("Unable to create user ",
-					agreement.MemberData.GetUsername(), ": ", err)
-				continue
+			if noop {
+				log.Print("Would create user: ", attrs)
+			} else {
+				err = ldap.Add("uid="+agreement.MemberData.GetUsername()+
+					","+config.LdapConfig.GetNewUserSuffix()+","+
+					config.LdapConfig.GetBase(), attrs)
+				if err != nil {
+					log.Print("Unable to create user ",
+						agreement.MemberData.GetUsername(), ": ", err)
+					continue
+				}
 			}
 
 			mmap[string(agreement.MemberData.GetEmail())] =
