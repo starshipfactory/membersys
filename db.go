@@ -36,6 +36,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
@@ -48,6 +49,11 @@ type MembershipDB struct {
 type MemberWithKey struct {
 	Key string
 	Member
+}
+
+type MemberWithWeirdMail struct {
+	Member
+	WeirdMail string
 }
 
 // List of all relevant columns; used for a few copies here.
@@ -251,13 +257,13 @@ func (m *MembershipDB) GetMembershipRequest(id, table string) (*MembershipAgreem
 // Returns a filled-out member structure and the timestamp when the
 // membership was approved.
 func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
-	[]*Member, error) {
+	[]*MemberWithWeirdMail, error) {
 	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
 	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
 	var r *cassandra.KeyRange = cassandra.NewKeyRange()
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
-	var rv []*Member
+	var rv []*MemberWithWeirdMail
 	var ire *cassandra.InvalidRequestException
 	var ue *cassandra.UnavailableException
 	var te *cassandra.TimedOutException
@@ -296,7 +302,7 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 	}
 
 	for _, ks = range kss {
-		var member *Member = new(Member)
+		var member *MemberWithWeirdMail = new(MemberWithWeirdMail)
 		var scol *cassandra.ColumnOrSuperColumn
 
 		if len(ks.Columns) == 0 {
@@ -304,6 +310,9 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 		}
 
 		member.Email = proto.String(string(ks.Key))
+		member.WeirdMail = strings.Replace(
+			strings.Replace(*member.Email, "@", "_", -1),
+			".", "_", -1)
 
 		for _, scol = range ks.Columns {
 			var col *cassandra.Column = scol.Column
@@ -572,6 +581,88 @@ func (m *MembershipDB) EnumerateTrashedMembers(prev string, num int32) ([]*Membe
 	return rv, nil
 }
 
+// Move a member record to the queue for getting their user account removed
+// (e.g. when they leave us). Set the retention to 2 years instead of just
+// 6 months, since they have been a member.
+func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
+	var now time.Time = time.Now()
+	var uuid cassandra.UUID
+	var mmap map[string]map[string][]*cassandra.Mutation
+	var member *MembershipAgreement
+
+	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
+	var cos *cassandra.ColumnOrSuperColumn
+	var del *cassandra.Deletion = cassandra.NewDeletion()
+	var mu *cassandra.Mutation
+
+	var ire *cassandra.InvalidRequestException
+	var nfe *cassandra.NotFoundException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	cp.ColumnFamily = "members"
+	cp.Column = []byte("pb_data")
+
+	uuid, err = cassandra.GenTimeUUID(&now)
+	if err != nil {
+		return err
+	}
+
+	cos, ire, nfe, ue, te, err = m.conn.Get(
+		[]byte(id), cp, cassandra.ConsistencyLevel_QUORUM)
+	if ire != nil {
+		return errors.New(ire.Why)
+	}
+	if nfe != nil {
+		return errors.New("Not found")
+	}
+	if ue != nil {
+		return errors.New("Unavailable")
+	}
+	if te != nil {
+		return errors.New("Timed out")
+	}
+	if err != nil {
+		return err
+	}
+
+	member = new(MembershipAgreement)
+	err = proto.Unmarshal(cos.Column.Value, member)
+	if err != nil {
+		return err
+	}
+
+	del.Predicate = cassandra.NewSlicePredicate()
+	del.Predicate.ColumnNames = allColumns
+	del.Timestamp = cos.Column.Timestamp
+
+	mu = cassandra.NewMutation()
+	mu.Deletion = del
+
+	mmap = make(map[string]map[string][]*cassandra.Mutation)
+	mmap[id] = make(map[string][]*cassandra.Mutation)
+	mmap[id]["members"] = []*cassandra.Mutation{mu}
+
+	mu = cassandra.NewMutation()
+	mu.ColumnOrSupercolumn = cos
+
+	mmap[string([]byte(uuid))] = make(map[string][]*cassandra.Mutation)
+	mmap[string([]byte(uuid))]["membership_dequeue"] = []*cassandra.Mutation{mu}
+
+	ire, ue, te, err = m.conn.AtomicBatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
+	if ire != nil {
+		return errors.New(ire.Why)
+	}
+	if ue != nil {
+		return errors.New("Unavailable")
+	}
+	if te != nil {
+		return errors.New("Timed out")
+	}
+	return err
+}
+
 // Move the record of the given applicant to the queue of new users to be
 // processed. The approver will be set to "initiator".
 func (m *MembershipDB) MoveApplicantToNewMember(id, initiator string) error {
@@ -586,7 +677,7 @@ func (m *MembershipDB) MoveApplicantToTrash(id, initiator string) error {
 		"membership_archive", int32(6*30*24*60*60))
 }
 
-//
+// Move a member from the queue to the trash (e.g. if they can't be processed).
 func (m *MembershipDB) MoveQueuedRecordToTrash(id, initiator string) error {
 	return m.moveRecordToTable(id, initiator, "membership_queue",
 		"membership_archive", int32(6*30*24*60*60))

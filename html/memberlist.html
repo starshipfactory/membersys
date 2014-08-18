@@ -75,7 +75,7 @@
 						</thead>
 						<tbody>
 {{range $app := .Members}}
-							<tr id="{{.Email}}">
+							<tr id="mem-{{.WeirdMail}}">
 								<td>{{.Name}}</td>
 								<td>{{.Street}}</td>
 								<td>{{.City}}</td>
@@ -83,7 +83,7 @@
 								<td>{{.Email}}</td>
 								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
 								<td>
-									&nbsp;
+									<a href="javascript:goodbyeMember(&quot;{{.Email}}&quot;, &quot;{{$.GoodbyeCsrfToken}}&quot;, &quot;&quot;);">Verabschieden</a>
 								</td>
 							</tr>
 {{else}}

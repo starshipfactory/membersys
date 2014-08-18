@@ -24,6 +24,16 @@ message MembershipMetadata {
 
 	// User agent which the request was submitted with.
 	optional string user_agent = 7;
+
+	// The time (if any) at which the member has been removed from
+	// membership.
+	optional uint64 goodbye_timestamp = 8;
+
+	// The user who terminated the membership.
+	optional string goodbye_initiator = 9;
+
+	// The reason why the user was terminated.
+	optional string goodbye_reason = 10;
 }
 
 message Member {
