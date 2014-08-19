@@ -38,6 +38,7 @@ import (
 	"io/ioutil"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
@@ -103,6 +104,7 @@ func main() {
 
 	var ldap *openldap.Ldap
 	var msg *openldap.LdapMessage
+	var lres *openldap.LdapSearchResult
 
 	var mmap map[string]map[string][]*cassandra.Mutation
 	var db *cassandra.RetryCassandraClient
@@ -343,6 +345,136 @@ func main() {
 		}
 	}
 
+	// Delete parting members.
+	cp.ColumnFamily = "membership_dequeue"
+	kss, ire, ue, te, err = db.GetRangeSlices(cp, pred, kr,
+		cassandra.ConsistencyLevel_QUORUM)
+	if ire != nil {
+		log.Fatal("Invalid Cassandra request: ", ire.Why)
+	}
+	if ue != nil {
+		log.Fatal("Cassandra unavailable")
+	}
+	if te != nil {
+		log.Fatal("Cassandra timed out: ", te.String())
+	}
+	if err != nil {
+		log.Fatal("Error getting range slice: ", err)
+	}
+
+	for _, ks = range kss {
+		var csc *cassandra.ColumnOrSuperColumn
+		for _, csc = range ks.Columns {
+			var ldapuser string
+			var col *cassandra.Column = csc.Column
+			var agreement MembershipAgreement
+			var attrs map[string][]string
+			var m *cassandra.Mutation
+
+			if col == nil {
+				continue
+			}
+
+			if string(col.Name) != "pb_data" {
+				log.Print("Column selected was not as requested: ",
+					col.Name)
+				continue
+			}
+
+			err = proto.Unmarshal(col.Value, &agreement)
+			if err != nil {
+				log.Print("Unable to parse column ", ks.Key, ": ", err)
+				continue
+			}
+
+			ldapuser = "uid=" + agreement.MemberData.GetUsername() +
+				"," + config.LdapConfig.GetNewUserSuffix() + "," +
+				config.LdapConfig.GetBase()
+			if noop {
+				log.Print("Would remove user ", ldapuser)
+			} else {
+				var groups []string
+				var groups_differ bool
+				var entry openldap.LdapEntry
+				var group string
+
+				lres, err = ldap.SearchAll(
+					config.LdapConfig.GetBase(),
+					openldap.LDAP_SCOPE_SUB,
+					"(&(objectClass=posixGroup)(memberUid="+
+						agreement.MemberData.GetUsername()+"))",
+					[]string{"cn"})
+				if err != nil {
+					log.Print("Error searching groups for user ",
+						agreement.MemberData.GetUsername(), ": ", err)
+					continue
+				}
+
+				for _, entry = range lres.Entries() {
+					var cn string
+					var found bool
+
+					cn, err = entry.GetOneValueByName("cn")
+					if err != nil {
+						log.Fatal("Error determining groups for ",
+							agreement.MemberData.GetUsername(), ": ",
+							err)
+					}
+					groups = append(groups, cn)
+
+					for _, group = range config.LdapConfig.GetNewUserGroup() {
+						if cn == group {
+							found = true
+						}
+					}
+
+					if !found {
+						groups_differ = true
+					}
+				}
+
+				if groups_differ {
+					log.Print("User is in other groups than expected: ",
+						strings.Join(groups, ", "))
+
+					attrs = make(map[string][]string)
+					attrs["memberUid"] = []string{
+						agreement.MemberData.GetUsername()}
+					for _, group = range config.LdapConfig.GetNewUserGroup() {
+						ldap.ModifyDel("cn="+group+",ou=Groups,"+
+							config.LdapConfig.GetBase(), attrs)
+					}
+				} else {
+					// The user appears to be only in the groups given in
+					// the config.
+					err = ldap.Delete(ldapuser)
+					if err != nil {
+						log.Print("Unable to delete user ", ldapuser, ": ",
+							err)
+					}
+				}
+			}
+
+			m = cassandra.NewMutation()
+			m.Deletion = cassandra.NewDeletion()
+			m.Deletion.Predicate = pred
+			m.Deletion.Timestamp = col.Timestamp
+
+			mmap[string(ks.Key)] = make(map[string][]*cassandra.Mutation)
+			mmap[string(ks.Key)]["membership_dequeue"] = []*cassandra.Mutation{m}
+
+			// 2 years retention.
+			col.Ttl = 720 * 24 * 3600
+			col.Timestamp = now.UnixNano()
+
+			m = cassandra.NewMutation()
+			m.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+			m.ColumnOrSupercolumn.Column = col
+			mmap[string(ks.Key)]["membership_archive"] = []*cassandra.Mutation{m}
+		}
+	}
+
+	// Apply all database mutations.
 	ire, ue, te, err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
 	if ire != nil {
 		log.Fatal("Invalid Cassandra request: ", ire.Why)
