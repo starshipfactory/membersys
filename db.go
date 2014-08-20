@@ -586,7 +586,7 @@ func (m *MembershipDB) EnumerateTrashedMembers(prev string, num int32) ([]*Membe
 // 6 months, since they have been a member.
 func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 	var now time.Time = time.Now()
-	var now_long uint64 = now.Unix()
+	var now_long uint64 = uint64(now.Unix())
 	var uuid cassandra.UUID
 	var mmap map[string]map[string][]*cassandra.Mutation
 	var member *MembershipAgreement
@@ -646,7 +646,7 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 	mmap[id]["members"] = []*cassandra.Mutation{mu}
 
 	member.Metadata.GoodbyeInitiator = &initiator
-	member.Metadata.GoodbyeTimestamp = now_long
+	member.Metadata.GoodbyeTimestamp = &now_long
 	member.Metadata.GoodbyeReason = &reason
 
 	cos.Column = cassandra.NewColumn()
