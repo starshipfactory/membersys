@@ -91,7 +91,7 @@ message LdapConfig {
 	required string base = 4;
 
 	// Suffix to append to new users, without the base.
-	required string new_user_suffix = 5;
+	optional string new_user_suffix = 5 [default = "ou=People"];
 
 	// Groups the new user should be made a member of.
 	repeated string new_user_group = 6;
@@ -100,7 +100,7 @@ message LdapConfig {
 	required uint32 new_user_gid = 7;
 
 	// Default shell for new users.
-	optional string new_user_shell = 8 [default="/bin/bash"];
+	optional string new_user_shell = 8 [default = "/bin/bash"];
 }
 
 // Configuration for the process which creates new users from database wishes.
