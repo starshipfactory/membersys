@@ -1,12 +1,58 @@
-create keyspace sfmembersys with placement_strategy = 'org.apache.cassandra.locator.SimpleStrategy' and strategy_options = {replication_factor:1};
+create keyspace sfmembersys
+  with placement_strategy = 'org.apache.cassandra.locator.SimpleStrategy'
+  and strategy_options = {replication_factor:1};
 use sfmembersys;
 
-create column family application with comparator = 'AsciiType' and key_validation_class = 'LexicalUUIDType' and column_metadata = [{column_name: name, validation_class: UTF8Type}, {column_name: street, validation_class: UTF8Type}, {column_name: city, validation_class: UTF8Type}, {column_name: country, validation_class: UTF8Type}, {column_name: email, validation_class: UTF8Type}, {column_name: phone, validation_class: UTF8Type}, {column_name: username, validation_class: UTF8Type}, {column_name: sourceip, validation_class: AsciiType}, {column_name: useragent, validation_class: UTF8Type}, {column_name: pwhash, validation_class: UTF8Type}, {column_name: fee, validation_class: LongType}, {column_name: email_verified, validation_class: BooleanType}, {column_name: fee_yearly, validation_class: BooleanType}, {column_name: pb_data, validation_class: BytesType}];
+create column family application
+  with comparator = 'AsciiType'
+  and key_validation_class = 'LexicalUUIDType'
+  and column_metadata = [
+    {column_name: name, validation_class: UTF8Type},
+    {column_name: street, validation_class: UTF8Type},
+    {column_name: city, validation_class: UTF8Type},
+    {column_name: country, validation_class: UTF8Type},
+    {column_name: email, validation_class: UTF8Type},
+    {column_name: phone, validation_class: UTF8Type},
+    {column_name: username, validation_class: UTF8Type},
+    {column_name: sourceip, validation_class: AsciiType},
+    {column_name: useragent, validation_class: UTF8Type},
+    {column_name: pwhash, validation_class: UTF8Type},
+    {column_name: fee, validation_class: LongType},
+    {column_name: email_verified, validation_class: BooleanType},
+    {column_name: fee_yearly, validation_class: BooleanType},
+    {column_name: pb_data, validation_class: BytesType}];
 
-create column family membership_queue with comparator = 'AsciiType' and key_validation_class = 'LexicalUUIDType' and column_metadata = [{column_name: pb_data, validation_class: BytesType}];
+create column family membership_queue
+  with comparator = 'AsciiType'
+  and key_validation_class = 'LexicalUUIDType'
+  and column_metadata = [
+    {column_name: pb_data, validation_class: BytesType}];
 
-create column family membership_archive with comparator = 'AsciiType' and key_validation_class = 'LexicalUUIDType' and column_metadata = [{column_name: pb_data, validation_class: BytesType}];
+create column family membership_archive
+  with comparator = 'AsciiType'
+  and key_validation_class = 'LexicalUUIDType'
+  and column_metadata = [
+    {column_name: pb_data, validation_class: BytesType}];
 
-create column family membership_dequeue with comparator = 'AsciiType' and key_validation_class = 'LexicalUUIDType' and column_metadata = [{column_name: pb_data, validation_class: BytesType}];
+create column family membership_dequeue
+  with comparator = 'AsciiType'
+  and key_validation_class = 'LexicalUUIDType'
+  and column_metadata = [
+    {column_name: pb_data, validation_class: BytesType}];
 
-create column family members with comparator = 'AsciiType' and key_validation_class = 'AsciiType' and column_metadata = [{column_name: name, validation_class: UTF8Type, index_type: KEYS}, {column_name: street, validation_class: UTF8Type, index_type: KEYS}, {column_name: city, validation_class: UTF8Type, index_type: KEYS}, {column_name: country, validation_class: UTF8Type, index_type: KEYS}, {column_name: email, validation_class: UTF8Type, index_type: KEYS}, {column_name: phone, validation_class: UTF8Type}, {column_name: username, validation_class: UTF8Type, index_type: KEYS}, {column_name: fee, validation_class: LongType, index_type: KEYS}, {column_name: fee_yearly, validation_class: BooleanType, index_type: KEYS}, {column_name: approval_ts, validation_class: LongType, index_type: KEYS}, {column_name: agreement_pdf, validation_class: BytesType}, {column_name: pb_data, validation_class: BytesType}];
+create column family members
+  with comparator = 'AsciiType'
+  and key_validation_class = 'AsciiType'
+  and column_metadata = [
+    {column_name: name, validation_class: UTF8Type, index_type: KEYS},
+    {column_name: street, validation_class: UTF8Type, index_type: KEYS},
+    {column_name: city, validation_class: UTF8Type, index_type: KEYS},
+    {column_name: country, validation_class: UTF8Type, index_type: KEYS},
+    {column_name: email, validation_class: UTF8Type, index_type: KEYS},
+    {column_name: phone, validation_class: UTF8Type},
+    {column_name: username, validation_class: UTF8Type, index_type: KEYS},
+    {column_name: fee, validation_class: LongType, index_type: KEYS},
+    {column_name: fee_yearly, validation_class: BooleanType, index_type: KEYS},
+    {column_name: approval_ts, validation_class: LongType, index_type: KEYS},
+    {column_name: agreement_pdf, validation_class: BytesType},
+    {column_name: pb_data, validation_class: BytesType}];
