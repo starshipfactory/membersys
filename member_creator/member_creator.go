@@ -156,6 +156,11 @@ func main() {
 			log.Print("Error setting version to 3: ", err)
 		}
 
+		err = ldap.SetOption(openldap.LDAP_OPT_SIZELIMIT, 0)
+		if err != nil {
+			log.Print("Error setting the size limit to 0: ", err)
+		}
+
 		err = ldap.Bind(config.LdapConfig.GetSuperUser()+","+
 			config.LdapConfig.GetBase(), config.LdapConfig.GetSuperPassword())
 		if err != nil {
