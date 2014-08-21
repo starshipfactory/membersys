@@ -100,7 +100,7 @@ func main() {
 	var config MemberCreatorConfig
 	var greatestUid uint64 = 1000
 	var now time.Time
-	var noop bool
+	var noop, verbose bool
 
 	var ldap *openldap.Ldap
 	var msg *openldap.LdapMessage
@@ -122,6 +122,8 @@ func main() {
 	flag.StringVar(&config_file, "config", "",
 		"Path to the member creator configuration file")
 	flag.BoolVar(&noop, "dry-run", false, "Do a dry run")
+	flag.BoolVar(&verbose, "verbose", false,
+		"Whether or not to display verbose messages")
 	flag.Parse()
 
 	if len(config_file) == 0 {
@@ -294,7 +296,18 @@ func main() {
 				}
 			}
 
-			if noop {
+			if verbose {
+				log.Print("Creating user: uid=" +
+					agreement.MemberData.GetUsername() +
+					"," + config.LdapConfig.GetNewUserSuffix() + "," +
+					config.LdapConfig.GetBase())
+			}
+
+			if agreement.MemberData.Username == nil {
+				if verbose {
+					log.Print("Member without user account, nothing to do")
+				}
+			} else if noop {
 				log.Print("Would create user: ", attrs)
 			} else {
 				var group string
@@ -343,10 +356,14 @@ func main() {
 				cf, "country", agreement.MemberData.GetCountry(), now)
 			makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
 				cf, "email", agreement.MemberData.GetEmail(), now)
-			makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
-				cf, "phone", agreement.MemberData.GetPhone(), now)
-			makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
-				cf, "username", agreement.MemberData.GetUsername(), now)
+			if agreement.MemberData.Phone != nil {
+				makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+					cf, "phone", agreement.MemberData.GetPhone(), now)
+			}
+			if agreement.MemberData.Username != nil {
+				makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+					cf, "username", agreement.MemberData.GetUsername(), now)
+			}
 			makeMutationLong(mmap[string(agreement.MemberData.GetEmail())],
 				cf, "fee", agreement.MemberData.GetFee(), now)
 			makeMutationBool(mmap[string(agreement.MemberData.GetEmail())],
@@ -414,7 +431,11 @@ func main() {
 			ldapuser = "uid=" + agreement.MemberData.GetUsername() +
 				"," + config.LdapConfig.GetNewUserSuffix() + "," +
 				config.LdapConfig.GetBase()
-			if noop {
+			if agreement.MemberData.Username == nil {
+				if verbose {
+					log.Print("Member without user name, nothing to do")
+				}
+			} else if noop {
 				log.Print("Would remove user ", ldapuser)
 			} else {
 				var groups []string
@@ -513,5 +534,7 @@ func main() {
 		log.Fatal("Error getting range slice: ", err)
 	}
 
-	log.Print("Greatest UID: ", greatestUid)
+	if verbose {
+		log.Print("Greatest UID: ", greatestUid)
+	}
 }
