@@ -123,7 +123,18 @@ function cancelQueued(id, csrf_token) {
 }
 
 // Removes a member from the organization.
-function goodbyeMember(id, csrf_token, reason) {
+function goodbyeMember(id, csrf_token) {
+	$('#reasonUser')[0].value = id;
+	$('#reasonCsrfToken')[0].value = csrf_token;
+	$('#reasonText')[0].value = '';
+	$('#reasonEnterModal').modal('show');
+}
+
+function doGoodbyeMember() {
+	var id = $('#reasonUser')[0].value;
+	var csrf_token = $('#reasonCsrfToken')[0].value;
+	var reason = $('#reasonText')[0].value;
+
 	new $.ajax({
 		url: '/admin/api/goodbye-member',
 		data: {
@@ -142,6 +153,11 @@ function goodbyeMember(id, csrf_token, reason) {
 						tbodies[i].removeChild(tbodies[i].childNodes[j]);
 				}
 			}
+
+			$('#reasonUser')[0].value = '';
+			$('#reasonCsrfToken')[0].value = '';
+			$('#reasonText')[0].value = '';
+			$('#reasonEnterModal').modal('hide');
 		}
 	});
 }
