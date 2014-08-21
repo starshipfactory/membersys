@@ -73,7 +73,7 @@ message MembersysConfig {
 	optional bool use_proxy_real_ip = 5 [default=false];
 
 	// Show this many records on a result page.
-	required int32 result_page_size = 6 [default=25];
+	optional int32 result_page_size = 6 [default=25];
 }
 
 // LDAP configuration for actual user editing.
