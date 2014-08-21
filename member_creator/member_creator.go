@@ -297,6 +297,8 @@ func main() {
 			if noop {
 				log.Print("Would create user: ", attrs)
 			} else {
+				var group string
+
 				err = ldap.Add("uid="+agreement.MemberData.GetUsername()+
 					","+config.LdapConfig.GetNewUserSuffix()+","+
 					config.LdapConfig.GetBase(), attrs)
@@ -304,6 +306,23 @@ func main() {
 					log.Print("Unable to create user ",
 						agreement.MemberData.GetUsername(), ": ", err)
 					continue
+				}
+
+				attrs = make(map[string][]string)
+				attrs["memberUid"] = []string{
+					agreement.MemberData.GetUsername()}
+
+				for _, group = range config.LdapConfig.GetNewUserGroup() {
+					err = ldap.ModifyAdd("cn="+group+
+						",ou=Groups,"+
+						config.LdapConfig.GetBase(),
+						attrs)
+					if err != nil {
+						log.Print("Unable to add user ",
+							agreement.MemberData.GetUsername(),
+							" to group ", group, ": ",
+							err)
+					}
 				}
 			}
 
