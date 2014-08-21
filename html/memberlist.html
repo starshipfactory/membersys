@@ -12,6 +12,38 @@
 	</head>
 	
 	<body>
+		<div class="modal fade" id="reasonEnterModal" tabindex="-1" role="dialog" aria-labelledby="reasonEnterLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+						<h4 class="modal-title" id="reasonEnterLabel">Mitglied verabschieden</h4>
+					</div>
+					<div class="modal-body">
+						<div class="alert alert-warning alert-danger fade in hide" role="alert" id="reasonEnterError">
+							<strong>Fehler beim Verabschieden des Mitglieds!</strong>
+							<span id="reasonEnterErrorText">Fehler?</span>
+						</div>
+
+						<p>Warum wird die Mitgliedschaft beendet?</p>
+
+						<form role="form" id="reasonEnterForm">
+							<input type="hidden" id="reasonUser" name="reasonUser" value="" />
+							<input type="hidden" id="reasonCsrfToken" name="reasonCsrftoken" value="" />
+							<fieldset>
+								<label for="reasonText">Abschiedsgrund:</label>
+								<input type="text" id="reasonText" name="reasonText" value="" />
+							</fieldset>
+						</form>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						<button id="reasonEnterBtn" type="button" class="btn btn-primary" onclick="doGoodbyeMember();">Verabschieden</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<div class="modal fade" id="formUploadModal" tabindex="-1" role="dialog" aria-labelledby="formUploadLabel" aria-hidden="true">
 			<div class="modal-dialog">
 				<div class="modal-content">
@@ -38,7 +70,7 @@
 		  </div>
 		  <div class="modal-footer">
 		    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-		    <button id="agreementUploadBtn" type="button" class="btn btn-primary" onclick="doUploadAgreement();">Antrag hochladen</a>
+		    <button id="agreementUploadBtn" type="button" class="btn btn-primary" onclick="doUploadAgreement();">Antrag hochladen</button>
 		  </div>
 				</div>
 			</div>
@@ -83,7 +115,7 @@
 								<td>{{.Email}}</td>
 								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
 								<td>
-									<a href="javascript:goodbyeMember(&quot;{{.Email}}&quot;, &quot;{{$.GoodbyeCsrfToken}}&quot;, &quot;&quot;);">Verabschieden</a>
+									<a href="javascript:goodbyeMember(&quot;{{.Email}}&quot;, &quot;{{$.GoodbyeCsrfToken}}&quot;);">Verabschieden</a>
 								</td>
 							</tr>
 {{else}}
