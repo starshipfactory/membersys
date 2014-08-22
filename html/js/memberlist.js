@@ -215,3 +215,98 @@ function rejectMember(id, csrf_token) {
 	});
 	return true;
 }
+
+// Use AJAX to load a list of all organization members and populate the
+// corresponding table.
+function loadMembers(start) {
+	new $.ajax({
+		url: '/admin/api/members',
+		data: {
+			start: start,
+		},
+		type: 'GET',
+		success: function(response) {
+			var body = $('#members tbody')[0];
+			var members = response.Members;
+			var token = response.CsrfToken;
+			var i = 0;
+
+			while (body.childNodes.length > 0)
+				body.removeChild(body.firstChild);
+
+			if (members.length == 0) {
+				var tr = document.createElement('tr');
+				tr.colspan = 7;
+				tr.appendChild(document.createTextNode('Derzeit verfügen wir über keine Mitglieder.'));
+			}
+
+			for (i = 0; i < members.length; i++) {
+				var id = members[i].email;
+				var bid = id.replace('@', '_').replace('.', '_');
+				var tr = document.createElement('tr');
+				var td;
+				var a;
+
+				tr.id = bid;
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(members[i].name));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(members[i].street));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(members[i].city));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				if (members[i].username != null)
+					td.appendChild(document.createTextNode(members[i].username));
+				else
+					td.appendChild(document.createTextNode("none"));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(members[i].email));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(
+					members[i].fee + " CHF pro " +
+					(members[i].fee_yearly ? "Jahr" : "Monat")
+					));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				a = document.createElement('a');
+				a.href = "#";
+				a.onclick = function(e) {
+					var tr = e.srcElement.parentNode.parentNode;
+					var email = tr.childNodes[4].firstChild.data;
+					console.log(email);
+					goodbyeMember(email, token);
+				}
+				a.appendChild(document.createTextNode('Verabschieden'));
+				td.appendChild(a);
+				tr.appendChild(td);
+
+				body.appendChild(tr);
+			}
+		},
+	});
+
+	return true;
+}
+
+// Register the required functions for switching between the different tabs.
+function load() {
+	$('a[href="#members"]').on('show.bs.tab', function(e) {
+		loadMembers("");
+	});
+
+	loadMembers("");
+
+	return true;
+}

@@ -33,6 +33,7 @@ package main
 
 import (
 	"ancient-solutions.com/ancientauth"
+	"encoding/json"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -41,6 +42,11 @@ import (
 	"net/url"
 	"time"
 )
+
+type memberListType struct {
+	Members   []*Member
+	CsrfToken string
+}
 
 var applicantApprovalURL *url.URL
 var applicantRejectionURL *url.URL
@@ -83,7 +89,7 @@ type ApplicantListHandler struct {
 
 type ApplicantRecordList struct {
 	Applicants []*MemberWithKey
-	Members    []*MemberWithWeirdMail
+	Members    []*Member
 	Queue      []*MemberWithKey
 	Trash      []*MemberWithKey
 
@@ -168,6 +174,52 @@ func (m *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 	err = m.template.ExecuteTemplate(rw, "memberlist.html", applications)
 	if err != nil {
 		log.Print("Error executing member list template: ", err)
+	}
+}
+
+// Get a list of members.
+type MemberListHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *MembershipDB
+	pagesize   int32
+}
+
+func (m *MemberListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var memlist memberListType
+	var enc *json.Encoder
+	var err error
+
+	if !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	memlist.Members, err = m.database.EnumerateMembers(
+		req.FormValue("start"), m.pagesize)
+	if err != nil {
+		log.Print("Error enumerating members: ", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error enumerating members: " + err.Error()))
+		return
+	}
+
+	memlist.CsrfToken, err = m.auth.GenCSRFToken(req, memberGoodbyeURL,
+		10*time.Minute)
+	if err != nil {
+		log.Print("Error generating CSRF token: ", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error generating CSRF token: " + err.Error()))
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json; encoding=utf8")
+	enc = json.NewEncoder(rw)
+	if err = enc.Encode(memlist); err != nil {
+		log.Print("Error JSON encoding member list: ", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error encoding result: " + err.Error()))
+		return
 	}
 }
 

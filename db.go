@@ -37,7 +37,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"strings"
 	"time"
 )
 
@@ -48,11 +47,6 @@ type MembershipDB struct {
 type MemberWithKey struct {
 	Key string
 	Member
-}
-
-type MemberWithWeirdMail struct {
-	Member
-	WeirdMail string
 }
 
 // List of all relevant columns; used for a few copies here.
@@ -256,13 +250,13 @@ func (m *MembershipDB) GetMembershipRequest(id, table string) (*MembershipAgreem
 // Returns a filled-out member structure and the timestamp when the
 // membership was approved.
 func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
-	[]*MemberWithWeirdMail, error) {
+	[]*Member, error) {
 	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
 	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
 	var r *cassandra.KeyRange = cassandra.NewKeyRange()
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
-	var rv []*MemberWithWeirdMail
+	var rv []*Member
 	var ire *cassandra.InvalidRequestException
 	var ue *cassandra.UnavailableException
 	var te *cassandra.TimedOutException
@@ -301,7 +295,7 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 	}
 
 	for _, ks = range kss {
-		var member *MemberWithWeirdMail = new(MemberWithWeirdMail)
+		var member *Member = new(Member)
 		var scol *cassandra.ColumnOrSuperColumn
 
 		if len(ks.Columns) == 0 {
@@ -309,9 +303,6 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 		}
 
 		member.Email = proto.String(string(ks.Key))
-		member.WeirdMail = strings.Replace(
-			strings.Replace(*member.Email, "@", "_", -1),
-			".", "_", -1)
 
 		for _, scol = range ks.Columns {
 			var col *cassandra.Column = scol.Column

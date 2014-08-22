@@ -11,7 +11,7 @@
 		<script type="text/javascript" src="/js/bootstrap.min.js"></script>
 	</head>
 	
-	<body>
+	<body onload="load();">
 		<div class="modal fade" id="reasonEnterModal" tabindex="-1" role="dialog" aria-labelledby="reasonEnterLabel" aria-hidden="true">
 			<div class="modal-dialog">
 				<div class="modal-content">
@@ -107,7 +107,7 @@
 						</thead>
 						<tbody>
 {{range $app := .Members}}
-							<tr id="mem-{{.WeirdMail}}">
+							<tr id="mem-{{.Email}}">
 								<td>{{.Name}}</td>
 								<td>{{.Street}}</td>
 								<td>{{.City}}</td>
