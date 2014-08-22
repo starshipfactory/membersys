@@ -129,7 +129,14 @@ func main() {
 			config.DatabaseConfig.GetDatabaseName(), ": ", err)
 	}
 
-	// Register the URL handler to be invoked.
+	// Register the URL handlers to be invoked.
+	http.Handle("/admin/api/members", &MemberListHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+		pagesize:   config.GetResultPageSize(),
+	})
+
 	http.Handle("/admin/api/accept", &MemberAcceptHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
