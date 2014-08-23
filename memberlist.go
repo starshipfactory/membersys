@@ -78,6 +78,8 @@ type TotalRecordList struct {
 	UploadCsrfToken    string
 	CancelCsrfToken    string
 	GoodbyeCsrfToken   string
+
+	PageSize int32
 }
 
 // Serve the list of current membership applications to the requestor.
@@ -157,6 +159,8 @@ func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	if err != nil {
 		log.Print("Error generating member goodbye CSRF token: ", err)
 	}
+
+	all_records.PageSize = m.pagesize
 
 	err = m.template.ExecuteTemplate(rw, "memberlist.html", all_records)
 	if err != nil {

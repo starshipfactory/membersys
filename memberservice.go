@@ -158,6 +158,13 @@ func main() {
 		pagesize:   config.GetResultPageSize(),
 	})
 
+	http.Handle("/admin/api/trash", &MemberTrashListHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+		pagesize:   config.GetResultPageSize(),
+	})
+
 	http.Handle("/admin/api/accept", &MemberAcceptHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
