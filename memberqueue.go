@@ -53,6 +53,14 @@ type MemberQueueListHandler struct {
 	pagesize   int32
 }
 
+// Object for getting a list of currently queued departing members.
+type MemberDeQueueListHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *MembershipDB
+	pagesize   int32
+}
+
 var queueCancelURL *url.URL
 
 func init() {
@@ -74,6 +82,44 @@ func (m *MemberQueueListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Req
 	}
 
 	qlist.Queued, err = m.database.EnumerateQueuedMembers(
+		req.FormValue("start"), m.pagesize)
+	if err != nil {
+		log.Print("Error enumerating membership queue: ", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error enumerating membership queue: " + err.Error()))
+		return
+	}
+
+	qlist.CsrfToken, err = m.auth.GenCSRFToken(req, queueCancelURL,
+		10*time.Minute)
+	if err != nil {
+		log.Print("Error generating CSRF token: ", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error generating CSRF token: " + err.Error()))
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json; encoding=utf8")
+	enc = json.NewEncoder(rw)
+	if err = enc.Encode(qlist); err != nil {
+		log.Print("Error JSON encoding member list: ", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error encoding result: " + err.Error()))
+		return
+	}
+}
+
+func (m *MemberDeQueueListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var qlist queueListType
+	var enc *json.Encoder
+	var err error
+
+	if !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	qlist.Queued, err = m.database.EnumerateDeQueuedMembers(
 		req.FormValue("start"), m.pagesize)
 	if err != nil {
 		log.Print("Error enumerating membership queue: ", err)

@@ -69,6 +69,7 @@ type TotalRecordList struct {
 	Applicants []*MemberWithKey
 	Members    []*Member
 	Queue      []*MemberWithKey
+	DeQueue    []*MemberWithKey
 	Trash      []*MemberWithKey
 
 	ApprovalCsrfToken  string
@@ -113,6 +114,13 @@ func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		req.FormValue("queued_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list queued members from ",
+			req.FormValue("queued_start"), ": ", err)
+	}
+
+	all_records.DeQueue, err = m.database.EnumerateDeQueuedMembers(
+		req.FormValue("queued_start"), m.pagesize)
+	if err != nil {
+		log.Print("Unable to list dequeued members from ",
 			req.FormValue("queued_start"), ": ", err)
 	}
 
