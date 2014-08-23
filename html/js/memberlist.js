@@ -236,8 +236,11 @@ function loadMembers(start) {
 
 			if (members == null || members.length == 0) {
 				var tr = document.createElement('tr');
-				tr.colspan = 7;
-				tr.appendChild(document.createTextNode('Derzeit verfügen wir über keine Mitglieder.'));
+				var td = document.createElement('td');
+				td.colspan = 7;
+				td.appendChild(document.createTextNode('Derzeit verfügen wir über keine Mitglieder.'));
+				tr.appendChild(td);
+				body.appendChild(tr);
 				return;
 			}
 
@@ -323,8 +326,11 @@ function loadApplicants(criterion, start) {
 
 			if (applicants == null || applicants.length == 0) {
 				var tr = document.createElement('tr');
-				tr.colspan = 5;
-				tr.appendChild(document.createTextNode('Derzeit verfügen wir über keine Mitglieder.'));
+				var td = document.createElement('td');
+				td.colspan = 5;
+				td.appendChild(document.createTextNode('Derzeit sind keine Mitgliedsanträge hängig.'));
+				tr.appendChild(td);
+				body.appendChild(tr);
 				return;
 			}
 
