@@ -269,7 +269,7 @@ function loadMembers(start) {
 				if (members[i].username != null)
 					td.appendChild(document.createTextNode(members[i].username));
 				else
-					td.appendChild(document.createTextNode("none"));
+					td.appendChild(document.createTextNode("Keiner"));
 				tr.appendChild(td);
 
 				td = document.createElement('td');
@@ -415,7 +415,8 @@ function loadQueue(start) {
 				var tr = document.createElement('tr');
 				var td = document.createElement('td');
 				td.colspan = 7;
-				td.appendChild(document.createTextNode('Derzeit sind keine Mitgliedsanträge in Verarbeitung.'));
+				td.appendChild(document.createTextNode(
+					'Derzeit sind keine Mitgliedsanträge in Verarbeitung.'));
 				tr.appendChild(td);
 				body.appendChild(tr);
 				return;
@@ -445,7 +446,7 @@ function loadQueue(start) {
 				if (members[i].username != null)
 					td.appendChild(document.createTextNode(member.username));
 				else
-					td.appendChild(document.createTextNode("none"));
+					td.appendChild(document.createTextNode("Keiner"));
 				tr.appendChild(td);
 
 				td = document.createElement('td');
@@ -478,6 +479,81 @@ function loadQueue(start) {
 	return true;
 }
 
+// Use AJAX to load a list of all applicants queued to become organization
+// members and populate the corresponding table.
+function loadDequeue(start) {
+	new $.ajax({
+		url: '/admin/api/dequeue',
+		data: {
+			start: start,
+		},
+		type: 'GET',
+		success: function(response) {
+			var body = $('#dequeuelist tbody')[0];
+			var members = response.queued;
+			var token = response.csrf_token;
+			var i = 0;
+
+			while (body.childNodes.length > 0)
+				body.removeChild(body.firstChild);
+
+			if (members == null || members.length == 0) {
+				var tr = document.createElement('tr');
+				var td = document.createElement('td');
+				td.colspan = 4;
+				td.appendChild(document.createTextNode(
+					'Derzeit sind keine Löschungen in Verarbeitung.'));
+				tr.appendChild(td);
+				body.appendChild(tr);
+				return;
+			}
+
+			for (i = 0; i < members.length; i++) {
+				var member = members[i];
+				var tr = document.createElement('tr');
+				var td;
+				var a;
+
+				tr.id = "dq-" + member.key;
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.name));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.street));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.city));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				if (members[i].username != null)
+					td.appendChild(document.createTextNode(member.username));
+				else
+					td.appendChild(document.createTextNode("Keiner"));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.email));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(
+					member.fee + " CHF pro " +
+					(member.fee_yearly ? "Jahr" : "Monat")
+					));
+				tr.appendChild(td);
+
+				body.appendChild(tr);
+			}
+		},
+	});
+
+	return true;
+}
+
 // Register the required functions for switching between the different tabs.
 function load() {
 	$('a[href="#members"]').on('show.bs.tab', function(e) {
@@ -490,6 +566,10 @@ function load() {
 
 	$('a[href="#queue"]').on('show.bs.tab', function(e) {
 		loadQueue("");
+	});
+
+	$('a[href="#dequeue"]').on('show.bs.tab', function(e) {
+		loadDequeue("");
 	});
 
 	loadMembers("");

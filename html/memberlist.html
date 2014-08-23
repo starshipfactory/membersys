@@ -85,6 +85,7 @@
 			<li class="active"><a href="#members" role="tab" data-toggle="tab">Mitglieder</a></li>
 			<li><a href="#applicants" role="tab" data-toggle="tab">Mitgliedsantr&auml;ge</a></li>
 			<li><a href="#queue" role="tab" data-toggle="tab">In Bearbeitung</a></li>
+			<li><a href="#dequeue" role="tab" data-toggle="tab">L&ouml;schvorg&auml;nge</a></li>
 			<li><a href="#trash" role="tab" data-toggle="tab">Gel&ouml;scht</a></li>
 		</ul>
 
@@ -168,6 +169,8 @@
 								<th>Name</th>
 								<th>Adresse</th>
 								<th>Ort</th>
+								<th>Benutzername</th>
+								<th>E-Mail</th>
 								<th>Angestrebter Beitrag</th>
 								<th>Aktionen</th>
 							</tr>
@@ -178,6 +181,8 @@
 								<td>{{.Name}}</td>
 								<td>{{.Street}}</td>
 								<td>{{.City}}</td>
+								<td>{{.Username}}</td>
+								<td>{{.Email}}</td>
 								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
 								<td>
 									<a href="javascript:cancelQueued(&quot;{{$app.Key}}&quot;, &quot;{{$.CancelCsrfToken}}&quot;);">Abbrechen</a>
@@ -186,6 +191,38 @@
 {{else}}
 							<tr>
 								<td colspan="5">Derzeit sind keine Mitgliedsantr&auml;ge in Verarbeitung.</td>
+							</tr>
+{{end}}
+						</tbody>
+					</table>
+				</div>
+				<div class="tab-pane fade" id="dequeue">
+					<p>Die folgenden Mitgliedskonten werden vom System gelöscht:</p>
+
+					<table id="dequeuelist" class="table">
+						<thead>
+							<tr>
+								<th>Name</th>
+								<th>Adresse</th>
+								<th>Ort</th>
+								<th>Benutzername</th>
+								<th>E-Mail</th>
+								<th>Ehemaliger Beitrag</th>
+							</tr>
+						</thead>
+						<tbody>
+{{range $app := .DeQueue}}
+							<tr id="dq-{{.Key}}">
+								<td>{{.Name}}</td>
+								<td>{{.Street}}</td>
+								<td>{{.City}}</td>
+								<td>{{.Username}}</td>
+								<td>{{.Email}}</td>
+								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
+							</tr>
+{{else}}
+							<tr>
+								<td colspan="4">Derzeit sind keine Mitgliedsantr&auml;ge in Verarbeitung.</td>
 							</tr>
 {{end}}
 						</tbody>

@@ -431,6 +431,15 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 
 // Get a list of all future members which are currently in the queue.
 func (m *MembershipDB) EnumerateQueuedMembers(prev string, num int32) ([]*MemberWithKey, error) {
+	return m.enumerateQueuedMembersIn("membership_queue", prev, num)
+}
+
+// Get a list of all future members which are currently in the departing queue.
+func (m *MembershipDB) EnumerateDeQueuedMembers(prev string, num int32) ([]*MemberWithKey, error) {
+	return m.enumerateQueuedMembersIn("membership_dequeue", prev, num)
+}
+
+func (m *MembershipDB) enumerateQueuedMembersIn(cf, prev string, num int32) ([]*MemberWithKey, error) {
 	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
 	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
 	var r *cassandra.KeyRange = cassandra.NewKeyRange()
@@ -443,7 +452,7 @@ func (m *MembershipDB) EnumerateQueuedMembers(prev string, num int32) ([]*Member
 	var err error
 
 	// Fetch the protobuf column of the application column family.
-	cp.ColumnFamily = "membership_queue"
+	cp.ColumnFamily = cf
 	pred.ColumnNames = [][]byte{
 		[]byte("pb_data"),
 	}
