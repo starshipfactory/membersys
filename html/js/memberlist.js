@@ -323,7 +323,6 @@ function forwardMembers() {
 	var lastrecord = membertable[membertable.length - 1];
 	var lastid = lastrecord.id.substr(4);
 
-	console.log(lastid);
 	loadMembers(lastid);
 }
 
@@ -437,7 +436,6 @@ function forwardApplicants() {
 	var lastrecord = membertable[membertable.length - 1];
 	var lastid = lastrecord.id;
 
-	console.log(lastid);
 	loadApplicants("", lastid);
 }
 
@@ -547,7 +545,6 @@ function forwardQueue() {
 	var lastrecord = membertable[membertable.length - 1];
 	var lastid = lastrecord.id.substr(2);
 
-	console.log(lastid);
 	loadQueue(lastid);
 }
 
@@ -646,7 +643,6 @@ function forwardDequeue() {
 	var lastrecord = membertable[membertable.length - 1];
 	var lastid = lastrecord.id.substr(3);
 
-	console.log(lastid);
 	loadQueue(lastid);
 }
 
@@ -663,7 +659,6 @@ function loadTrash(start) {
 			var body = $('#trashlist tbody')[0];
 			var prevarr = $('#trash ul.pager li.previous');
 			var nextarr = $('#trash ul.pager li.next');
-			var token = response.csrf_token;
 			var i = 0;
 
 			while (body.childNodes.length > 0)
@@ -727,7 +722,7 @@ function loadTrash(start) {
 				prevarr.addClass('disabled');
 			}
 
-			if (members.length == page_size) {
+			if (response.length == page_size) {
 				nextarr.removeClass('disabled');
 			} else {
 				nextarr.addClass('disabled');
@@ -744,7 +739,6 @@ function forwardTrash() {
 	var lastrecord = membertable[membertable.length - 1];
 	var lastid = lastrecord.id.substr(3);
 
-	console.log(lastid);
 	loadTrash(lastid);
 }
 
@@ -764,6 +758,10 @@ function load() {
 
 	$('a[href="#dequeue"]').on('show.bs.tab', function(e) {
 		loadDequeue("");
+	});
+
+	$('a[href="#trash"]').on('show.bs.tab', function(e) {
+		loadTrash("");
 	});
 
 	loadMembers("");
