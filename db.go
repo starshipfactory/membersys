@@ -711,7 +711,7 @@ func (m *MembershipDB) moveRecordToTable(id, initiator, src_table, dst_table str
 		return err
 	}
 
-	if len(member.AgreementPdf) == 0 {
+	if dst_table == "membership_queue" && len(member.AgreementPdf) == 0 {
 		return errors.New("No membership agreement scan has been uploaded")
 	}
 
