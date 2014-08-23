@@ -47,15 +47,10 @@ type memberListType struct {
 	CsrfToken string    `json:"csrf_token"`
 }
 
-var queueCancelURL *url.URL
 var memberGoodbyeURL *url.URL
 
 func init() {
 	var err error
-	queueCancelURL, err = url.Parse("/admin/api/cancel-queued")
-	if err != nil {
-		log.Fatal("Error parsing queue cancellation URL: ", err)
-	}
 	memberGoodbyeURL, err = url.Parse("/admin/api/goodbye-member")
 	if err != nil {
 		log.Fatal("Error parsing member goodbye URL: ", err)
@@ -205,54 +200,6 @@ func (m *MemberListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		rw.Write([]byte("Error encoding result: " + err.Error()))
 		return
 	}
-}
-
-// Object for cancelling a queued future member.
-type MemberQueueCancelHandler struct {
-	admingroup string
-	auth       *ancientauth.Authenticator
-	database   *MembershipDB
-}
-
-func (m *MemberQueueCancelHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var user string = m.auth.GetAuthenticatedUser(req)
-	var id string = req.PostFormValue("uuid")
-	var ok bool
-	var err error
-
-	if user == "" {
-		rw.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
-		rw.WriteHeader(http.StatusForbidden)
-	}
-
-	ok, err = m.auth.VerifyCSRFToken(req, req.PostFormValue("csrf_token"), false)
-	if err != nil && err != ancientauth.CSRFToken_WeakProtectionError {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
-		log.Print("Error verifying CSRF token: ", err)
-		return
-	}
-	if !ok {
-		rw.WriteHeader(http.StatusForbidden)
-		rw.Write([]byte("CSRF token validation failed"))
-		log.Print("Invalid CSRF token reveived")
-		return
-	}
-
-	err = m.database.MoveQueuedRecordToTrash(id, user)
-	if err != nil {
-		log.Print("Error moving queued record ", id, " to trash: ", err)
-		rw.WriteHeader(http.StatusLengthRequired)
-		rw.Write([]byte(err.Error()))
-		return
-	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte("{}"))
 }
 
 // Object for removing members from the organization.
