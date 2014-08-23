@@ -34,9 +34,7 @@ package main
 import (
 	"encoding/json"
 	"html/template"
-	"io/ioutil"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	"time"
@@ -45,30 +43,15 @@ import (
 )
 
 type memberListType struct {
-	Members   []*Member
-	CsrfToken string
+	Members   []*Member `json:"members"`
+	CsrfToken string    `json:"csrf_token"`
 }
 
-var applicantApprovalURL *url.URL
-var applicantRejectionURL *url.URL
-var applicantAgreementUploadURL *url.URL
 var queueCancelURL *url.URL
 var memberGoodbyeURL *url.URL
 
 func init() {
 	var err error
-	applicantApprovalURL, err = url.Parse("/admin/api/accept")
-	if err != nil {
-		log.Fatal("Error parsing static approval URL: ", err)
-	}
-	applicantRejectionURL, err = url.Parse("/admin/api/reject")
-	if err != nil {
-		log.Fatal("Error parsing static rejection URL: ", err)
-	}
-	applicantAgreementUploadURL, err = url.Parse("/admin/api/agreement-upload")
-	if err != nil {
-		log.Fatal("Error parsing static agreement upload URL: ", err)
-	}
 	queueCancelURL, err = url.Parse("/admin/api/cancel-queued")
 	if err != nil {
 		log.Fatal("Error parsing queue cancellation URL: ", err)
@@ -80,7 +63,7 @@ func init() {
 }
 
 // Handler object for displaying the list of membership applications.
-type ApplicantListHandler struct {
+type TotalListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
 	database   *MembershipDB
@@ -88,7 +71,7 @@ type ApplicantListHandler struct {
 	template   *template.Template
 }
 
-type ApplicantRecordList struct {
+type TotalRecordList struct {
 	Applicants []*MemberWithKey
 	Members    []*Member
 	Queue      []*MemberWithKey
@@ -102,8 +85,8 @@ type ApplicantRecordList struct {
 }
 
 // Serve the list of current membership applications to the requestor.
-func (m *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var applications ApplicantRecordList
+func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var all_records TotalRecordList
 	var err error
 
 	if m.auth.GetAuthenticatedUser(req) == "" {
@@ -117,7 +100,7 @@ func (m *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	applications.Applicants, err = m.database.EnumerateMembershipRequests(
+	all_records.Applicants, err = m.database.EnumerateMembershipRequests(
 		req.FormValue("applicant_criterion"),
 		req.FormValue("applicant_start"), m.pagesize)
 	if err != nil {
@@ -125,54 +108,54 @@ func (m *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 			req.FormValue("applicant_start"), ": ", err)
 	}
 
-	applications.Members, err = m.database.EnumerateMembers(
+	all_records.Members, err = m.database.EnumerateMembers(
 		req.FormValue("member_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list members from ",
 			req.FormValue("member_start"), ": ", err)
 	}
 
-	applications.Queue, err = m.database.EnumerateQueuedMembers(
+	all_records.Queue, err = m.database.EnumerateQueuedMembers(
 		req.FormValue("queued_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list queued members from ",
 			req.FormValue("queued_start"), ": ", err)
 	}
 
-	applications.Trash, err = m.database.EnumerateTrashedMembers(
+	all_records.Trash, err = m.database.EnumerateTrashedMembers(
 		req.FormValue("trashed_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list trashed members from ",
 			req.FormValue("trashed_start"), ": ", err)
 	}
 
-	applications.ApprovalCsrfToken, err = m.auth.GenCSRFToken(
+	all_records.ApprovalCsrfToken, err = m.auth.GenCSRFToken(
 		req, applicantApprovalURL, 10*time.Minute)
 	if err != nil {
 		log.Print("Error generating approval CSRF token: ", err)
 	}
-	applications.RejectionCsrfToken, err = m.auth.GenCSRFToken(
+	all_records.RejectionCsrfToken, err = m.auth.GenCSRFToken(
 		req, applicantRejectionURL, 10*time.Minute)
 	if err != nil {
 		log.Print("Error generating rejection CSRF token: ", err)
 	}
-	applications.UploadCsrfToken, err = m.auth.GenCSRFToken(
+	all_records.UploadCsrfToken, err = m.auth.GenCSRFToken(
 		req, applicantAgreementUploadURL, 10*time.Minute)
 	if err != nil {
 		log.Print("Error generating agreement upload CSRF token: ", err)
 	}
-	applications.CancelCsrfToken, err = m.auth.GenCSRFToken(
+	all_records.CancelCsrfToken, err = m.auth.GenCSRFToken(
 		req, queueCancelURL, 10*time.Minute)
 	if err != nil {
 		log.Print("Error generating queue cancellation CSRF token: ", err)
 	}
-	applications.GoodbyeCsrfToken, err = m.auth.GenCSRFToken(
+	all_records.GoodbyeCsrfToken, err = m.auth.GenCSRFToken(
 		req, memberGoodbyeURL, 10*time.Minute)
 	if err != nil {
 		log.Print("Error generating member goodbye CSRF token: ", err)
 	}
 
-	err = m.template.ExecuteTemplate(rw, "memberlist.html", applications)
+	err = m.template.ExecuteTemplate(rw, "memberlist.html", all_records)
 	if err != nil {
 		log.Print("Error executing member list template: ", err)
 	}
@@ -222,176 +205,6 @@ func (m *MemberListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		rw.Write([]byte("Error encoding result: " + err.Error()))
 		return
 	}
-}
-
-// Object for approving membership applications.
-type MemberAcceptHandler struct {
-	admingroup string
-	auth       *ancientauth.Authenticator
-	database   *MembershipDB
-}
-
-func (m *MemberAcceptHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var user string = m.auth.GetAuthenticatedUser(req)
-	var id string = req.PostFormValue("uuid")
-	var ok bool
-	var err error
-
-	if user == "" {
-		rw.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
-		rw.WriteHeader(http.StatusForbidden)
-		rw.Write([]byte("User not authorized for this service"))
-		return
-	}
-
-	ok, err = m.auth.VerifyCSRFToken(req, req.PostFormValue("csrf_token"), false)
-	if err != nil && err != ancientauth.CSRFToken_WeakProtectionError {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
-		log.Print("Error verifying CSRF token: ", err)
-		return
-	}
-	if !ok {
-		rw.WriteHeader(http.StatusForbidden)
-		rw.Write([]byte("CSRF token validation failed"))
-		log.Print("Invalid CSRF token reveived")
-		return
-	}
-
-	err = m.database.MoveApplicantToNewMember(id, user)
-	if err != nil {
-		log.Print("Error moving applicant ", id, " to new user: ", err)
-		rw.WriteHeader(http.StatusLengthRequired)
-		rw.Write([]byte(err.Error()))
-		return
-	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte("{}"))
-}
-
-// Object for rejecting membership applications.
-type MemberRejectHandler struct {
-	admingroup string
-	auth       *ancientauth.Authenticator
-	database   *MembershipDB
-}
-
-func (m *MemberRejectHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var user string = m.auth.GetAuthenticatedUser(req)
-	var id string = req.PostFormValue("uuid")
-	var ok bool
-	var err error
-
-	if user == "" {
-		rw.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
-		rw.WriteHeader(http.StatusForbidden)
-	}
-
-	ok, err = m.auth.VerifyCSRFToken(req, req.PostFormValue("csrf_token"), false)
-	if err != nil && err != ancientauth.CSRFToken_WeakProtectionError {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
-		log.Print("Error verifying CSRF token: ", err)
-		return
-	}
-	if !ok {
-		rw.WriteHeader(http.StatusForbidden)
-		rw.Write([]byte("CSRF token validation failed"))
-		log.Print("Invalid CSRF token reveived")
-		return
-	}
-
-	err = m.database.MoveApplicantToTrash(id, user)
-	if err != nil {
-		log.Print("Error moving applicant ", id, " to trash: ", err)
-		rw.WriteHeader(http.StatusLengthRequired)
-		rw.Write([]byte(err.Error()))
-		return
-	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte("{}"))
-}
-
-// Object for uploading membership agreements.
-type MemberAgreementUploadHandler struct {
-	admingroup string
-	auth       *ancientauth.Authenticator
-	database   *MembershipDB
-}
-
-func (m *MemberAgreementUploadHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var user string = m.auth.GetAuthenticatedUser(req)
-	var id string = req.FormValue("uuid")
-	var mf multipart.File
-	var agreement_data []byte
-	var ok bool
-	var err error
-
-	if user == "" {
-		rw.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
-		rw.WriteHeader(http.StatusForbidden)
-	}
-
-	req.URL.RawQuery = ""
-	req.ParseMultipartForm(5 * 1048576)
-
-	ok, err = m.auth.VerifyCSRFToken(req, req.FormValue("csrf_token"), false)
-	if err != nil && err != ancientauth.CSRFToken_WeakProtectionError {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
-		log.Print("Error verifying CSRF token: ", err)
-		return
-	}
-	if !ok {
-		rw.WriteHeader(http.StatusForbidden)
-		rw.Write([]byte("CSRF token validation failed"))
-		log.Print("Invalid CSRF token reveived")
-		return
-	}
-
-	mf, _, err = req.FormFile("0")
-	if err != nil {
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte("Unable to retrieve uploaded file: " + err.Error()))
-		log.Print("Unable to retrieve uploaded file: ", err)
-		return
-	}
-
-	agreement_data, err = ioutil.ReadAll(mf)
-	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte("Error reading in agreement data: " + err.Error()))
-		log.Print("Error reading in agreement data: ", err)
-		return
-	}
-
-	mf.Close()
-
-	err = m.database.StoreMembershipAgreement(id, agreement_data)
-	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte("Error storing membership agreement: " + err.Error()))
-		log.Print("Error storing membership agreement: ", err)
-		return
-	}
-
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte("{}"))
 }
 
 // Object for cancelling a queued future member.

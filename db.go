@@ -46,7 +46,7 @@ type MembershipDB struct {
 }
 
 type MemberWithKey struct {
-	Key string
+	Key string `json:"key"`
 	Member
 }
 
