@@ -226,18 +226,19 @@ function loadMembers(start) {
 		},
 		type: 'GET',
 		success: function(response) {
-			var body = $('#members tbody')[0];
-			var members = response.Members;
-			var token = response.CsrfToken;
+			var body = $('#memberlist tbody')[0];
+			var members = response.members;
+			var token = response.csrf_token;
 			var i = 0;
 
 			while (body.childNodes.length > 0)
 				body.removeChild(body.firstChild);
 
-			if (members.length == 0) {
+			if (members == null || members.length == 0) {
 				var tr = document.createElement('tr');
 				tr.colspan = 7;
 				tr.appendChild(document.createTextNode('Derzeit verfügen wir über keine Mitglieder.'));
+				return;
 			}
 
 			for (i = 0; i < members.length; i++) {
@@ -285,10 +286,97 @@ function loadMembers(start) {
 				a.onclick = function(e) {
 					var tr = e.srcElement.parentNode.parentNode;
 					var email = tr.childNodes[4].firstChild.data;
-					console.log(email);
 					goodbyeMember(email, token);
 				}
 				a.appendChild(document.createTextNode('Verabschieden'));
+				td.appendChild(a);
+				tr.appendChild(td);
+
+				body.appendChild(tr);
+			}
+		},
+	});
+
+	return true;
+}
+
+// Use AJAX to load a list of all membership applications and populate the
+// corresponding table.
+function loadApplicants(criterion, start) {
+	new $.ajax({
+		url: '/admin/api/applicants',
+		data: {
+			start: start,
+			criterion: criterion,
+		},
+		type: 'GET',
+		success: function(response) {
+			var body = $('#applicantlist tbody')[0];
+			var applicants = response.applicants;
+			var approval_token = response.approval_csrf_token;
+			var rejection_token = response.rejection_csrf_token;
+			var upload_token = response.agreement_upload_csrf_token;
+			var i = 0;
+
+			while (body.childNodes.length > 0)
+				body.removeChild(body.firstChild);
+
+			if (applicants == null || applicants.length == 0) {
+				var tr = document.createElement('tr');
+				tr.colspan = 5;
+				tr.appendChild(document.createTextNode('Derzeit verfügen wir über keine Mitglieder.'));
+				return;
+			}
+
+			for (i = 0; i < applicants.length; i++) {
+				var applicant = applicants[i];
+				var tr = document.createElement('tr');
+				var td;
+				var a;
+
+				tr.id = applicant.key;
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(applicant.name));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(applicant.street));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(applicant.city));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(
+					applicant.fee + " CHF pro " +
+					(applicant.fee_yearly ? "Jahr" : "Monat")
+					));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				a = document.createElement('a');
+				a.href = "#";
+				a.onclick = function(e) {
+					var tr = e.srcElement.parentNode.parentNode;
+					var id = tr.id;
+					console.log(id + " upload commencing");
+					openUploadAgreement(id, approval_token, upload_token);
+				}
+				a.appendChild(document.createTextNode('Annehmen'));
+				td.appendChild(a);
+
+				td.appendChild(document.createTextNode(' '));
+
+				a = document.createElement('a');
+				a.href = "#";
+				a.onclick = function(e) {
+					var tr = e.srcElement.parentNode.parentNode;
+					var id = tr.id;
+					rejectMember(id, rejection_token);
+				}
+				a.appendChild(document.createTextNode('Ablehnen'));
 				td.appendChild(a);
 				tr.appendChild(td);
 
@@ -304,6 +392,10 @@ function loadMembers(start) {
 function load() {
 	$('a[href="#members"]').on('show.bs.tab', function(e) {
 		loadMembers("");
+	});
+
+	$('a[href="#applicants"]').on('show.bs.tab', function(e) {
+		loadApplicants("", "");
 	});
 
 	loadMembers("");

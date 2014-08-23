@@ -136,6 +136,13 @@ func main() {
 		pagesize:   config.GetResultPageSize(),
 	})
 
+	http.Handle("/admin/api/applicants", &ApplicantListHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+		pagesize:   config.GetResultPageSize(),
+	})
+
 	http.Handle("/admin/api/accept", &MemberAcceptHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
@@ -166,7 +173,7 @@ func main() {
 		database:   db,
 	})
 
-	http.Handle("/admin", &ApplicantListHandler{
+	http.Handle("/admin", &TotalListHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
 		database:   db,
