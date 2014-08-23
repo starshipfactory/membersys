@@ -251,7 +251,7 @@ function loadMembers(start) {
 				var td;
 				var a;
 
-				tr.id = bid;
+				tr.id = "mem-" + bid;
 
 				td = document.createElement('td');
 				td.appendChild(document.createTextNode(members[i].name));
@@ -367,7 +367,6 @@ function loadApplicants(criterion, start) {
 				a.onclick = function(e) {
 					var tr = e.srcElement.parentNode.parentNode;
 					var id = tr.id;
-					console.log(id + " upload commencing");
 					openUploadAgreement(id, approval_token, upload_token);
 				}
 				a.appendChild(document.createTextNode('Annehmen'));
@@ -379,10 +378,95 @@ function loadApplicants(criterion, start) {
 				a.href = "#";
 				a.onclick = function(e) {
 					var tr = e.srcElement.parentNode.parentNode;
-					var id = tr.id;
+					var id = tr.id.replace("q-", "");
 					rejectMember(id, rejection_token);
 				}
 				a.appendChild(document.createTextNode('Ablehnen'));
+				td.appendChild(a);
+				tr.appendChild(td);
+
+				body.appendChild(tr);
+			}
+		},
+	});
+
+	return true;
+}
+
+// Use AJAX to load a list of all applicants queued to become organization
+// members and populate the corresponding table.
+function loadQueue(start) {
+	new $.ajax({
+		url: '/admin/api/queue',
+		data: {
+			start: start,
+		},
+		type: 'GET',
+		success: function(response) {
+			var body = $('#queuelist tbody')[0];
+			var members = response.queued;
+			var token = response.csrf_token;
+			var i = 0;
+
+			while (body.childNodes.length > 0)
+				body.removeChild(body.firstChild);
+
+			if (members == null || members.length == 0) {
+				var tr = document.createElement('tr');
+				var td = document.createElement('td');
+				td.colspan = 7;
+				td.appendChild(document.createTextNode('Derzeit sind keine Mitgliedsanträge in Verarbeitung.'));
+				tr.appendChild(td);
+				body.appendChild(tr);
+				return;
+			}
+
+			for (i = 0; i < members.length; i++) {
+				var member = members[i];
+				var tr = document.createElement('tr');
+				var td;
+				var a;
+
+				tr.id = "q-" + member.key;
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.name));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.street));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.city));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				if (members[i].username != null)
+					td.appendChild(document.createTextNode(member.username));
+				else
+					td.appendChild(document.createTextNode("none"));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.email));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(
+					member.fee + " CHF pro " +
+					(member.fee_yearly ? "Jahr" : "Monat")
+					));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				a = document.createElement('a');
+				a.href = "#";
+				a.onclick = function(e) {
+					var tr = e.srcElement.parentNode.parentNode;
+					cancelQueued(tr.id.replace("q-", ""), token);
+				}
+				a.appendChild(document.createTextNode('Abbrechen'));
 				td.appendChild(a);
 				tr.appendChild(td);
 
@@ -402,6 +486,10 @@ function load() {
 
 	$('a[href="#applicants"]').on('show.bs.tab', function(e) {
 		loadApplicants("", "");
+	});
+
+	$('a[href="#queue"]').on('show.bs.tab', function(e) {
+		loadQueue("");
 	});
 
 	loadMembers("");
