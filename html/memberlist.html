@@ -3,6 +3,10 @@
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<title>Starship Factory - Mitgliedschaftsantr&auml;ge</title>
+
+		<script type="text/javascript" language="JavaScript">
+		var page_size = {{.PageSize}};
+		</script>
 		<link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css">
 		<script src="/js/jquery.js" type="text/javascript"></script>
 		<script src="/js/jquery.validate.min.js" type="text/javascript"></script>
@@ -126,6 +130,10 @@
 {{end}}
 						</tbody>
 					</table>
+					<ul class="pager">
+						<li class="previous disabled"><a href="javascript:loadMembers(&quot;&quot;);">&larr; Beginn</a></li>
+						<li class="next"><a href="javascript:forwardMembers();">Weiter &rarr;</a></li>
+					</ul>
 				</div>
 				<div class="tab-pane fade" id="applicants">
 					<p>Die folgenden Mitgliedschaftsantr&auml;ge sind derzeit h&auml;ngig:</p>
@@ -159,6 +167,10 @@
 {{end}}
 						</tbody>
 					</table>
+					<ul class="pager">
+						<li class="previous disabled"><a href="javascript:loadApplicants(&quot;&quot;, &quot;&quot;);">&larr; Beginn</a></li>
+						<li class="next"><a href="javascript:forwardApplicants();">Weiter &rarr;</a></li>
+					</ul>
 				</div>
 				<div class="tab-pane fade" id="queue">
 					<p>Die folgenden Mitgliedschaftsantr&auml;ge werden vom System bearbeitet:</p>
@@ -195,6 +207,10 @@
 {{end}}
 						</tbody>
 					</table>
+					<ul class="pager">
+						<li class="previous disabled"><a href="javascript:loadQueue(&quot;&quot;);">&larr; Beginn</a></li>
+						<li class="next"><a href="javascript:forwardQueue();">Weiter &rarr;</a></li>
+					</ul>
 				</div>
 				<div class="tab-pane fade" id="dequeue">
 					<p>Die folgenden Mitgliedskonten werden vom System gelöscht:</p>
@@ -227,6 +243,10 @@
 {{end}}
 						</tbody>
 					</table>
+					<ul class="pager">
+						<li class="previous disabled"><a href="javascript:loadDequeue(&quot;&quot;);">&larr; Beginn</a></li>
+						<li class="next"><a href="javascript:forwardDequeue();">Weiter &rarr;</a></li>
+					</ul>
 				</div>
 				<div class="tab-pane fade" id="trash">
 					<p>Die folgenden Mitgliedschaftsantr&auml;ge wurden gel&ouml;scht:</p>
@@ -255,6 +275,10 @@
 {{end}}
 						</tbody>
 					</table>
+					<ul class="pager">
+						<li class="previous disabled"><a href="javascript:loadTrash(&quot;&quot;);">&larr; Beginn</a></li>
+						<li class="next"><a href="javascript:forwardTrash();">Weiter &rarr;</a></li>
+					</ul>
 				</div>
 			</div>
 		</div>

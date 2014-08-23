@@ -227,6 +227,8 @@ function loadMembers(start) {
 		type: 'GET',
 		success: function(response) {
 			var body = $('#memberlist tbody')[0];
+			var prevarr = $('#members ul.pager li.previous');
+			var nextarr = $('#members ul.pager li.next');
 			var members = response.members;
 			var token = response.csrf_token;
 			var i = 0;
@@ -297,10 +299,32 @@ function loadMembers(start) {
 
 				body.appendChild(tr);
 			}
+
+			if (start.length > 0) {
+				prevarr.removeClass('disabled');
+			} else {
+				prevarr.addClass('disabled');
+			}
+
+			if (members.length == page_size) {
+				nextarr.removeClass('disabled');
+			} else {
+				nextarr.addClass('disabled');
+			}
 		},
 	});
 
 	return true;
+}
+
+// Go to the next batch of members starting with the current one.
+function forwardMembers() {
+	var membertable = $('#memberlist tbody tr');
+	var lastrecord = membertable[membertable.length - 1];
+	var lastid = lastrecord.id.substr(4);
+
+	console.log(lastid);
+	loadMembers(lastid);
 }
 
 // Use AJAX to load a list of all membership applications and populate the
@@ -315,6 +339,8 @@ function loadApplicants(criterion, start) {
 		type: 'GET',
 		success: function(response) {
 			var body = $('#applicantlist tbody')[0];
+			var prevarr = $('#applicants ul.pager li.previous');
+			var nextarr = $('#applicants ul.pager li.next');
 			var applicants = response.applicants;
 			var approval_token = response.approval_csrf_token;
 			var rejection_token = response.rejection_csrf_token;
@@ -387,10 +413,32 @@ function loadApplicants(criterion, start) {
 
 				body.appendChild(tr);
 			}
+
+			if (start.length > 0) {
+				prevarr.removeClass('disabled');
+			} else {
+				prevarr.addClass('disabled');
+			}
+
+			if (applicants.length == page_size) {
+				nextarr.removeClass('disabled');
+			} else {
+				nextarr.addClass('disabled');
+			}
 		},
 	});
 
 	return true;
+}
+
+// Go to the next batch of members starting with the current one.
+function forwardApplicants() {
+	var membertable = $('#applicantlist tbody tr');
+	var lastrecord = membertable[membertable.length - 1];
+	var lastid = lastrecord.id;
+
+	console.log(lastid);
+	loadApplicants("", lastid);
 }
 
 // Use AJAX to load a list of all applicants queued to become organization
@@ -404,6 +452,8 @@ function loadQueue(start) {
 		type: 'GET',
 		success: function(response) {
 			var body = $('#queuelist tbody')[0];
+			var prevarr = $('#queue ul.pager li.previous');
+			var nextarr = $('#queue ul.pager li.next');
 			var members = response.queued;
 			var token = response.csrf_token;
 			var i = 0;
@@ -473,10 +523,32 @@ function loadQueue(start) {
 
 				body.appendChild(tr);
 			}
+
+			if (start.length > 0) {
+				prevarr.removeClass('disabled');
+			} else {
+				prevarr.addClass('disabled');
+			}
+
+			if (members.length == page_size) {
+				nextarr.removeClass('disabled');
+			} else {
+				nextarr.addClass('disabled');
+			}
 		},
 	});
 
 	return true;
+}
+
+// Go to the next batch of queued records starting with the current one.
+function forwardQueue() {
+	var membertable = $('#queuelist tbody tr');
+	var lastrecord = membertable[membertable.length - 1];
+	var lastid = lastrecord.id.substr(2);
+
+	console.log(lastid);
+	loadQueue(lastid);
 }
 
 // Use AJAX to load a list of all applicants queued to become organization
@@ -490,6 +562,8 @@ function loadDequeue(start) {
 		type: 'GET',
 		success: function(response) {
 			var body = $('#dequeuelist tbody')[0];
+			var prevarr = $('#dequeue ul.pager li.previous');
+			var nextarr = $('#dequeue ul.pager li.next');
 			var members = response.queued;
 			var token = response.csrf_token;
 			var i = 0;
@@ -548,10 +622,130 @@ function loadDequeue(start) {
 
 				body.appendChild(tr);
 			}
+
+			if (start.length > 0) {
+				prevarr.removeClass('disabled');
+			} else {
+				prevarr.addClass('disabled');
+			}
+
+			if (members.length == page_size) {
+				nextarr.removeClass('disabled');
+			} else {
+				nextarr.addClass('disabled');
+			}
 		},
 	});
 
 	return true;
+}
+
+// Go to the next batch of queued records starting with the current one.
+function forwardDequeue() {
+	var membertable = $('#dequeuelist tbody tr');
+	var lastrecord = membertable[membertable.length - 1];
+	var lastid = lastrecord.id.substr(3);
+
+	console.log(lastid);
+	loadQueue(lastid);
+}
+
+// Use AJAX to load a list of all members in the trash and populate the
+// corresponding table.
+function loadTrash(start) {
+	new $.ajax({
+		url: '/admin/api/trash',
+		data: {
+			start: start,
+		},
+		type: 'GET',
+		success: function(response) {
+			var body = $('#trashlist tbody')[0];
+			var prevarr = $('#trash ul.pager li.previous');
+			var nextarr = $('#trash ul.pager li.next');
+			var token = response.csrf_token;
+			var i = 0;
+
+			while (body.childNodes.length > 0)
+				body.removeChild(body.firstChild);
+
+			if (response == null || response.length == 0) {
+				var tr = document.createElement('tr');
+				var td = document.createElement('td');
+				td.colspan = 4;
+				td.appendChild(document.createTextNode(
+					'Derzeit sind keine Löschungen in Verarbeitung.'));
+				tr.appendChild(td);
+				body.appendChild(tr);
+				return;
+			}
+
+			for (i = 0; i < response.length; i++) {
+				var member = response[i];
+				var tr = document.createElement('tr');
+				var td;
+				var a;
+
+				tr.id = "dq-" + member.key;
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.name));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.street));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.city));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				if (member.username != null)
+					td.appendChild(document.createTextNode(member.username));
+				else
+					td.appendChild(document.createTextNode("Keiner"));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(member.email));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(
+					member.fee + " CHF pro " +
+					(member.fee_yearly ? "Jahr" : "Monat")
+					));
+				tr.appendChild(td);
+
+				body.appendChild(tr);
+			}
+
+			if (start.length > 0) {
+				prevarr.removeClass('disabled');
+			} else {
+				prevarr.addClass('disabled');
+			}
+
+			if (members.length == page_size) {
+				nextarr.removeClass('disabled');
+			} else {
+				nextarr.addClass('disabled');
+			}
+		},
+	});
+
+	return true;
+}
+
+// Go to the next batch of queued records starting with the current one.
+function forwardTrash() {
+	var membertable = $('#trashlist tbody tr');
+	var lastrecord = membertable[membertable.length - 1];
+	var lastid = lastrecord.id.substr(3);
+
+	console.log(lastid);
+	loadTrash(lastid);
 }
 
 // Register the required functions for switching between the different tabs.
