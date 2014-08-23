@@ -369,6 +369,15 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 	r.EndKey = make([]byte, 0)
 	r.Count = num
 
+	// Only count those rows which contain data in this column family.
+	r.RowFilter = []*cassandra.IndexExpression{
+		&cassandra.IndexExpression{
+			ColumnName: []byte("name"),
+			Op:         cassandra.IndexOperator_GT,
+			Value:      make([]byte, 0),
+		},
+	}
+
 	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
 	if ire != nil {
 		err = errors.New(ire.Why)
@@ -448,6 +457,15 @@ func (m *MembershipDB) EnumerateQueuedMembers(prev string, num int32) ([]*Member
 	}
 	r.EndKey = make([]byte, 0)
 	r.Count = num
+
+	// Only count those rows which contain data in this column family.
+	r.RowFilter = []*cassandra.IndexExpression{
+		&cassandra.IndexExpression{
+			ColumnName: []byte("pb_data"),
+			Op:         cassandra.IndexOperator_GT,
+			Value:      make([]byte, 0),
+		},
+	}
 
 	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
 	if ire != nil {
