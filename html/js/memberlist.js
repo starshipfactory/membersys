@@ -216,6 +216,133 @@ function rejectMember(id, csrf_token) {
 	return true;
 }
 
+// Retrieve and display detailed information about a specific member.
+function loadMember(email) {
+	new $.ajax({
+		url: '/admin/api/member',
+		data: {
+			email: email,
+		},
+		type: 'GET',
+		success: function(response) {
+			var label = $('#memberDetailLabel')[0];
+			var data = $('#memberDetailData')[0];
+			var md = response["member_data"];
+			var row;
+			var col;
+			var inner_el;
+			var abbr;
+
+			while (label.childNodes.length > 0)
+				label.removeChild(label.firstChild);
+
+			console.log(response);
+			label.appendChild(document.createTextNode(md.name));
+
+			while (data.childNodes.length > 0)
+				data.removeChild(data.firstChild);
+
+			row = document.createElement('div');
+			row.className = 'row';
+
+			col = document.createElement('div');
+			col.className = 'col-xs-4';
+			inner_el = document.createElement('strong');
+			inner_el.appendChild(document.createTextNode('Adresse'));
+			col.appendChild(inner_el);
+			row.appendChild(col);
+
+			col = document.createElement('div');
+			col.className = 'col-xs-8';
+			inner_el = document.createElement('address');
+			inner_el.appendChild(document.createTextNode(md.street));
+			inner_el.appendChild(document.createElement('br'));
+			inner_el.appendChild(document.createTextNode(md.zipcode));
+			inner_el.appendChild(document.createTextNode(' '));
+			inner_el.appendChild(document.createTextNode(md.city));
+			inner_el.appendChild(document.createElement('br'));
+			inner_el.appendChild(document.createTextNode(md.country));
+
+			if (md.phone != null) {
+				abbr = document.createElement('abbr');
+				inner_el.appendChild(document.createElement('br'));
+				abbr.title = 'Telephon';
+				abbr.appendChild(document.createTextNode('T:'));
+				inner_el.appendChild(abbr);
+				inner_el.appendChild(document.createTextNode(' ' +
+					md.phone));
+			}
+
+			abbr = document.createElement('abbr');
+			inner_el.appendChild(document.createElement('br'));
+			abbr.title = 'Email';
+			abbr.appendChild(document.createTextNode('E:'));
+			inner_el.appendChild(abbr);
+
+			inner_el.appendChild(document.createTextNode(' '));
+
+			abbr = document.createElement('a');
+			abbr.href = "mailto:" + md.email;
+			abbr.appendChild(document.createTextNode(md.email));
+			inner_el.appendChild(abbr);
+
+			col.appendChild(inner_el);
+			row.appendChild(col);
+
+			data.appendChild(row);
+
+			row = document.createElement('div');
+			row.className = 'row';
+
+			col = document.createElement('div');
+			col.className = 'col-xs-4';
+			inner_el = document.createElement('strong');
+			inner_el.appendChild(document.createTextNode('Gebühren'));
+			col.appendChild(inner_el);
+			row.appendChild(col);
+
+			col = document.createElement('div');
+			col.className = 'col-xs-8';
+
+			col.appendChild(document.createTextNode(
+				md.fee + " CHF pro " + (md.fee_yearly ? "Jahr" : "Monat")));
+			col.appendChild(document.createTextNode(' '));
+
+			inner_el = document.createElement('a');
+			inner_el.href = "#";
+			inner_el.onclick = function() {
+				editMembershipFee(md.email);
+			}
+			inner_el.appendChild(document.createTextNode('Bearbeiten'));
+
+			col.appendChild(inner_el);
+			row.appendChild(col);
+
+			if (md.username != null) {
+				col = document.createElement('div');
+				col.className = 'col-xs-4';
+				inner_el = document.createElement('strong');
+				inner_el.appendChild(document.createTextNode('Benutzerkonto'));
+				col.appendChild(inner_el);
+				row.appendChild(col);
+
+				col = document.createElement('div');
+				col.className = 'col-xs-8';
+
+				col.appendChild(document.createTextNode(md.username));
+
+				col.appendChild(inner_el);
+				row.appendChild(col);
+			}
+
+			data.appendChild(row);
+
+			$('#memberDetailModal').modal('show');
+		}
+	});
+	return true;
+}
+
 // Use AJAX to load a list of all organization members and populate the
 // corresponding table.
 function loadMembers(start) {
@@ -294,6 +421,18 @@ function loadMembers(start) {
 					goodbyeMember(email, token);
 				}
 				a.appendChild(document.createTextNode('Verabschieden'));
+				td.appendChild(a);
+
+				td.appendChild(document.createTextNode(' '));
+
+				a = document.createElement('a');
+				a.href = "#";
+				a.onclick = function(e) {
+					var tr = e.srcElement.parentNode.parentNode;
+					var email = tr.childNodes[4].firstChild.data;
+					loadMember(email);
+				}
+				a.appendChild(document.createTextNode('Details'));
 				td.appendChild(a);
 				tr.appendChild(td);
 

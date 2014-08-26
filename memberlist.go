@@ -259,6 +259,63 @@ func (m *MemberGoodbyeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	rw.Header().Set("Content-Type", "application/json; encoding=utf8")
 	rw.WriteHeader(http.StatusOK)
 	rw.Write([]byte("{}"))
+}
+
+// List details about a speific member.
+type MemberDetailHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *MembershipDB
+}
+
+func (m *MemberDetailHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var user string = m.auth.GetAuthenticatedUser(req)
+	var member *MembershipAgreement
+	var memberid string = req.FormValue("email")
+	var enc *json.Encoder
+	var err error
+
+	if user == "" {
+		rw.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if len(memberid) == 0 {
+		rw.WriteHeader(http.StatusLengthRequired)
+		rw.Write([]byte("No email given"))
+		return
+	}
+
+	member, err = m.database.GetMemberDetail(memberid)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error fetching member details: " +
+			err.Error()))
+		return
+	}
+
+	if member.MemberData.GetUsername() != user && len(m.admingroup) > 0 &&
+		!m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusForbidden)
+		rw.Write([]byte("Only admin users may look at other accounts"))
+		return
+	}
+
+	// Trash the membership agreement, transmitting it over HTTP doesn't
+	// make much sense.
+	member.AgreementPdf = make([]byte, 0)
+
+	// The password hash is off limits too.
+	member.MemberData.Pwhash = nil
+
+	rw.Header().Set("Content-Type", "application/json; encoding=utf8")
+	enc = json.NewEncoder(rw)
+	if err = enc.Encode(member); err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error encoding JSON structure: " + err.Error()))
+		return
+	}
 }

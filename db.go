@@ -204,6 +204,44 @@ func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, e
 	return
 }
 
+// Retrieve a specific members detailed membership data.
+func (m *MembershipDB) GetMemberDetail(id string) (*MembershipAgreement, error) {
+	var member *MembershipAgreement = new(MembershipAgreement)
+	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
+	var r *cassandra.ColumnOrSuperColumn
+	var ire *cassandra.InvalidRequestException
+	var nfe *cassandra.NotFoundException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	cp.ColumnFamily = "members"
+	cp.Column = []byte("pb_data")
+
+	// Retrieve the protobuf with all data from Cassandra.
+	r, ire, nfe, ue, te, err = m.conn.Get(
+		[]byte(id), cp, cassandra.ConsistencyLevel_ONE)
+	if ire != nil {
+		return nil, errors.New(ire.Why)
+	}
+	if nfe != nil {
+		return nil, errors.New("Not found")
+	}
+	if ue != nil {
+		return nil, errors.New("Unavailable")
+	}
+	if te != nil {
+		return nil, errors.New("Timed out")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the protobuf which was written to the column.
+	err = proto.Unmarshal(r.Column.Value, member)
+	return member, err
+}
+
 // Retrieve an individual applicants data.
 func (m *MembershipDB) GetMembershipRequest(id, table string) (*MembershipAgreement, int64, error) {
 	var uuid cassandra.UUID
