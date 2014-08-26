@@ -37,6 +37,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"ancient-solutions.com/ancientauth"
@@ -318,4 +319,59 @@ func (m *MemberDetailHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		rw.Write([]byte("Error encoding JSON structure: " + err.Error()))
 		return
 	}
+}
+
+// Change the membership fee.
+type MemberFeeHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *MembershipDB
+}
+
+func (m *MemberFeeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var memberid string = req.FormValue("email")
+	var fee_s string = req.FormValue("fee")
+	var fee_yearly_s string = req.FormValue("fee_yearly")
+	var fee uint64
+	var fee_yearly bool
+	var err error
+
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	if len(memberid) == 0 || len(fee_s) == 0 || len(fee_yearly_s) == 0 {
+		rw.WriteHeader(http.StatusLengthRequired)
+		rw.Write([]byte("Required parameter missing"))
+		return
+	}
+
+	fee, err = strconv.ParseUint(fee_s, 10, 64)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		rw.Write([]byte("Not a number: " + err.Error()))
+		return
+	}
+
+	if fee_yearly_s == "true" {
+		fee_yearly = true
+	} else if fee_yearly_s == "false" {
+		fee_yearly = false
+	} else {
+		rw.WriteHeader(http.StatusBadRequest)
+		rw.Write([]byte("Not a boolean"))
+	}
+
+	err = m.database.SetMemberFee(memberid, fee, fee_yearly)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error fetching member details: " +
+			err.Error()))
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json; encoding=utf8")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
 }

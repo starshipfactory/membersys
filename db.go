@@ -254,6 +254,96 @@ func (m *MembershipDB) GetMemberDetail(id string) (*MembershipAgreement, error) 
 	return member, err
 }
 
+// Update the membership fee for the given user.
+func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
+	var now time.Time = time.Now()
+	var mmap map[string]map[string][]*cassandra.Mutation
+	var member *MembershipAgreement = new(MembershipAgreement)
+	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
+	var r *cassandra.ColumnOrSuperColumn
+	var ire *cassandra.InvalidRequestException
+	var nfe *cassandra.NotFoundException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+
+	var mu *cassandra.Mutation = cassandra.NewMutation()
+	var bdata []byte
+	var err error
+
+	cp.ColumnFamily = "members"
+	cp.Column = []byte("pb_data")
+
+	// Retrieve the protobuf with all data from Cassandra.
+	r, ire, nfe, ue, te, err = m.conn.Get(
+		append([]byte(memberPrefix), []byte(id)...),
+		cp, cassandra.ConsistencyLevel_ONE)
+	if ire != nil {
+		return errors.New(ire.Why)
+	}
+	if nfe != nil {
+		return errors.New("Not found")
+	}
+	if ue != nil {
+		return errors.New("Unavailable")
+	}
+	if te != nil {
+		return errors.New("Timed out")
+	}
+	if err != nil {
+		return err
+	}
+
+	// Decode the protobuf which was written to the column.
+	err = proto.Unmarshal(r.Column.Value, member)
+	if err != nil {
+		return err
+	}
+
+	member.MemberData.Fee = &fee
+	member.MemberData.FeeYearly = &yearly
+
+	r.Column.Value, err = proto.Marshal(member)
+	r.Column.Timestamp = now.UnixNano()
+
+	mmap = make(map[string]map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
+
+	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+	mu.ColumnOrSupercolumn.Column = r.Column
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+
+	bdata = make([]byte, 8)
+	binary.BigEndian.PutUint64(bdata, fee)
+	mu = newCassandraMutationBytes("fee", bdata, &now, 0)
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+
+	bdata = make([]byte, 1)
+	if yearly {
+		bdata[0] = 1
+	} else {
+		bdata[0] = 0
+	}
+	mu = newCassandraMutationBytes("fee_yearly", bdata, &now, 0)
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+
+	ire, ue, te, err = m.conn.AtomicBatchMutate(
+		mmap, cassandra.ConsistencyLevel_QUORUM)
+	if ire != nil {
+		return errors.New(ire.Why)
+	}
+	if ue != nil {
+		return errors.New("Unavailable")
+	}
+	if te != nil {
+		return errors.New("Timed out")
+	}
+	return err
+}
+
 // Retrieve an individual applicants data.
 func (m *MembershipDB) GetMembershipRequest(id, table, prefix string) (*MembershipAgreement, int64, error) {
 	var uuid cassandra.UUID

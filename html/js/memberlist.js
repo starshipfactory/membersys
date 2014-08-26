@@ -237,7 +237,6 @@ function loadMember(email) {
 			while (label.childNodes.length > 0)
 				label.removeChild(label.firstChild);
 
-			console.log(response);
 			label.appendChild(document.createTextNode(md.name));
 
 			while (data.childNodes.length > 0)
@@ -312,7 +311,8 @@ function loadMember(email) {
 			inner_el = document.createElement('a');
 			inner_el.href = "#";
 			inner_el.onclick = function() {
-				editMembershipFee(md.email);
+				$('#memberDetailModal').modal('hide');
+				editMembershipFee(md.email, md.name, md.fee, md.fee_yearly);
 			}
 			inner_el.appendChild(document.createTextNode('Bearbeiten'));
 
@@ -387,6 +387,49 @@ function loadMember(email) {
 		}
 	});
 	return true;
+}
+
+// Edit the membership fee details of the given member.
+function editMembershipFee(email, name, fee, fee_yearly) {
+	var lbl = $('#memberFeeEditLabel')[0];
+	var feef = $('#memberFeeField')[0];
+	var who = $('#memberFeeMail')[0];
+	var monthly = $('#memberFeeIntervalMonthly')[0];
+	var yearly = $('#memberFeeIntervalYearly')[0];
+
+	while (lbl.childNodes.length > 0)
+		lbl.removeChild(lbl.firstChild);
+
+	lbl.appendChild(document.createTextNode(name + ": Beitrag bearbeiten"));
+	feef.value = fee;
+	who.value = email;
+
+	monthly.checked = !fee_yearly;
+	yearly.checked = fee_yearly;
+
+	$('#memberFeeEditModal').modal('show');
+}
+
+// Update the membership fee of the affected member.
+function doEditMembershipFee() {
+	var feef = $('#memberFeeField')[0];
+	var who = $('#memberFeeMail')[0];
+	var monthly = $('#memberFeeIntervalMonthly')[0];
+	var yearly = $('#memberFeeIntervalYearly')[0];
+
+	new $.ajax({
+		url: '/admin/api/editfee',
+		data: {
+			email: who.value,
+			fee: feef.value,
+			fee_yearly: yearly.checked,
+		},
+		type: 'POST',
+		success: function(response) {
+			$('#memberFeeEditModal').modal('hide');
+			loadMembers("");
+		}
+	});
 }
 
 // Use AJAX to load a list of all organization members and populate the
