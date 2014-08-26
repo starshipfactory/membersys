@@ -48,6 +48,29 @@
 			</div>
 		</div>
 
+		<div class="modal fade" id="memberDetailModal" tabindex="-1" role="dialog" aria-labelledby="memberDetailLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+						<h4 class="modal-title" id="memberDetailLabel">Mitgliederdetails</h4>
+					</div>
+					<div class="modal-body">
+						<div class="alert alert-warning alert-danger fade in hide" role="alert" id="memberDetailError">
+							<strong>Fehler beim Anzeigen des Mitglieds!</strong>
+							<span id="memberDetailErrorText">Fehler?</span>
+						</div>
+
+						<div class="container" id="memberDetailData">
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<div class="modal fade" id="formUploadModal" tabindex="-1" role="dialog" aria-labelledby="formUploadLabel" aria-hidden="true">
 			<div class="modal-dialog">
 				<div class="modal-content">

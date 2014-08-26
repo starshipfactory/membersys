@@ -194,6 +194,12 @@ func main() {
 		database:   db,
 	})
 
+	http.Handle("/admin/api/member", &MemberDetailHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+	})
+
 	http.Handle("/admin", &TotalListHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
