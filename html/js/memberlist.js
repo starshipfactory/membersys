@@ -228,6 +228,7 @@ function loadMember(email) {
 			var label = $('#memberDetailLabel')[0];
 			var data = $('#memberDetailData')[0];
 			var md = response["member_data"];
+			var dt;
 			var row;
 			var col;
 			var inner_el;
@@ -317,8 +318,12 @@ function loadMember(email) {
 
 			col.appendChild(inner_el);
 			row.appendChild(col);
+			data.appendChild(row);
 
 			if (md.username != null) {
+				row = document.createElement('div');
+				row.className = 'row';
+
 				col = document.createElement('div');
 				col.className = 'col-xs-4';
 				inner_el = document.createElement('strong');
@@ -331,10 +336,51 @@ function loadMember(email) {
 
 				col.appendChild(document.createTextNode(md.username));
 
-				col.appendChild(inner_el);
 				row.appendChild(col);
+				data.appendChild(row);
 			}
 
+			row = document.createElement('div');
+			row.className = 'row';
+
+			col = document.createElement('div');
+			col.className = 'col-xs-4';
+			inner_el = document.createElement('strong');
+			inner_el.appendChild(document.createTextNode('Mitgliedschaftsanfrage'));
+			col.appendChild(inner_el);
+			row.appendChild(col);
+
+			col = document.createElement('div');
+			col.className = 'col-xs-8';
+
+			dt = new Date(response.metadata.request_timestamp * 1000);
+			col.appendChild(document.createTextNode(dt.toLocaleString()));
+
+			row.appendChild(col);
+			data.appendChild(row);
+
+			row = document.createElement('div');
+			row.className = 'row';
+
+			col = document.createElement('div');
+			col.className = 'col-xs-4';
+			inner_el = document.createElement('strong');
+			inner_el.appendChild(document.createTextNode('Datum der Mitgliedschaft'));
+			col.appendChild(inner_el);
+			row.appendChild(col);
+
+			col = document.createElement('div');
+			col.className = 'col-xs-8';
+
+			dt = new Date(response.metadata.approval_timestamp * 1000);
+			col.appendChild(document.createTextNode(dt.toLocaleString() +
+				" von "));
+
+			inner_el = document.createElement('i');
+			inner_el.appendChild(document.createTextNode(response.metadata.approver_uid));
+			col.appendChild(inner_el);
+
+			row.appendChild(col);
 			data.appendChild(row);
 
 			$('#memberDetailModal').modal('show');
