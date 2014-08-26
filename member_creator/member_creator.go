@@ -223,8 +223,8 @@ func main() {
 	pred = cassandra.NewSlicePredicate()
 	pred.ColumnNames = [][]byte{[]byte("pb_data")}
 	kr = cassandra.NewKeyRange()
-	kr.StartKey = make([]byte, 0)
-	kr.EndKey = make([]byte, 0)
+	kr.StartKey = []byte("queue:")
+	kr.EndKey = []byte("queue;")
 
 	kss, ire, ue, te, err = db.GetRangeSlices(cp, pred, kr,
 		cassandra.ConsistencyLevel_QUORUM)
@@ -262,7 +262,8 @@ func main() {
 
 			err = proto.Unmarshal(col.Value, &agreement)
 			if err != nil {
-				log.Print("Unable to parse column ", ks.Key, ": ", err)
+				log.Print("Unable to parse column ", col.Name, " of ",
+					ks.Key, ": ", err)
 				continue
 			}
 
@@ -338,40 +339,40 @@ func main() {
 				}
 			}
 
-			mmap[string(agreement.MemberData.GetEmail())] =
+			mmap["member:"+string(agreement.MemberData.GetEmail())] =
 				make(map[string][]*cassandra.Mutation)
-			mmap[string(agreement.MemberData.GetEmail())][cf] =
+			mmap["member:"+string(agreement.MemberData.GetEmail())][cf] =
 				make([]*cassandra.Mutation, 0)
 
-			makeMutation(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutation(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "pb_data", col.Value, now)
-			makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "name", agreement.MemberData.GetName(), now)
-			makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "street", agreement.MemberData.GetStreet(), now)
-			makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "city", agreement.MemberData.GetCity(), now)
-			makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "country", agreement.MemberData.GetCountry(), now)
-			makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "email", agreement.MemberData.GetEmail(), now)
 			if agreement.MemberData.Phone != nil {
-				makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+				makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
 					cf, "phone", agreement.MemberData.GetPhone(), now)
 			}
 			if agreement.MemberData.Username != nil {
-				makeMutationString(mmap[string(agreement.MemberData.GetEmail())],
+				makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
 					cf, "username", agreement.MemberData.GetUsername(), now)
 			}
-			makeMutationLong(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutationLong(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "fee", agreement.MemberData.GetFee(), now)
-			makeMutationBool(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutationBool(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "fee_yearly", agreement.MemberData.GetFeeYearly(), now)
-			makeMutationLong(mmap[string(agreement.MemberData.GetEmail())],
+			makeMutationLong(mmap["member:"+string(agreement.MemberData.GetEmail())],
 				cf, "approval_ts", agreement.Metadata.GetApprovalTimestamp(),
 				now)
-			makeMutation(mmap[string(agreement.MemberData.GetEmail())], cf,
-				"agreement_pdf", agreement.AgreementPdf, now)
+			makeMutation(mmap["member:"+string(agreement.MemberData.GetEmail())],
+				cf, "agreement_pdf", agreement.AgreementPdf, now)
 
 			// Now, delete the original record.
 			m = cassandra.NewMutation()
@@ -387,6 +388,8 @@ func main() {
 
 	// Delete parting members.
 	cp.ColumnFamily = "membership_dequeue"
+	kr.StartKey = []byte("dequeue:")
+	kr.EndKey = []byte("dequeue;")
 	kss, ire, ue, te, err = db.GetRangeSlices(cp, pred, kr,
 		cassandra.ConsistencyLevel_QUORUM)
 	if ire != nil {
@@ -405,6 +408,7 @@ func main() {
 	for _, ks = range kss {
 		var csc *cassandra.ColumnOrSuperColumn
 		for _, csc = range ks.Columns {
+			var uuid cassandra.UUID
 			var ldapuser string
 			var col *cassandra.Column = csc.Column
 			var agreement MembershipAgreement
@@ -511,10 +515,14 @@ func main() {
 			col.Ttl = 720 * 24 * 3600
 			col.Timestamp = now.UnixNano()
 
+			uuid = cassandra.UUIDFromBytes(ks.Key[len("dequeue:"):])
+
 			m = cassandra.NewMutation()
 			m.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
 			m.ColumnOrSupercolumn.Column = col
-			mmap[string(ks.Key)]["membership_archive"] = []*cassandra.Mutation{m}
+			mmap["archive:"+string([]byte(uuid))] = make(map[string][]*cassandra.Mutation)
+			mmap["archive:"+string([]byte(uuid))]["membership_archive"] =
+				[]*cassandra.Mutation{m}
 		}
 	}
 
