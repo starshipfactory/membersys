@@ -176,6 +176,12 @@ func main() {
 		database:   db,
 	})
 
+	http.Handle("/admin/api/editfee", &MemberFeeHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+	})
+
 	http.Handle("/admin/api/agreement-upload", &MemberAgreementUploadHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
