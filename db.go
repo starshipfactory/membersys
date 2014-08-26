@@ -50,6 +50,17 @@ type MemberWithKey struct {
 	Member
 }
 
+var applicationPrefix string = "applicant:"
+var applicationEnd string = "applicant;"
+var queuePrefix string = "queue:"
+var queueEnd string = "queue;"
+var dequeuePrefix string = "dequeue:"
+var dequeueEnd string = "dequeue;"
+var archivePrefix string = "archive:"
+var archiveEnd string = "archive;"
+var memberPrefix string = "member:"
+var memberEnd string = "member;"
+
 // List of all relevant columns; used for a few copies here.
 var allColumns [][]byte = [][]byte{
 	[]byte("name"), []byte("street"), []byte("city"), []byte("zipcode"),
@@ -138,7 +149,7 @@ func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, e
 		return "", err
 	}
 
-	c_key = string(uuid)
+	c_key = applicationPrefix + string(uuid)
 	key = hex.EncodeToString(uuid)
 
 	bmods = make(map[string]map[string][]*cassandra.Mutation)
@@ -220,7 +231,8 @@ func (m *MembershipDB) GetMemberDetail(id string) (*MembershipAgreement, error) 
 
 	// Retrieve the protobuf with all data from Cassandra.
 	r, ire, nfe, ue, te, err = m.conn.Get(
-		[]byte(id), cp, cassandra.ConsistencyLevel_ONE)
+		append([]byte(memberPrefix), []byte(id)...),
+		cp, cassandra.ConsistencyLevel_ONE)
 	if ire != nil {
 		return nil, errors.New(ire.Why)
 	}
@@ -243,7 +255,7 @@ func (m *MembershipDB) GetMemberDetail(id string) (*MembershipAgreement, error) 
 }
 
 // Retrieve an individual applicants data.
-func (m *MembershipDB) GetMembershipRequest(id, table string) (*MembershipAgreement, int64, error) {
+func (m *MembershipDB) GetMembershipRequest(id, table, prefix string) (*MembershipAgreement, int64, error) {
 	var uuid cassandra.UUID
 	var member *MembershipAgreement = new(MembershipAgreement)
 	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
@@ -262,12 +274,14 @@ func (m *MembershipDB) GetMembershipRequest(id, table string) (*MembershipAgreem
 	cp.Column = []byte("pb_data")
 
 	// Retrieve the protobuf with all data from Cassandra.
-	r, ire, nfe, ue, te, err = m.conn.Get([]byte(uuid), cp, cassandra.ConsistencyLevel_ONE)
+	r, ire, nfe, ue, te, err = m.conn.Get(
+		append([]byte(prefix), []byte(uuid)...),
+		cp, cassandra.ConsistencyLevel_ONE)
 	if ire != nil {
 		return nil, 0, errors.New(ire.Why)
 	}
 	if nfe != nil {
-		return nil, 0, errors.New("Not found")
+		return nil, 0, errors.New(prefix + uuid.String() + ": Not found")
 	}
 	if ue != nil {
 		return nil, 0, errors.New("Unavailable")
@@ -308,15 +322,12 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 		[]byte("email"), []byte("phone"), []byte("username"), []byte("fee"),
 		[]byte("fee_yearly"),
 	}
-	if len(prev) > 0 {
-		r.StartKey = []byte(prev)
-	} else {
-		r.StartKey = make([]byte, 0)
-	}
-	r.EndKey = make([]byte, 0)
+	r.StartKey = []byte(memberPrefix + prev)
+	r.EndKey = []byte(memberEnd)
 	r.Count = num
 
-	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
+	kss, ire, ue, te, err = m.conn.GetRangeSlices(
+		cp, pred, r, cassandra.ConsistencyLevel_ONE)
 	if ire != nil {
 		err = errors.New(ire.Why)
 		return rv, err
@@ -341,7 +352,7 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 			continue
 		}
 
-		member.Email = proto.String(string(ks.Key))
+		member.Email = proto.String(string(ks.Key[len(memberPrefix):]))
 
 		for _, scol = range ks.Columns {
 			var col *cassandra.Column = scol.Column
@@ -401,23 +412,15 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 		if uuid, err = cassandra.ParseUUID(prev); err != nil {
 			return rv, err
 		}
-		r.StartKey = []byte(uuid)
+		r.StartKey = append([]byte(applicationPrefix), []byte(uuid)...)
 	} else {
-		r.StartKey = make([]byte, 0)
+		r.StartKey = []byte(applicationPrefix)
 	}
-	r.EndKey = make([]byte, 0)
+	r.EndKey = []byte(applicationEnd)
 	r.Count = num
 
-	// Only count those rows which contain data in this column family.
-	r.RowFilter = []*cassandra.IndexExpression{
-		&cassandra.IndexExpression{
-			ColumnName: []byte("name"),
-			Op:         cassandra.IndexOperator_GT,
-			Value:      make([]byte, 0),
-		},
-	}
-
-	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
+	kss, ire, ue, te, err = m.conn.GetRangeSlices(
+		cp, pred, r, cassandra.ConsistencyLevel_ONE)
 	if ire != nil {
 		err = errors.New(ire.Why)
 		return rv, err
@@ -437,7 +440,8 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 	for _, ks = range kss {
 		var member *MemberWithKey = new(MemberWithKey)
 		var scol *cassandra.ColumnOrSuperColumn
-		var uuid cassandra.UUID = cassandra.UUIDFromBytes(ks.Key)
+		var uuid cassandra.UUID = cassandra.UUIDFromBytes(
+			ks.Key[len(applicationPrefix):])
 
 		member.Key = uuid.String()
 
@@ -469,15 +473,18 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 
 // Get a list of all future members which are currently in the queue.
 func (m *MembershipDB) EnumerateQueuedMembers(prev string, num int32) ([]*MemberWithKey, error) {
-	return m.enumerateQueuedMembersIn("membership_queue", prev, num)
+	return m.enumerateQueuedMembersIn(
+		"membership_queue", queuePrefix, queueEnd, prev, num)
 }
 
 // Get a list of all future members which are currently in the departing queue.
 func (m *MembershipDB) EnumerateDeQueuedMembers(prev string, num int32) ([]*MemberWithKey, error) {
-	return m.enumerateQueuedMembersIn("membership_dequeue", prev, num)
+	return m.enumerateQueuedMembersIn(
+		"membership_dequeue", dequeuePrefix, dequeueEnd, prev, num)
 }
 
-func (m *MembershipDB) enumerateQueuedMembersIn(cf, prev string, num int32) ([]*MemberWithKey, error) {
+func (m *MembershipDB) enumerateQueuedMembersIn(
+	cf, prefix, end, prev string, num int32) ([]*MemberWithKey, error) {
 	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
 	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
 	var r *cassandra.KeyRange = cassandra.NewKeyRange()
@@ -499,23 +506,15 @@ func (m *MembershipDB) enumerateQueuedMembersIn(cf, prev string, num int32) ([]*
 		if uuid, err = cassandra.ParseUUID(prev); err != nil {
 			return rv, err
 		}
-		r.StartKey = []byte(uuid)
+		r.StartKey = append([]byte(prefix), []byte(uuid)...)
 	} else {
-		r.StartKey = make([]byte, 0)
+		r.StartKey = []byte(prefix)
 	}
-	r.EndKey = make([]byte, 0)
+	r.EndKey = []byte(end)
 	r.Count = num
 
-	// Only count those rows which contain data in this column family.
-	r.RowFilter = []*cassandra.IndexExpression{
-		&cassandra.IndexExpression{
-			ColumnName: []byte("pb_data"),
-			Op:         cassandra.IndexOperator_GT,
-			Value:      make([]byte, 0),
-		},
-	}
-
-	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
+	kss, ire, ue, te, err = m.conn.GetRangeSlices(
+		cp, pred, r, cassandra.ConsistencyLevel_ONE)
 	if ire != nil {
 		err = errors.New(ire.Why)
 		return rv, err
@@ -535,7 +534,8 @@ func (m *MembershipDB) enumerateQueuedMembersIn(cf, prev string, num int32) ([]*
 	for _, ks = range kss {
 		var member *MemberWithKey
 		var scol *cassandra.ColumnOrSuperColumn
-		var uuid cassandra.UUID = cassandra.UUIDFromBytes(ks.Key)
+		var uuid cassandra.UUID = cassandra.UUIDFromBytes(
+			ks.Key[len(prefix):])
 
 		if len(ks.Columns) == 0 {
 			continue
@@ -584,11 +584,11 @@ func (m *MembershipDB) EnumerateTrashedMembers(prev string, num int32) ([]*Membe
 		if uuid, err = cassandra.ParseUUID(prev); err != nil {
 			return rv, err
 		}
-		r.StartKey = []byte(uuid)
+		r.StartKey = append([]byte(archivePrefix), []byte(uuid)...)
 	} else {
-		r.StartKey = make([]byte, 0)
+		r.StartKey = []byte(archivePrefix)
 	}
-	r.EndKey = make([]byte, 0)
+	r.EndKey = []byte(archiveEnd)
 	r.Count = num
 
 	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
@@ -611,7 +611,8 @@ func (m *MembershipDB) EnumerateTrashedMembers(prev string, num int32) ([]*Membe
 	for _, ks = range kss {
 		var member *MemberWithKey
 		var scol *cassandra.ColumnOrSuperColumn
-		var uuid cassandra.UUID = cassandra.UUIDFromBytes(ks.Key)
+		var uuid cassandra.UUID = cassandra.UUIDFromBytes(
+			ks.Key[len(archivePrefix):])
 
 		if len(ks.Columns) == 0 {
 			continue
@@ -667,7 +668,7 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 	}
 
 	cos, ire, nfe, ue, te, err = m.conn.Get(
-		[]byte(id), cp, cassandra.ConsistencyLevel_QUORUM)
+		[]byte(memberPrefix+id), cp, cassandra.ConsistencyLevel_QUORUM)
 	if ire != nil {
 		return errors.New(ire.Why)
 	}
@@ -698,8 +699,8 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 	mu.Deletion = del
 
 	mmap = make(map[string]map[string][]*cassandra.Mutation)
-	mmap[id] = make(map[string][]*cassandra.Mutation)
-	mmap[id]["members"] = []*cassandra.Mutation{mu}
+	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id]["members"] = []*cassandra.Mutation{mu}
 
 	member.Metadata.GoodbyeInitiator = &initiator
 	member.Metadata.GoodbyeTimestamp = &now_long
@@ -716,10 +717,14 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 	mu = cassandra.NewMutation()
 	mu.ColumnOrSupercolumn = cos
 
-	mmap[string([]byte(uuid))] = make(map[string][]*cassandra.Mutation)
-	mmap[string([]byte(uuid))]["membership_dequeue"] = []*cassandra.Mutation{mu}
+	mmap[dequeuePrefix+id] = make(map[string][]*cassandra.Mutation)
+	mmap[dequeuePrefix+string([]byte(uuid))] =
+		make(map[string][]*cassandra.Mutation)
+	mmap[dequeuePrefix+string([]byte(uuid))]["membership_dequeue"] =
+		[]*cassandra.Mutation{mu}
 
-	ire, ue, te, err = m.conn.AtomicBatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
+	ire, ue, te, err = m.conn.AtomicBatchMutate(
+		mmap, cassandra.ConsistencyLevel_QUORUM)
 	if ire != nil {
 		return errors.New(ire.Why)
 	}
@@ -735,25 +740,27 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 // Move the record of the given applicant to the queue of new users to be
 // processed. The approver will be set to "initiator".
 func (m *MembershipDB) MoveApplicantToNewMember(id, initiator string) error {
-	return m.moveRecordToTable(id, initiator, "application",
-		"membership_queue", 0)
+	return m.moveRecordToTable(id, initiator, "application", applicationPrefix,
+		"membership_queue", queuePrefix, 0)
 }
 
 // Move the record of the given applicant to a temporary archive of deleted
 // applications. The deleter will be set to "initiator".
 func (m *MembershipDB) MoveApplicantToTrash(id, initiator string) error {
-	return m.moveRecordToTable(id, initiator, "application",
-		"membership_archive", int32(6*30*24*60*60))
+	return m.moveRecordToTable(id, initiator, "application", applicationPrefix,
+		"membership_archive", archivePrefix, int32(6*30*24*60*60))
 }
 
 // Move a member from the queue to the trash (e.g. if they can't be processed).
 func (m *MembershipDB) MoveQueuedRecordToTrash(id, initiator string) error {
-	return m.moveRecordToTable(id, initiator, "membership_queue",
-		"membership_archive", int32(6*30*24*60*60))
+	return m.moveRecordToTable(id, initiator, "membership_queue", queuePrefix,
+		"membership_archive", archivePrefix, int32(6*30*24*60*60))
 }
 
 // Move the record of the given applicant to a different column family.
-func (m *MembershipDB) moveRecordToTable(id, initiator, src_table, dst_table string, ttl int32) error {
+func (m *MembershipDB) moveRecordToTable(
+	id, initiator, src_table, src_prefix, dst_table, dst_prefix string,
+	ttl int32) error {
 	var uuid cassandra.UUID
 	var bmods map[string]map[string][]*cassandra.Mutation
 	var now time.Time = time.Now()
@@ -772,7 +779,8 @@ func (m *MembershipDB) moveRecordToTable(id, initiator, src_table, dst_table str
 	}
 
 	// First, retrieve the desired membership data.
-	if member, timestamp, err = m.GetMembershipRequest(id, src_table); err != nil {
+	member, timestamp, err = m.GetMembershipRequest(id, src_table, src_prefix)
+	if err != nil {
 		return err
 	}
 
@@ -785,9 +793,10 @@ func (m *MembershipDB) moveRecordToTable(id, initiator, src_table, dst_table str
 	member.Metadata.ApprovalTimestamp = proto.Uint64(uint64(now.Unix()))
 
 	bmods = make(map[string]map[string][]*cassandra.Mutation)
-	bmods[string(uuid)] = make(map[string][]*cassandra.Mutation)
-	bmods[string(uuid)][dst_table] = make([]*cassandra.Mutation, 0)
-	bmods[string(uuid)][src_table] = make([]*cassandra.Mutation, 0)
+	bmods[dst_prefix+string(uuid)] = make(map[string][]*cassandra.Mutation)
+	bmods[dst_prefix+string(uuid)][dst_table] = make([]*cassandra.Mutation, 0)
+	bmods[src_prefix+string(uuid)] = make(map[string][]*cassandra.Mutation)
+	bmods[src_prefix+string(uuid)][src_table] = make([]*cassandra.Mutation, 0)
 
 	value, err = proto.Marshal(member)
 	if err != nil {
@@ -795,7 +804,8 @@ func (m *MembershipDB) moveRecordToTable(id, initiator, src_table, dst_table str
 	}
 
 	// Add the application protobuf to the membership data.
-	bmods[string(uuid)][dst_table] = append(bmods[string(uuid)][dst_table],
+	bmods[dst_prefix+string(uuid)][dst_table] = append(
+		bmods[dst_prefix+string(uuid)][dst_table],
 		newCassandraMutationBytes("pb_data", value, &now, ttl))
 
 	// Delete the application data.
@@ -803,8 +813,8 @@ func (m *MembershipDB) moveRecordToTable(id, initiator, src_table, dst_table str
 	mutation.Deletion.Predicate = cassandra.NewSlicePredicate()
 	mutation.Deletion.Predicate.ColumnNames = allColumns
 	mutation.Deletion.Timestamp = timestamp
-	bmods[string(uuid)][src_table] = append(
-		bmods[string(uuid)][src_table], mutation)
+	bmods[src_prefix+string(uuid)][src_table] = append(
+		bmods[src_prefix+string(uuid)][src_table], mutation)
 
 	ire, ue, te, err = m.conn.AtomicBatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
 	if ire != nil {
@@ -838,9 +848,10 @@ func (m *MembershipDB) StoreMembershipAgreement(id string, agreement_data []byte
 	if err != nil {
 		return err
 	}
-	buuid = []byte(uuid)
+	buuid = append([]byte(applicationPrefix), []byte(uuid)...)
 
-	agreement, _, err = m.GetMembershipRequest(id, "application")
+	agreement, _, err = m.GetMembershipRequest(id, "application",
+		applicationPrefix)
 	if err != nil {
 		return err
 	}
@@ -861,7 +872,8 @@ func (m *MembershipDB) StoreMembershipAgreement(id string, agreement_data []byte
 	addMembershipRequestInfoBytes(bmods[string(buuid)],
 		"application_pdf", agreement_data, &now)
 
-	ire, ue, te, err = m.conn.AtomicBatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
+	ire, ue, te, err = m.conn.AtomicBatchMutate(
+		bmods, cassandra.ConsistencyLevel_QUORUM)
 	if ire != nil {
 		return errors.New(ire.Why)
 	}
