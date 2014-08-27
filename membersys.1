@@ -1,15 +1,13 @@
 .\" Hey, EMACS: -*- nroff -*-
-.TH MEMBERSYS "1" "Nov 2013" "membersys"
+.TH MEMBERSYS "1" "Aug 2014" "membersys"
 .SH NAME
 membersys \- Starship Factory membership management system
 .SH SYNOPSIS
 .TP
 .B membersys
 [\fI--bind="HOST"|--bind="HOST:PORT"\fR]
-[\fI--lockserver-boot-uri=DOOZER_URI\fR]
-[\fI--lockserver-uri=DOOZER_URI\fR]
-[\fI--service-name=STRING\fR]
-\fI--template-dir=/path/to/templates\fR
+[\fI--config=PATH\fR]
+[\fI--debug-authenticator\fR]
 .SH DESCRIPTION
 .PP
 .B membersys
@@ -18,54 +16,35 @@ for membership in an organization and will later give the organization
 members a means to approve the requests.
 .SH OPTIONS
 .TP
-\fB\-\-bind=HOST|\-\-bind=HOST:PORT\fR
+.B \-\-bind=HOST|\-\-bind=HOST:PORT
 tells
 .B membersys
 to listen to the given host (in doozer exported anonymous ports) or host:port
 pair.
 If the
-.I \-\-lockserv
-flag is not empty,
+.I lockservice_config.lockserver_uri
+configuration setting is not empty,
 .B membersys
 will bind to an anonymous port on the given host and export the host:port pair
 to a Doozer lockservice.
 .TP
-\fB\-\-lockservice\-uri=\fR
-.TP
-\fB\-\-lockservice\-boot\-uri=\fR
-are used to tell
-.B membersys
-to use an exported anonymous port and publish its presence to the Doozer
-lockservice given.
-uri and boot\-uri will be normal Doozer service URIs and will be used as in
-any other Doozer client.
-See
-.IR doozer (1)
-for more details.
-.TP
-\fB\-\-service-name\fR=STRING
-tells
-.B membersys
-what service name to publish under to the Doozer service.
-.TP
-\fB\-\-template-dir\fR=STRING
+.B\-\-config=PATH
 indicates to
 .B membersys
-where to find the HTML templates to serve.
-The directory this points at must at least contain the files
-.I form.html
-and
-.IR printlayout.html .
-Any files in the directories
-.I js
-and
-.I css
-in those directories will be served as-is.
+where to find the configuration file with more detailed settings.
+.TP
+.B\-\-debug\-authenticator
+instructs
+.B membersys
+to start the authenticator used for authenticating users in debug mode, which
+writes additional information about each request to the log.
+This should only be used for debugging authentication issues, but then it can
+be very helpful.
 .SH SECURITY
 .PP
 .B membersys
 does not serve any files outside of the directory given as
-.IR \-\-template\-dir ,
+.IR template_dir ,
 so you just need to be careful not to put anything into
 .I js
 and
@@ -79,30 +58,223 @@ to an anonymous port or one above 1024 and run it as an unprivileged user.
 .SH EXAMPLES
 A command line like
 .IP
-membersys \-\-template\-dir=/usr/local/share/membersys \-\-bind=192.0.2.1:8080
+membersys \-\-config=/etc/membersys.conf \-\-bind=192.0.2.1:8080
 .PP
 will run
 .B membersys
-listening to port 8080 at the IP address 192.0.2.1, using a fixed port, and
-serving templates from /usr/local/share/membersys.
-.PP
-On the other hand, something like
-.IP
-membersys \-\-template\-dir=/usr/local/share/membersys \-\-bind=192.0.2.2
-\-\-lockserver-boot-uri=doozer:?ca=192.0.2.3:8046
-\-\-lockserver-uri=doozer:?cn=foobar
-\-\-service\-name=membersys
-.PP
-will run
-.B membersys
-listening to an anonymous port on IP 192.0.2.2, serving files from
-/usr/local/share/membersys, binding to Doozer server 192.0.2.3 and exporting
-to the Doozer named cluster foobar as service membersys.
+listening to port 8080 at the IP address 192.0.2.1 and following the settings
+specified in the /etc/membersys.conf configuration file.
 .SH FILES
 .B membersys
-uses the template files in
-.IR \-\-template\-dir .
+reads the configuration file specified as
+.I \-\-config
+and uses the template files in
+.IR template_dir .
 No other files are used.
+.TP
+\fBmembersys.conf\fR
+is the configuration file specified as
+.IR \-\-config .
+Its structure is described under
+.I CONFIGURATION FILE
+below.
+.SH "CONFIGURATION FILE"
+.PP
+The
+.B membersys
+configuration file consists of a number of sections which contain
+.IR key :
+.I value
+pairs.
+There are a few top level values which can be set:
+.TP
+.BI template_dir " required
+Path indicating where to find the HTML templates to serve.
+The directory this points at must at least contain the files
+.I form.html
+and
+.IR printlayout.html .
+Any files in the directories
+.I js
+and
+.I css
+in those directories will be served as-is.
+.TP
+.BI use_proxy_real_ip " optional
+Boolean value indicating whethe ror not to trust the
+.I X-Proxy-Real-IP
+header sent by a reverse proxy to determine the remote address rather than
+looking at the TCP connection peer.
+Primarily useful when running
+.B membersys
+behind a proxy.
+Defaults to
+.IR false .
+.TP
+.BI result_page_size " optional
+Indicates how many results should be displayed on every page in the lists,
+e.g. how many members appear on one page without having to click through
+to the next one.
+.PP
+Apart from those, the following sections are recognized:
+.SS lockservice_config
+This section contains settings pertaining to the
+.IR doozer (1)
+lock service.
+Thus far, they are only used for the
+.B exported port
+feature.
+The entire section is optional; if it is omitted,
+.IR doozer (1)
+will not be used.
+.TP
+.BI lockserver_uri " required
+.TP
+.BI lockserver_boot_uri " optional
+These settings are used to determine the
+.IR doozer (1)
+lock service to publish the presence of this specific
+.B membersys
+backend to.
+Both are normal
+.IR doozer (1)
+service URIs and will be used as in any other
+.IR doozer (1)
+client.
+See the
+.IR doozer (1)
+manual page for more details on how these URLs are formed.
+.TP
+.BI doozer_service_name " optional
+Instructs
+.B membersys
+what service name to publish under to the
+.IR doozer (1)
+service.
+.SS database_config
+This required section indicates where to find the
+.IR cassandra (8)
+database service used for storing membership data.
+.TP
+.BI database_server " optional
+.I host:port
+pair to connect to for the
+.IR cassandra (8)
+database server.
+There should be a database server listening to this port.
+.IR default: " localhost:9160
+.TP
+.BI database_name " optional
+.IR cassandra (8)
+keyspace to bind to in order to find the relevant membership data.
+It is expected that this keyspace has been initialized with the data structures
+defined in the
+.I cassandra\-schema
+file accompanying the
+.B membersys
+source code.
+.IR default: " sfmembersys
+.TP
+.BI database_timeout " optional
+How long, in milliseconds, to wait for responses from the
+.IR cassandra (8)
+service before declaring a timeout error.
+A value of 0 means to wait without any timeouts.
+.IR default: " 0
+.SS authentication_config
+This required section contains settings relevant to the
+.I AncientAuth
+authentication service used by
+.BR membersys .
+.TP
+.BI app_name " optional
+User\-readable name used by the
+.I AncientAuth
+service for presentation to the end user currently attempting to log in.
+This should be descriptive enough since it may be the first thing the user ever
+sees from this application.
+.IR default: " Starship Factory Membership System
+.TP
+.BI cert_path " required
+Full path to a PEM encoded X.509 certificate file containing the signed service
+key used for authentication and other purposes.
+This key will be used by the
+.I AncientAuth
+service or other services to determine the authenticity of this service.
+.TP
+.BI key_path " required
+Path to a DER (not PEM!) encoded X.509 private key belonging to the certificate
+referenced in
+.BR cert_path .
+.TP
+.BI ca_bundle_path " required
+Path to a number of PEM encoded X.509 certificates describing the relevant
+certificate authority structure.
+These certificates will be used to verify the authenticity of other services
+.B membersys
+may talk to, such as the
+.I AncientAuth
+service.
+.TP
+.BI auth_server_host " optional
+Server name (and possibly port, will be part of an HTTP URI) of the server
+running the
+.I AncientAuth
+service for user authentication.
+.IR default: " login.ancient\-solutions.com
+.TP
+.BI auth_group " required
+Name of a group which the user of the
+.B membersys
+web service needs to be a member of in order to be allowed to access data
+other than his own.
+.TP
+.BI x509_keyserver_host " optional
+.I host:port
+pair of an X.509 key server to contact for fetching the certificate of other
+services being contacted, such as the
+.I AncientAuth
+authentication service.
+If not specified, certificates must be presented in the corresponding
+connection requests, making them significantly larger.
+.TP
+.BI x509_certificate_cache_size " optional
+Number of certificates which may be cached locally so that they can be
+used without fetching them repeatedly from
+.BR x509_keyserver_host .
+Usually, this wouldn't have to be a large number to be effective.
+If you see frequent RPCs being made to the
+.BR x509_keyserver_host ,
+you may want to put a higher value here.
+Omitting this value or setting it to 0 effectively turns off the key caching
+feature, which will have a major impact on establishing connections or
+verifying signed data from other services.
+.SH "EXAMPLE CONFIGURATION"
+.PP
+An example configuration file might look just about like this:
+.PP
+.RS 0
+database_config {
+.RS 0
+}
+.RS 0
+
+.RS 0
+authentication_config {
+.RS 0
+	cert_path: "/etc/membersys/membersys.crt"
+.RS 0
+	key_path: "/etc/membersys/membersys.key"
+.RS 0
+	ca_bundle_path: "/etc/membersys/ca.crt"
+.RS 0
+	auth_group: "command-staff"
+.RS 0
+}
+.RS 0
+
+.RS 0
+template_dir: "/usr/share/membersys/html"
 .SH AUTHOR
 Written by Caoimhe Chaos.
 .SH "REPORTING BUGS"
