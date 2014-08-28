@@ -1,0 +1,240 @@
+.\" Hey, EMACS: -*- nroff -*-
+.TH MEMBER_CREATOR "1" "Aug 2014" "member_creator"
+.SH NAME
+member_creator \- Starship Factory membership system
+.SM LDAP
+account synchronization
+.SH SYNOPSIS
+.TP
+.B member_creator
+\fI--config=PATH\fR
+[\fI--dry-run\fR]
+[\fI--verbose\fR]
+.SH DESCRIPTION
+.PP
+.B member_creator
+is a command line utility for synchronizing the membership management system
+data with an
+.SM LDAP
+account database.
+It essentially creates new users in
+.SM LDAP
+for members joining the organization and purges
+.SM LDAP
+users (i.e. it deletes them or removes them from the relevant groups if they
+are also a member of other groups) when their membership is terminated in the
+web frontend.
+.SH OPTIONS
+.TP
+.B \-\-config=PATH
+indicates to
+.B member_creator
+where to find the configuration file with more detailed settings.
+.TP
+.B \-\-dry\-run
+instructs
+.B member_creator
+to process the database records and move them to the member list as it usually
+would, but not to touch
+.SM LDAP
+in the process.
+.TP
+.B \-\-verbose
+instructs
+.B member_creator
+to disclose some additional information concerning the progress of the
+membership creation or removal.
+.SH SECURITY
+.PP
+.B member_creator
+needs administrative access to an
+.SM LDAP
+tree in order to be able to add and remove users and modify
+.SM LDAP
+groups.
+This in itself bears the risk of compromise because with this kind of access
+it would be trivial to create new users with extended rights and known
+password, and thus gain
+.SM UNIX
+user access to all machines using
+.SM LDAP
+for authentication.
+.PP
+It is, however, not running as a web service but more of a batch queue
+processor, which limits its exposure.
+.PP
+.B member_creator
+does not need to run with extended privileges, so it is recommended to run
+it as a separate user without any special permissions.
+It also doesn't need to run as the same user as the web frontend.
+.PP
+The configuration file needs to contain the user name and password of a
+highly privileged
+.SM LDAP
+user, so keeping it secure and secret is imperative for system security.
+.SH EXAMPLES
+A command line like
+.IP
+member_creator \-\-config=/etc/member_creator.conf
+.PP
+will run
+.B member_creator
+following the settings specified in the /etc/member_creator.conf configuration
+file.
+.SH FILES
+.B member_creator
+reads the configuration file specified as
+.IR \-\-config .
+No other files are used.
+.TP
+.B member_creator.conf
+is the configuration file specified as
+.IR \-\-config .
+Its structure is described under
+.I CONFIGURATION FILE
+below.
+.SH "CONFIGURATION FILE"
+.PP
+The
+.B member_creator
+configuration file consists of a number of sections which contain
+.IR key :
+.I value
+pairs.
+.PP
+The following sections are recognized:
+.SS database_config
+This required section indicates where to find the
+.IR cassandra (8)
+database service used for finding and storing membership data.
+.TP
+.BI database_server " optional
+.I host:port
+pair to connect to for the
+.IR cassandra (8)
+database server.
+There should be a database server listening to this port.
+.IR default: " localhost:9160
+.TP
+.BI database_name " optional
+.IR cassandra (8)
+keyspace to bind to in order to find the relevant membership data.
+It is expected that this keyspace has been initialized with the data structures
+defined in the
+.I cassandra\-schema
+file accompanying the
+.B membersys
+source code.
+.IR default: " sfmembersys
+.TP
+.BI database_timeout " optional
+How long, in milliseconds, to wait for responses from the
+.IR cassandra (8)
+service before declaring a timeout error.
+A value of 0 means to wait without any timeouts.
+.IR default: " 0
+.SS ldap_config
+This required section contains the necessary configuration for porperly
+accessing the
+.SM LDAP
+directory and managing users in it.
+.TP
+.BI server " required
+.SM LDAP
+URI pointing to a server holding the directory to work on.
+.TP
+.BI super_user " required
+Prefix of an
+.SM LDAP
+account administrator user which will be used to modify the
+.SM LDAP
+tree.
+The
+.B base
+configuration setting will be appended to this value after a comma.
+.TP
+.BI super_password " required
+The bind password required to authenticate the
+.BR super_user .
+.TP
+.BI base " required
+.SM LDAP
+base to append to all values.
+Essentially, this would be the name of the toplevel
+.SM LDAP
+container.
+.TP
+.BI new_user_suffix " optional
+Specifies a suffix to append to users (before
+.BR base ).
+This would be the name of the container which contains users in
+.SM LDAP.
+.IR default: " ou=People
+.TP
+.BI new_user_group " optional, repeated
+Lists all groups which new members should be made a member of.
+The groups are listed just as names, without the
+.I cn=
+prefix.
+If a new member should be part of multiple groups (e.g. users and
+.IR organization ),
+just add multiple lines here.
+.TP
+.BI new_user_gid " required
+POSIX group ID of the primary group the user should be a member of.
+Obviously, this can only be specified once.
+.TP
+.BI new_user_shell " optional
+This should be a path to a shell binary which should be used as the default
+shell for new users.
+.IR default: " /bin/bash
+.SH "EXAMPLE CONFIGURATION"
+.PP
+An example configuration file might look just about like this:
+.PP
+.RS 0
+database_config {
+.RS 0
+}
+.RS 0
+
+.RS 0
+ldap_config {
+.RS 0
+	server: "ldap.example.com"
+.RS 0
+	super_user: "cn=ldapadmin,ou=Users"
+.RS 0
+	super_password: "supersecret"
+.RS 0
+	base: "dc=example,dc=com"
+.RS 0
+	new_users_suffix: "ou=Users"
+.RS 0
+	new_user_group: "users"
+.RS 0
+	new_user_group: "exampleev"
+.RS 0
+	new_user_gid: 1024
+.RS 0
+	new_user_shell: "/sbin/nologin"
+.RS 0
+}
+.SH AUTHOR
+Written by Tonnerre Lombard.
+.SH "REPORTING BUGS"
+Please report bugs via e-mail at
+.I open\-at\-lists.starship-factory.ch
+or file them via ditz and send a pull request to
+.IR https://github.com/starshipfactory/membersys .
+.PP
+Please visit
+.I http://bugs.starship-factory.ch/membersys/
+for an overview of the current state of bug squashing.
+.SH COPYRIGHT
+.PP
+Copyright \(co 2014 Tonnerre Lombard, Starship Factory. All Rights Reserved.
+.PP
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the conditions outlined in the
+3-Clause BSD license are met.
