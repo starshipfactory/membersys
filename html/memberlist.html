@@ -200,6 +200,10 @@
 					</ul>
 				</div>
 				<div class="tab-pane fade" id="applicants">
+					<fieldset>
+						<label for="applicantsearch">Antrag nach Barcode suchen:</label>
+						<input class="form-control input-sm" type="number" id="applicantsearch" placeholder="Barcode auf Antragsformular scannen" onblur="loadApplicants(&quot;&quot;, this.value, true);" />
+					</fieldset>
 					<p>Die folgenden Mitgliedschaftsantr&auml;ge sind derzeit h&auml;ngig:</p>
 
 					<table id="applicantlist" class="table">

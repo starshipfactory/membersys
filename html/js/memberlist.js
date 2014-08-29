@@ -556,12 +556,13 @@ function forwardMembers() {
 
 // Use AJAX to load a list of all membership applications and populate the
 // corresponding table.
-function loadApplicants(criterion, start) {
+function loadApplicants(criterion, start, single) {
 	new $.ajax({
 		url: '/admin/api/applicants',
 		data: {
 			start: start,
 			criterion: criterion,
+			single: single,
 		},
 		type: 'GET',
 		success: function(response) {
