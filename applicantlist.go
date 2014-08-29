@@ -32,15 +32,18 @@
 package main
 
 import (
+	"database/cassandra"
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"time"
 
 	"ancient-solutions.com/ancientauth"
+	"code.google.com/p/goprotobuf/proto"
 )
 
 type applicantListType struct {
@@ -88,13 +91,41 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	applist.Applicants, err = a.database.EnumerateMembershipRequests(
-		req.FormValue("criterion"), req.FormValue("start"), a.pagesize)
-	if err != nil {
-		log.Print("Error enumerating applications: ", err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte("Error enumerating applications: " + err.Error()))
-		return
+	if req.FormValue("single") == "true" {
+		var memberreq *MembershipAgreement
+		var mwk *MemberWithKey
+		var bigint *big.Int = big.NewInt(0)
+		var uuid cassandra.UUID
+		var ok bool
+		bigint, ok = bigint.SetString(req.FormValue("start"), 10)
+		if !ok {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte("Unable to parse " + req.FormValue("start") +
+				" as a number"))
+			return
+		}
+		uuid = cassandra.UUIDFromBytes(bigint.Bytes())
+		memberreq, _, err = a.database.GetMembershipRequest(
+			uuid.String(), "application", "applicant:")
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte("Unable to retrieve the membership request " +
+				uuid.String() + ": " + err.Error()))
+			return
+		}
+		mwk = new(MemberWithKey)
+		mwk.Key = string([]byte(uuid))
+		proto.Merge(&mwk.Member, memberreq.GetMemberData())
+		applist.Applicants = []*MemberWithKey{mwk}
+	} else {
+		applist.Applicants, err = a.database.EnumerateMembershipRequests(
+			req.FormValue("criterion"), req.FormValue("start"), a.pagesize)
+		if err != nil {
+			log.Print("Error enumerating applications: ", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte("Error enumerating applications: " + err.Error()))
+			return
+		}
 	}
 
 	applist.AgreementUploadCsrfToken, err = a.auth.GenCSRFToken(
