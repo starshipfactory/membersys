@@ -38,20 +38,21 @@
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">PLZ, Ort:</div>
-						<div class="printRowData">{{.MemberData.Zipcode}} {{.MemberData.City}}</div>
-					</div>
-					<div class="printRow">
-						<div class="printRowTitle">Land:</div>
-						<div class="printRowData">{{.MemberData.Country}}</div>
+						<div class="printRowData">{{.MemberData.Zipcode}} {{.MemberData.City}}
+						<br />
+						{{.MemberData.Country}}
+						</div>
 					</div>
 					<div class="printRow">
 						<div class="printRowTitle">E-Mail Adresse:</div>
 						<div class="printRowData">{{.MemberData.Email}}</div>
 					</div>
+{{if .MemberData.Phone|len}}
 					<div class="printRow">
 						<div class="printRowTitle">Telefonnummer:</div>
-						<div class="printRowData">{{if .MemberData.Phone}}{{.MemberData.Phone}}{{end}}</div>
+						<div class="printRowData">{{.MemberData.Phone}}</div>
 					</div>
+{{end}}
 					<p><br /></p>
 					<h2>Mitgliedschaft</h2>
 					<div class="printRow">
