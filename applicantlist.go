@@ -90,7 +90,7 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	if req.FormValue("single") == "true" {
+	if req.FormValue("single") == "true" && len(req.FormValue("start")) > 0 {
 		var memberreq *MembershipAgreement
 		var mwk *MemberWithKey
 		var bigint *big.Int = big.NewInt(0)
