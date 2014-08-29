@@ -3,7 +3,7 @@ title: Add a barcode for ease of finding the correct record to the print templat
 desc: |-
   In the print template we'll need to be able to show a barcode for the
   Cassandra row ID of the just-created record.
-
+  
   Ideally this would be shown as a small barcode so it can just be scanned, but
   with the text ID underneath. This should solve any problems with finding the
   right database record associated with the membership request.
@@ -16,8 +16,8 @@ type: :feature
 component: membersys
 release: "0.3"
 reporter: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2013-11-17 19:51:55.003728 Z
 references: []
 
@@ -27,3 +27,18 @@ log_events:
   - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
   - created
   - ""
+- - 2014-08-29 21:58:33.006611 Z
+  - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+  - closed with disposition fixed
+  - |-
+    commit 3e685364bdf1132649a2c121180df0be5547b480
+    Author: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    Date:   Fri Aug 29 22:37:50 2014 +0200
+    
+        Add a barcode on the print forms for ease of finding applicants.
+    
+    commit 74f01b76620557e95fa6e1a267f242aea5c431d1
+    Author: Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    Date:   Fri Aug 29 23:26:08 2014 +0200
+    
+        Allow to load an individual member by giving the decimal UUID.
