@@ -1,3 +1,8 @@
+== 0.3 / unreleased
+* Keep members in the membership database too.
+* Add a barcode for ease of finding the correct record to the print template
+* Store the filled-out form data in a Cassandra database
+
 == 0.2.1 / 2014-06-05
 * bugfix: Fix print layout to fit onto a single page.
 * bugfix: Reglement and statues don't link anywhere.
