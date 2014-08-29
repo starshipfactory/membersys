@@ -1,6 +1,6 @@
 /* Print styles */
 
-@page { size:landscape; margin:1cm 1.5cm 1cm 1.5cm;}
+@page { size:portrait; margin:1cm 1.5cm 1cm 1.5cm;}
 
 body {
 	overflow: visible !important;
