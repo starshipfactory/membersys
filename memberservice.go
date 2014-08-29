@@ -215,6 +215,8 @@ func main() {
 		template:   memberlist_tmpl,
 	})
 
+	http.HandleFunc("/barcode", MakeBarcode)
+
 	http.Handle("/", &FormInputHandler{
 		applicationTmpl: application_tmpl,
 		database:        db,
