@@ -103,19 +103,21 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 				" as a number"))
 			return
 		}
-		uuid = cassandra.UUIDFromBytes(bigint.Bytes())
-		memberreq, _, err = a.database.GetMembershipRequest(
-			uuid.String(), "application", "applicant:")
-		if err != nil {
-			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte("Unable to retrieve the membership request " +
-				uuid.String() + ": " + err.Error()))
-			return
+		if bigint.BitLen() == 128 {
+			uuid = cassandra.UUIDFromBytes(bigint.Bytes())
+			memberreq, _, err = a.database.GetMembershipRequest(
+				uuid.String(), "application", "applicant:")
+			if err != nil {
+				rw.WriteHeader(http.StatusInternalServerError)
+				rw.Write([]byte("Unable to retrieve the membership request " +
+					uuid.String() + ": " + err.Error()))
+				return
+			}
+			mwk = new(MemberWithKey)
+			mwk.Key = uuid.String()
+			proto.Merge(&mwk.Member, memberreq.GetMemberData())
+			applist.Applicants = []*MemberWithKey{mwk}
 		}
-		mwk = new(MemberWithKey)
-		mwk.Key = uuid.String()
-		proto.Merge(&mwk.Member, memberreq.GetMemberData())
-		applist.Applicants = []*MemberWithKey{mwk}
 	} else {
 		applist.Applicants, err = a.database.EnumerateMembershipRequests(
 			req.FormValue("criterion"), req.FormValue("start"), a.pagesize)
