@@ -113,7 +113,7 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 			return
 		}
 		mwk = new(MemberWithKey)
-		mwk.Key = string([]byte(uuid))
+		mwk.Key = uuid.String()
 		proto.Merge(&mwk.Member, memberreq.GetMemberData())
 		applist.Applicants = []*MemberWithKey{mwk}
 	} else {
