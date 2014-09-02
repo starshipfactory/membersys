@@ -1,4 +1,4 @@
-== 0.3 / unreleased
+== 0.3 / 2014-09-02
 * Keep members in the membership database too.
 * Add a barcode for ease of finding the correct record to the print template
 * Store the filled-out form data in a Cassandra database

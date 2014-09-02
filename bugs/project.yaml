@@ -33,13 +33,17 @@ releases:
     - ""
 - !ditz.rubyforge.org,2008-03-06/release 
   name: "0.3"
-  status: :unreleased
-  release_time: 
+  status: :released
+  release_time: 2014-09-02 20:52:33.645361 Z
   log_events: 
   - - 2013-11-15 19:01:36.926968 Z
     - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
     - created
     - Enhanced version with Cassandra backend
+  - - 2014-09-02 20:52:33.645380 Z
+    - Tonnerre LOMBARD <tonnerre@ancient-solutions.com>
+    - released
+    - Release 0.3 seems to be ready to be set free.
 - !ditz.rubyforge.org,2008-03-06/release 
   name: "0.4"
   status: :unreleased
