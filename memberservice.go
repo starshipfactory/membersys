@@ -49,6 +49,7 @@ func main() {
 	var bindto, config_file string
 	var config_contents []byte
 	var application_tmpl, memberlist_tmpl, print_tmpl *template.Template
+	var unique_member_detail_template *template.Template
 	var exporter *exportedservice.ServiceExporter
 	var authenticator *ancientauth.Authenticator
 	var debug_authenticator bool
@@ -101,6 +102,15 @@ func main() {
 		config.GetTemplateDir() + "/memberlist.html")
 	if err != nil {
 		log.Fatal("Unable to parse member list template: ", err)
+	}
+
+	unique_member_detail_template = template.New("memberdetail")
+	unique_member_detail_template.Funcs(fmap)
+	unique_member_detail_template, err =
+		unique_member_detail_template.ParseFiles(
+			config.GetTemplateDir() + "/memberdetail.html")
+	if err != nil {
+		log.Fatal("Unable to parse member detail template: ", err)
 	}
 
 	authenticator, err = ancientauth.NewAuthenticator(
@@ -207,11 +217,12 @@ func main() {
 	})
 
 	http.Handle("/admin", &TotalListHandler{
-		admingroup: config.AuthenticationConfig.GetAuthGroup(),
-		auth:       authenticator,
-		database:   db,
-		pagesize:   config.GetResultPageSize(),
-		template:   memberlist_tmpl,
+		admingroup:           config.AuthenticationConfig.GetAuthGroup(),
+		auth:                 authenticator,
+		database:             db,
+		pagesize:             config.GetResultPageSize(),
+		template:             memberlist_tmpl,
+		uniqueMemberTemplate: unique_member_detail_template,
 	})
 
 	http.HandleFunc("/barcode", MakeBarcode)

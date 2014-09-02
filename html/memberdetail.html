@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Starship Factory - {{.Name}}</title>
+
+		<link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css">
+		<script src="/js/jquery.js" type="text/javascript"></script>
+		<script src="/js/jquery.validate.min.js" type="text/javascript"></script>
+		<script src="/js/jquery.mockjax.js" type="text/javascript"></script>
+		<script src="/js/memberlist.js" type="text/javascript"></script>
+		<script type="text/javascript" src="/js/bootstrap.min.js"></script>
+	</head>
+	
+	<body>
+		<h1>{{.Name}} <small>Starship Factory</small></h1>
+		<div class="container">
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>Name:</strong>
+				</div>
+				<div class="col-xs-8">
+					{{.Name}}
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>Adresse:</strong>
+				</div>
+				<div class="col-xs-8">
+					<address>
+						{{.Street}}<br/>
+						{{.Zipcode}} {{.City}}<br/>
+						{{.Country}}
+					</address>
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>E-Mail:</strong>
+				</div>
+				<div class="col-xs-8">
+					{{.Email}}
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>Telephon:</strong>
+				</div>
+				<div class="col-xs-8">
+					{{.Phone}}
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>Beitrag:</strong>
+				</div>
+				<div class="col-xs-8">
+					{{.Fee}} CHF/{{if .FeeYearly}}Jahr{{else}}Monat{{end}}
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>Benutzer:</strong>
+				</div>
+				<div class="col-xs-8">
+					{{.Username}}
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

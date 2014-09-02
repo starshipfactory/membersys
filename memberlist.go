@@ -59,11 +59,12 @@ func init() {
 
 // Handler object for displaying the list of membership applications.
 type TotalListHandler struct {
-	admingroup string
-	auth       *ancientauth.Authenticator
-	database   *MembershipDB
-	pagesize   int32
-	template   *template.Template
+	admingroup           string
+	auth                 *ancientauth.Authenticator
+	database             *MembershipDB
+	pagesize             int32
+	template             *template.Template
+	uniqueMemberTemplate *template.Template
 }
 
 type TotalRecordList struct {
@@ -84,17 +85,30 @@ type TotalRecordList struct {
 
 // Serve the list of current membership applications to the requestor.
 func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var user string
 	var all_records TotalRecordList
 	var err error
 
-	if m.auth.GetAuthenticatedUser(req) == "" {
+	if user = m.auth.GetAuthenticatedUser(req); user == "" {
 		m.auth.RequestAuthorization(rw, req)
 		return
 	}
 
 	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
-		rw.Header().Set("Location", "/")
-		rw.WriteHeader(http.StatusTemporaryRedirect)
+		var agreement *MembershipAgreement
+
+		agreement, err = m.database.GetMemberDetailByUsername(user)
+		if err != nil {
+			log.Print("Can't get membership agreement for ", user, ": ", err)
+			return
+		}
+
+		err = m.uniqueMemberTemplate.ExecuteTemplate(rw, "memberdetail.html",
+			agreement.GetMemberData())
+		if err != nil {
+			log.Print("Can't run membership detail template: ", err)
+		}
+
 		return
 	}
 
