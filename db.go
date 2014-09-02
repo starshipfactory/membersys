@@ -215,6 +215,67 @@ func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, e
 	return
 }
 
+// Retrieve a specific members detailed membership data, but fetch it by the
+// user name of the member.
+func (m *MembershipDB) GetMemberDetailByUsername(username string) (
+	*MembershipAgreement, error) {
+	var member *MembershipAgreement = new(MembershipAgreement)
+	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
+	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
+	var kr *cassandra.KeyRange = cassandra.NewKeyRange()
+	var expr *cassandra.IndexExpression = cassandra.NewIndexExpression()
+
+	var r []*cassandra.KeySlice
+	var ks *cassandra.KeySlice
+	var ire *cassandra.InvalidRequestException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var err error
+
+	expr.ColumnName = []byte("username")
+	expr.Op = cassandra.IndexOperator_EQ
+	expr.Value = []byte(username)
+
+	cp.ColumnFamily = "members"
+	pred.ColumnNames = [][]byte{[]byte("pb_data")}
+	kr.StartKey = []byte(memberPrefix)
+	kr.EndKey = []byte(memberEnd)
+	kr.RowFilter = []*cassandra.IndexExpression{expr}
+
+	r, ire, ue, te, err = m.conn.GetRangeSlices(
+		cp, pred, kr, cassandra.ConsistencyLevel_ONE)
+	if ire != nil {
+		return nil, errors.New("Invalid request: " + ire.Why)
+	}
+	if ue != nil {
+		return nil, errors.New("Unavailable")
+	}
+	if te != nil {
+		return nil, errors.New("Timed out")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ks = range r {
+		var cos *cassandra.ColumnOrSuperColumn
+
+		for _, cos = range ks.Columns {
+			var col = cos.Column
+			if string(col.Name) == "pb_data" {
+				member = new(MembershipAgreement)
+				err = proto.Unmarshal(col.Value, member)
+				return member, nil
+			} else {
+				return nil, errors.New("Unexpected column " +
+					string(col.Name))
+			}
+		}
+	}
+
+	return nil, errors.New("Not found")
+}
+
 // Retrieve a specific members detailed membership data.
 func (m *MembershipDB) GetMemberDetail(id string) (*MembershipAgreement, error) {
 	var member *MembershipAgreement = new(MembershipAgreement)
