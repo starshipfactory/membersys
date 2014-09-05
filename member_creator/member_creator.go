@@ -242,8 +242,8 @@ func main() {
 		log.Fatal("Error getting range slice: ", err)
 	}
 
-	mmap = make(map[string]map[string][]*cassandra.Mutation)
 	for _, ks = range kss {
+		mmap = make(map[string]map[string][]*cassandra.Mutation)
 		var csc *cassandra.ColumnOrSuperColumn
 		for _, csc = range ks.Columns {
 			var col *cassandra.Column = csc.Column
@@ -385,6 +385,21 @@ func main() {
 			mmap[string(ks.Key)] = make(map[string][]*cassandra.Mutation)
 			mmap[string(ks.Key)]["membership_queue"] = []*cassandra.Mutation{m}
 		}
+
+		// Apply all database mutations.
+		ire, ue, te, err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
+		if ire != nil {
+			log.Fatal("Invalid Cassandra request: ", ire.Why)
+		}
+		if ue != nil {
+			log.Fatal("Cassandra unavailable")
+		}
+		if te != nil {
+			log.Fatal("Cassandra timed out: ", te.String())
+		}
+		if err != nil {
+			log.Fatal("Error getting range slice: ", err)
+		}
 	}
 
 	// Delete parting members.
@@ -408,6 +423,7 @@ func main() {
 
 	for _, ks = range kss {
 		var csc *cassandra.ColumnOrSuperColumn
+		mmap = make(map[string]map[string][]*cassandra.Mutation)
 		for _, csc = range ks.Columns {
 			var uuid cassandra.UUID
 			var ldapuser string
@@ -525,21 +541,21 @@ func main() {
 			mmap["archive:"+string([]byte(uuid))]["membership_archive"] =
 				[]*cassandra.Mutation{m}
 		}
-	}
 
-	// Apply all database mutations.
-	ire, ue, te, err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		log.Fatal("Invalid Cassandra request: ", ire.Why)
-	}
-	if ue != nil {
-		log.Fatal("Cassandra unavailable")
-	}
-	if te != nil {
-		log.Fatal("Cassandra timed out: ", te.String())
-	}
-	if err != nil {
-		log.Fatal("Error getting range slice: ", err)
+		// Apply all database mutations.
+		ire, ue, te, err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
+		if ire != nil {
+			log.Fatal("Invalid Cassandra request: ", ire.Why)
+		}
+		if ue != nil {
+			log.Fatal("Cassandra unavailable")
+		}
+		if te != nil {
+			log.Fatal("Cassandra timed out: ", te.String())
+		}
+		if err != nil {
+			log.Fatal("Error getting range slice: ", err)
+		}
 	}
 
 	if verbose {
