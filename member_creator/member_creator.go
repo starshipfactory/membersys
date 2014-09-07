@@ -297,6 +297,13 @@ func main() {
 				}
 			}
 
+			agreement.MemberData.Id = proto.Uint64(greatestUid)
+			col.Value, err = proto.Marshal(agreement)
+			if err != nil {
+				log.Print("Error marshalling agreement: ", err)
+				continue
+			}
+
 			if verbose {
 				log.Print("Creating user: uid=" +
 					agreement.MemberData.GetUsername() +
