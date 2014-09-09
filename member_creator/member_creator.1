@@ -19,7 +19,7 @@ data with an
 account database.
 It essentially creates new users in
 .SM LDAP
-for members joining the organization and purges
+and sends out welcome e\-mails for members joining the organization and purges
 .SM LDAP
 users (i.e. it deletes them or removes them from the relevant groups if they
 are also a member of other groups) when their membership is terminated in the
@@ -188,6 +188,40 @@ Obviously, this can only be specified once.
 This should be a path to a shell binary which should be used as the default
 shell for new users.
 .IR default: " /bin/bash
+.SS welcome_mail_config
+Optional settings to send welcome mails to newly created members.
+If this section is ommitted no emails will be send.
+.TP
+.BI mail_template_path " required
+Path to the template containing the welcome mail text.
+.TP
+.BI smtp_server_address " required
+Name or address of the smtp server for outgoing mail.
+.TP
+.BI identity " optional
+Set identity for SMTP authentication to act as a different role from username
+(see RFC 4616).
+Leave empty to use username instead.
+.TP
+.BI username " optional
+Username for SMTP authentication.
+If this and the password is specified authenticated SMTP will be used.
+.TP
+.BI password " optional
+Password for SMTP authentication.
+If this and the username is specified authenticated SMTP will be used.
+.TP
+.BI from " required
+From header of the email.
+.TP
+.BI reply_to " optional
+Reply-To header of the email.
+Use this so new users reply to this address instead of the address specified in
+from.
+.TP
+.BI subject " required
+Subject header of the email.
+
 .SH "EXAMPLE CONFIGURATION"
 .PP
 An example configuration file might look just about like this:
@@ -218,6 +252,26 @@ ldap_config {
 	new_user_gid: 1024
 .RS 0
 	new_user_shell: "/sbin/nologin"
+.RS 0
+}
+.RS 0
+
+.RS 0
+welcome_mail_config {
+.RS 0
+        mail_template_path: "/usr/share/membersys/mail.txt"
+.RS 0
+        smtp_server_address: "mail.example.com:587"
+.RS 0
+        username: "mailer@example.com"
+.RS 0
+        password: "secret"
+.RS 0
+        from: "Membership System <membersys@example.com>"
+.RS 0
+        reply_to: "<mailinglist@example.com>"
+.RS 0
+        subject: "Welcome to the example organization!"
 .RS 0
 }
 .SH AUTHOR
