@@ -1,0 +1,27 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Send welcome emails to new members.
+desc: ""
+type: :feature
+component: membersys
+release: "0.4"
+reporter: Juliane Clausen <kontakt@juliane-clausen.de>
+status: :closed
+disposition: :fixed
+creation_time: 2014-09-09 00:59:12.992354 Z
+references: []
+
+id: 84721361cc6d43ca854e89fbc1de31f5e60fd3fb
+log_events: 
+- - 2014-09-09 00:59:15.900782 Z
+  - Juliane Clausen <kontakt@juliane-clausen.de>
+  - created
+  - ""
+- - 2014-09-09 01:00:11.129732 Z
+  - Juliane Clausen <kontakt@juliane-clausen.de>
+  - closed with disposition fixed
+  - |-
+    commit b5dda278a70479862fcd87c40c676bb42b8a90f2
+    Author: Juliane Clausen <git@juliane-clausen.de>
+    Date:   Tue Sep 9 02:13:56 2014 +0200
+    
+        Welcome mails for our new members.
