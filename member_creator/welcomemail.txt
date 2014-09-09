@@ -1,0 +1,39 @@
+To: {{.Member.Email}}
+From: {{.From}}
+Subject: {{.Subject}}
+Reply-To: {{.ReplyTo}}
+Content-Type: text/plain;charset=utf8
+Date: {{.Date}}
+
+Hallo {{.Member.Name}},
+
+Willkommen als neues Mitglied in der Starship Factory!
+
+In unserem Makerspace sind aktive Beteiligung und Kommunikation besonders
+wichtig, daher haben wir ein ausgeklügeltes System entwickelt um uns dabei zu
+koordinieren. Das kann am Anfang sehr verwirren, daher haben wir unter
+http://wiki.starship-factory.ch/Howtos/neumitglied.html eine Checkliste von
+Dingen eingefügt, die du als Neumitglied tun solltest, damit du mit uns allen
+optimal zusammenarbeiten kannst!
+
+Eine kurze Zusammenfassung der wichtigsten Eckdaten:
+ * Lies das Reglement unter
+http://wiki.starship-factory.ch/Vereinskram/Reglement.html
+ * Zahle deinen Mitgliedsbeitrag von {{.Member.Fee}} CHF {{if .Member.GetFeeYearly}}jährlich{{else}}monatlich{{end}} im Voraus an
+   PC: 60-738720-1
+   IBAN: CH15 0900 0000 6073 8720 1
+
+   Starship Factory
+   4000 Basel
+ * Melde dich an den Mailinglisten an:
+http://wiki.starship-factory.ch/Mailingliste.html
+
+Bitte nimm dir bei Gelegenheit Zeit, auch den Rest der Checkliste
+abzuarbeiten. Wir freuen uns darauf, dich bald öfter bei uns in den
+Clubräumen begrüssen zu dürfen.
+
+Dein freundliches Starship Factory Membersystem
+
+-- 
+Der Sourcecode des Membersystems ist Open Source:
+https://github.com/starshipfactory/membersys

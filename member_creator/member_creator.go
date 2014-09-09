@@ -100,6 +100,7 @@ func main() {
 	var greatestUid uint64 = 1000
 	var now time.Time
 	var noop, verbose bool
+        var welcome *WelcomeMail
 
 	var ldap *openldap.Ldap
 	var msg *openldap.LdapMessage
@@ -142,6 +143,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to parse ", config_file, ": ", err)
 	}
+        if config.WelcomeMailConfig != nil {
+                welcome, err = NewWelcomeMail(config.WelcomeMailConfig)
+                if err != nil {
+                        log.Fatal("Error creating WelcomeMail: ", err)
+                }
+        }
+
 	now = time.Now()
 
 	if !noop {
@@ -297,7 +305,7 @@ func main() {
 			}
 
                         agreement.MemberData.Id = proto.Uint64(greatestUid)
-                        col.Value, err = proto.Marshal(agreement)
+                        col.Value, err = proto.Marshal(&agreement)
                         if err != nil {
                                 log.Print("Error marshalling agreement: ", err)
                                 continue
@@ -391,6 +399,15 @@ func main() {
 
 			mmap[string(ks.Key)] = make(map[string][]*cassandra.Mutation)
 			mmap[string(ks.Key)]["membership_queue"] = []*cassandra.Mutation{m}
+
+                        // Write welcome e-mail to new member.
+                        if welcome != nil {
+                                err = welcome.SendMail(agreement.MemberData)
+                                if err != nil {
+                                        log.Print("Error sending welcome e-mail to ",
+                                        agreement.MemberData.GetEmail(), ": ", err)
+                                }
+                        }
 		}
 
 		// Apply all database mutations.

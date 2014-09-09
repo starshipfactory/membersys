@@ -103,6 +103,33 @@ message LdapConfig {
 	optional string new_user_shell = 8 [default = "/bin/bash"];
 }
 
+message WelcomeMailConfig {
+        // Path to the template containing the welcome mail text.
+        required string mail_template_path = 1;
+
+        // Data to create a SMTP connection.
+        // Name or address and port of the smtp server.
+        required string smtp_server_address = 2;
+
+        // Leave empty to use username instead.
+        optional string identity = 3 [default = ""];
+
+        // Username for the mail authentication.
+        optional string username = 4;
+
+        // Plaintext password for the mail authentication.
+        optional string password = 5;
+
+        // From field of the e-mail. E.g. "Membership System <membersys@example.com>"
+        required string from = 7;
+
+        // Mail address for the Reply-To header. E.g. "<mailinglist@example.com>"
+        optional string reply_to = 8;
+
+        // Subject
+        required string subject = 9;
+}
+
 // Configuration for the process which creates new users from database wishes.
 message MemberCreatorConfig {
 	// Database configuration.
@@ -110,4 +137,7 @@ message MemberCreatorConfig {
 
 	// LDAP configuration.
 	required LdapConfig ldap_config = 2;
+
+        // Welcome Mail configuration.
+        optional WelcomeMailConfig welcome_mail_config = 3;
 }
