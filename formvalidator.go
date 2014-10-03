@@ -222,7 +222,8 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	}
 
 	// TODO(tonnerre): Verify the user name field.
-	var username string = req.PostFormValue("mr[username]")
+	var username string = strings.ToLower(
+		req.PostFormValue("mr[username]"))
 	if len(username) > 0 {
 		data.MemberData.Username = &username
 	}
