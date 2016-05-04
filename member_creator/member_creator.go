@@ -52,7 +52,7 @@ func makeMutation(mmap map[string][]*cassandra.Mutation, cf, name string,
 
 	col.Name = []byte(name)
 	col.Value = value
-	col.Timestamp = now.UnixNano()
+	col.Timestamp = proto.Int64(now.UnixNano())
 
 	m.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
 	m.ColumnOrSupercolumn.Column = col
@@ -115,9 +115,6 @@ func main() {
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
 
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	flag.StringVar(&config_file, "config", "",
@@ -219,10 +216,7 @@ func main() {
 			config.DatabaseConfig.GetDatabaseServer(), ": ", err)
 	}
 
-	ire, err = db.SetKeyspace(config.DatabaseConfig.GetDatabaseName())
-	if ire != nil {
-		log.Fatal("Invalid Cassandra request: ", ire.Why)
-	}
+	err = db.SetKeyspace(config.DatabaseConfig.GetDatabaseName())
 	if err != nil {
 		log.Fatal("Error setting keyspace: ", err)
 	}
@@ -235,17 +229,8 @@ func main() {
 	kr.StartKey = []byte("queue:")
 	kr.EndKey = []byte("queue;")
 
-	kss, ire, ue, te, err = db.GetRangeSlices(cp, pred, kr,
+	kss, err = db.GetRangeSlices(cp, pred, kr,
 		cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		log.Fatal("Invalid Cassandra request: ", ire.Why)
-	}
-	if ue != nil {
-		log.Fatal("Cassandra unavailable")
-	}
-	if te != nil {
-		log.Fatal("Cassandra timed out: ", te.String())
-	}
 	if err != nil {
 		log.Fatal("Error getting range slice: ", err)
 	}
@@ -411,16 +396,7 @@ func main() {
 		}
 
 		// Apply all database mutations.
-		ire, ue, te, err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
-		if ire != nil {
-			log.Fatal("Invalid Cassandra request: ", ire.Why)
-		}
-		if ue != nil {
-			log.Fatal("Cassandra unavailable")
-		}
-		if te != nil {
-			log.Fatal("Cassandra timed out: ", te.String())
-		}
+		err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
 		if err != nil {
 			log.Fatal("Error getting range slice: ", err)
 		}
@@ -430,17 +406,8 @@ func main() {
 	cp.ColumnFamily = "membership_dequeue"
 	kr.StartKey = []byte("dequeue:")
 	kr.EndKey = []byte("dequeue;")
-	kss, ire, ue, te, err = db.GetRangeSlices(cp, pred, kr,
+	kss, err = db.GetRangeSlices(cp, pred, kr,
 		cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		log.Fatal("Invalid Cassandra request: ", ire.Why)
-	}
-	if ue != nil {
-		log.Fatal("Cassandra unavailable")
-	}
-	if te != nil {
-		log.Fatal("Cassandra timed out: ", te.String())
-	}
 	if err != nil {
 		log.Fatal("Error getting range slice: ", err)
 	}
@@ -553,8 +520,8 @@ func main() {
 			mmap[string(ks.Key)]["membership_dequeue"] = []*cassandra.Mutation{m}
 
 			// 2 years retention.
-			col.Ttl = 720 * 24 * 3600
-			col.Timestamp = now.UnixNano()
+			col.Ttl = proto.Int32(720 * 24 * 3600)
+			col.Timestamp = proto.Int64(now.UnixNano())
 
 			uuid = cassandra.UUIDFromBytes(ks.Key[len("dequeue:"):])
 
@@ -567,16 +534,7 @@ func main() {
 		}
 
 		// Apply all database mutations.
-		ire, ue, te, err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
-		if ire != nil {
-			log.Fatal("Invalid Cassandra request: ", ire.Why)
-		}
-		if ue != nil {
-			log.Fatal("Cassandra unavailable")
-		}
-		if te != nil {
-			log.Fatal("Cassandra timed out: ", te.String())
-		}
+		err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
 		if err != nil {
 			log.Fatal("Error getting range slice: ", err)
 		}
