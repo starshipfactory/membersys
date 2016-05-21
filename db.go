@@ -41,6 +41,16 @@ import (
 	"code.google.com/p/goprotobuf/proto"
 )
 
+// Data used by the HTML template. Contains not just data entered so far,
+// but also some error texts in case there was a problem submitting data.
+type FormInputData struct {
+	MemberData *Member
+	Metadata   *MembershipMetadata
+	Key        string
+	CommonErr  string
+	FieldErr   map[string]string
+}
+
 type MembershipDB struct {
 	conn *cassandra.RetryCassandraClient
 }
@@ -75,16 +85,12 @@ var allColumns [][]byte = [][]byte{
 // Will set the keyspace to "dbname".
 func NewMembershipDB(host, dbname string, timeout time.Duration) (*MembershipDB, error) {
 	var conn *cassandra.RetryCassandraClient
-	var ire *cassandra.InvalidRequestException
 	var err error
 	conn, err = cassandra.NewRetryCassandraClientTimeout(host, timeout)
 	if err != nil {
 		return nil, err
 	}
-	ire, err = conn.SetKeyspace(dbname)
-	if ire != nil {
-		return nil, errors.New(ire.Why)
-	}
+	err = conn.SetKeyspace(dbname)
 	if err != nil {
 		return nil, err
 	}
@@ -97,13 +103,14 @@ func NewMembershipDB(host, dbname string, timeout time.Duration) (*MembershipDB,
 func newCassandraMutationBytes(name string, value []byte, now *time.Time, ttl int32) *cassandra.Mutation {
 	var ret = cassandra.NewMutation()
 	var col = cassandra.NewColumn()
+	var now_long = int64(now.UnixNano())
 
-	col.Timestamp = now.UnixNano()
+	col.Timestamp = &now_long
 	col.Name = []byte(name)
 	col.Value = value
 
 	if ttl > 0 {
-		col.Ttl = ttl
+		col.Ttl = &ttl
 	}
 
 	ret.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
@@ -135,9 +142,6 @@ func addMembershipRequestInfoString(mmap map[string][]*cassandra.Mutation, name 
 func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, err error) {
 	var bmods map[string]map[string][]*cassandra.Mutation
 	var pb *MembershipAgreement = new(MembershipAgreement)
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var bdata []byte
 	var now = time.Now()
 	var uuid cassandra.UUID
@@ -196,19 +200,7 @@ func (m *MembershipDB) StoreMembershipRequest(req *FormInputData) (key string, e
 	addMembershipRequestInfoBytes(bmods[c_key], "pb_data", bdata, &now)
 
 	// Now execute the batch mutation.
-	ire, ue, te, err = m.conn.BatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		err = errors.New(ire.Why)
-		return
-	}
-	if ue != nil {
-		err = errors.New("Cassandra unavailable: " + ue.String())
-		return
-	}
-	if te != nil {
-		err = errors.New("Timed out: " + te.String())
-		return
-	}
+	err = m.conn.BatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
 	if err != nil {
 		return
 	}
@@ -227,9 +219,6 @@ func (m *MembershipDB) GetMemberDetailByUsername(username string) (
 
 	var r []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	expr.ColumnName = []byte("username")
@@ -242,17 +231,8 @@ func (m *MembershipDB) GetMemberDetailByUsername(username string) (
 	kr.EndKey = []byte(memberEnd)
 	kr.RowFilter = []*cassandra.IndexExpression{expr}
 
-	r, ire, ue, te, err = m.conn.GetRangeSlices(
+	r, err = m.conn.GetRangeSlices(
 		cp, pred, kr, cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		return nil, errors.New("Invalid request: " + ire.Why)
-	}
-	if ue != nil {
-		return nil, errors.New("Unavailable")
-	}
-	if te != nil {
-		return nil, errors.New("Timed out")
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -281,31 +261,15 @@ func (m *MembershipDB) GetMemberDetail(id string) (*MembershipAgreement, error) 
 	var member *MembershipAgreement = new(MembershipAgreement)
 	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
 	var r *cassandra.ColumnOrSuperColumn
-	var ire *cassandra.InvalidRequestException
-	var nfe *cassandra.NotFoundException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	cp.ColumnFamily = "members"
 	cp.Column = []byte("pb_data")
 
 	// Retrieve the protobuf with all data from Cassandra.
-	r, ire, nfe, ue, te, err = m.conn.Get(
+	r, err = m.conn.Get(
 		append([]byte(memberPrefix), []byte(id)...),
 		cp, cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		return nil, errors.New(ire.Why)
-	}
-	if nfe != nil {
-		return nil, errors.New("Not found")
-	}
-	if ue != nil {
-		return nil, errors.New("Unavailable")
-	}
-	if te != nil {
-		return nil, errors.New("Timed out")
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -322,12 +286,9 @@ func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
 	var member *MembershipAgreement = new(MembershipAgreement)
 	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
 	var r *cassandra.ColumnOrSuperColumn
-	var ire *cassandra.InvalidRequestException
-	var nfe *cassandra.NotFoundException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 
 	var mu *cassandra.Mutation = cassandra.NewMutation()
+	var ts int64 = now.UnixNano()
 	var bdata []byte
 	var err error
 
@@ -335,21 +296,9 @@ func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
 	cp.Column = []byte("pb_data")
 
 	// Retrieve the protobuf with all data from Cassandra.
-	r, ire, nfe, ue, te, err = m.conn.Get(
+	r, err = m.conn.Get(
 		append([]byte(memberPrefix), []byte(id)...),
 		cp, cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		return errors.New(ire.Why)
-	}
-	if nfe != nil {
-		return errors.New("Not found")
-	}
-	if ue != nil {
-		return errors.New("Unavailable")
-	}
-	if te != nil {
-		return errors.New("Timed out")
-	}
 	if err != nil {
 		return err
 	}
@@ -364,7 +313,7 @@ func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
 	member.MemberData.FeeYearly = &yearly
 
 	r.Column.Value, err = proto.Marshal(member)
-	r.Column.Timestamp = now.UnixNano()
+	r.Column.Timestamp = &ts
 
 	mmap = make(map[string]map[string][]*cassandra.Mutation)
 	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
@@ -391,18 +340,8 @@ func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
 	mmap[memberPrefix+id]["members"] = append(
 		mmap[memberPrefix+id]["members"], mu)
 
-	ire, ue, te, err = m.conn.AtomicBatchMutate(
+	return m.conn.AtomicBatchMutate(
 		mmap, cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		return errors.New(ire.Why)
-	}
-	if ue != nil {
-		return errors.New("Unavailable")
-	}
-	if te != nil {
-		return errors.New("Timed out")
-	}
-	return err
 }
 
 // Retrieve an individual applicants data.
@@ -411,10 +350,6 @@ func (m *MembershipDB) GetMembershipRequest(id, table, prefix string) (*Membersh
 	var member *MembershipAgreement = new(MembershipAgreement)
 	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
 	var r *cassandra.ColumnOrSuperColumn
-	var ire *cassandra.InvalidRequestException
-	var nfe *cassandra.NotFoundException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	if uuid, err = cassandra.ParseUUID(id); err != nil {
@@ -425,28 +360,16 @@ func (m *MembershipDB) GetMembershipRequest(id, table, prefix string) (*Membersh
 	cp.Column = []byte("pb_data")
 
 	// Retrieve the protobuf with all data from Cassandra.
-	r, ire, nfe, ue, te, err = m.conn.Get(
+	r, err = m.conn.Get(
 		append([]byte(prefix), []byte(uuid)...),
 		cp, cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		return nil, 0, errors.New(ire.Why)
-	}
-	if nfe != nil {
-		return nil, 0, errors.New(prefix + uuid.String() + ": Not found")
-	}
-	if ue != nil {
-		return nil, 0, errors.New("Unavailable")
-	}
-	if te != nil {
-		return nil, 0, errors.New("Timed out")
-	}
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// Decode the protobuf which was written to the column.
 	err = proto.Unmarshal(r.Column.Value, member)
-	return member, r.Column.Timestamp, err
+	return member, *r.Column.Timestamp, err
 }
 
 // Get a list of all members currently in the database. Returns a set of
@@ -461,9 +384,6 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
 	var rv []*Member
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	// Fetch all relevant non-protobuf columns of the members column family.
@@ -477,20 +397,8 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 	r.EndKey = []byte(memberEnd)
 	r.Count = num
 
-	kss, ire, ue, te, err = m.conn.GetRangeSlices(
+	kss, err = m.conn.GetRangeSlices(
 		cp, pred, r, cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		err = errors.New(ire.Why)
-		return rv, err
-	}
-	if ue != nil {
-		err = errors.New("Cassandra unavailable: " + ue.String())
-		return rv, err
-	}
-	if te != nil {
-		err = errors.New("Timed out: " + te.String())
-		return rv, err
-	}
 	if err != nil {
 		return rv, err
 	}
@@ -547,9 +455,6 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
 	var rv []*MemberWithKey
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	// Fetch the name, street, city and fee columns of the application column family.
@@ -570,20 +475,8 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 	r.EndKey = []byte(applicationEnd)
 	r.Count = num
 
-	kss, ire, ue, te, err = m.conn.GetRangeSlices(
+	kss, err = m.conn.GetRangeSlices(
 		cp, pred, r, cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		err = errors.New(ire.Why)
-		return rv, err
-	}
-	if ue != nil {
-		err = errors.New("Cassandra unavailable: " + ue.String())
-		return rv, err
-	}
-	if te != nil {
-		err = errors.New("Timed out: " + te.String())
-		return rv, err
-	}
 	if err != nil {
 		return rv, err
 	}
@@ -642,9 +535,6 @@ func (m *MembershipDB) enumerateQueuedMembersIn(
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
 	var rv []*MemberWithKey
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	// Fetch the protobuf column of the application column family.
@@ -664,20 +554,8 @@ func (m *MembershipDB) enumerateQueuedMembersIn(
 	r.EndKey = []byte(end)
 	r.Count = num
 
-	kss, ire, ue, te, err = m.conn.GetRangeSlices(
+	kss, err = m.conn.GetRangeSlices(
 		cp, pred, r, cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		err = errors.New(ire.Why)
-		return rv, err
-	}
-	if ue != nil {
-		err = errors.New("Cassandra unavailable: " + ue.String())
-		return rv, err
-	}
-	if te != nil {
-		err = errors.New("Timed out: " + te.String())
-		return rv, err
-	}
 	if err != nil {
 		return rv, err
 	}
@@ -720,9 +598,6 @@ func (m *MembershipDB) EnumerateTrashedMembers(prev string, num int32) ([]*Membe
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
 	var rv []*MemberWithKey
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	// Fetch the protobuf column of the application column family.
@@ -742,19 +617,7 @@ func (m *MembershipDB) EnumerateTrashedMembers(prev string, num int32) ([]*Membe
 	r.EndKey = []byte(archiveEnd)
 	r.Count = num
 
-	kss, ire, ue, te, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		err = errors.New(ire.Why)
-		return rv, err
-	}
-	if ue != nil {
-		err = errors.New("Cassandra unavailable: " + ue.String())
-		return rv, err
-	}
-	if te != nil {
-		err = errors.New("Timed out: " + te.String())
-		return rv, err
-	}
+	kss, err = m.conn.GetRangeSlices(cp, pred, r, cassandra.ConsistencyLevel_ONE)
 	if err != nil {
 		return rv, err
 	}
@@ -803,11 +666,8 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 	var cos *cassandra.ColumnOrSuperColumn
 	var del *cassandra.Deletion = cassandra.NewDeletion()
 	var mu *cassandra.Mutation
+	var ts int64
 
-	var ire *cassandra.InvalidRequestException
-	var nfe *cassandra.NotFoundException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	cp.ColumnFamily = "members"
@@ -818,20 +678,8 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 		return err
 	}
 
-	cos, ire, nfe, ue, te, err = m.conn.Get(
+	cos, err = m.conn.Get(
 		[]byte(memberPrefix+id), cp, cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		return errors.New(ire.Why)
-	}
-	if nfe != nil {
-		return errors.New("Not found")
-	}
-	if ue != nil {
-		return errors.New("Unavailable")
-	}
-	if te != nil {
-		return errors.New("Timed out")
-	}
 	if err != nil {
 		return err
 	}
@@ -857,9 +705,10 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 	member.Metadata.GoodbyeTimestamp = &now_long
 	member.Metadata.GoodbyeReason = &reason
 
+	ts = now.UnixNano()
 	cos.Column = cassandra.NewColumn()
 	cos.Column.Name = []byte("pb_data")
-	cos.Column.Timestamp = now.UnixNano()
+	cos.Column.Timestamp = &ts
 	cos.Column.Value, err = proto.Marshal(member)
 	if err != nil {
 		return err
@@ -874,17 +723,8 @@ func (m *MembershipDB) MoveMemberToTrash(id, initiator, reason string) error {
 	mmap[dequeuePrefix+string([]byte(uuid))]["membership_dequeue"] =
 		[]*cassandra.Mutation{mu}
 
-	ire, ue, te, err = m.conn.AtomicBatchMutate(
+	err = m.conn.AtomicBatchMutate(
 		mmap, cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		return errors.New(ire.Why)
-	}
-	if ue != nil {
-		return errors.New("Unavailable")
-	}
-	if te != nil {
-		return errors.New("Timed out")
-	}
 	return err
 }
 
@@ -919,9 +759,6 @@ func (m *MembershipDB) moveRecordToTable(
 	var mutation *cassandra.Mutation = cassandra.NewMutation()
 	var value []byte
 	var timestamp int64
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var err error
 
 	uuid, err = cassandra.ParseUUID(id)
@@ -963,22 +800,11 @@ func (m *MembershipDB) moveRecordToTable(
 	mutation.Deletion = cassandra.NewDeletion()
 	mutation.Deletion.Predicate = cassandra.NewSlicePredicate()
 	mutation.Deletion.Predicate.ColumnNames = allColumns
-	mutation.Deletion.Timestamp = timestamp
+	mutation.Deletion.Timestamp = &timestamp
 	bmods[src_prefix+string(uuid)][src_table] = append(
 		bmods[src_prefix+string(uuid)][src_table], mutation)
 
-	ire, ue, te, err = m.conn.AtomicBatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		return errors.New(ire.Why)
-	}
-	if ue != nil {
-		return errors.New("Unavailable")
-	}
-	if te != nil {
-		return errors.New("Timed out")
-	}
-
-	return err
+	return m.conn.AtomicBatchMutate(bmods, cassandra.ConsistencyLevel_QUORUM)
 }
 
 // Add the membership agreement form scan to the given membership request
@@ -986,9 +812,6 @@ func (m *MembershipDB) moveRecordToTable(
 func (m *MembershipDB) StoreMembershipAgreement(id string, agreement_data []byte) error {
 	var agreement *MembershipAgreement
 	var bmods map[string]map[string][]*cassandra.Mutation
-	var ire *cassandra.InvalidRequestException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var now = time.Now()
 	var uuid cassandra.UUID
 	var buuid []byte
@@ -1023,17 +846,6 @@ func (m *MembershipDB) StoreMembershipAgreement(id string, agreement_data []byte
 	addMembershipRequestInfoBytes(bmods[string(buuid)],
 		"application_pdf", agreement_data, &now)
 
-	ire, ue, te, err = m.conn.AtomicBatchMutate(
+	return m.conn.AtomicBatchMutate(
 		bmods, cassandra.ConsistencyLevel_QUORUM)
-	if ire != nil {
-		return errors.New(ire.Why)
-	}
-	if ue != nil {
-		return errors.New("Unavailable")
-	}
-	if te != nil {
-		return errors.New("Timed out")
-	}
-
-	return err
 }
