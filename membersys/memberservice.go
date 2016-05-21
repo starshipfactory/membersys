@@ -41,8 +41,8 @@ import (
 	"time"
 
 	"ancient-solutions.com/ancientauth"
-	"ancient-solutions.com/doozer/exportedservice"
 	"code.google.com/p/goprotobuf/proto"
+	"github.com/starshipfactory/membersys"
 )
 
 func main() {
@@ -54,15 +54,15 @@ func main() {
 	var exporter *exportedservice.ServiceExporter
 	var authenticator *ancientauth.Authenticator
 	var debug_authenticator bool
-	var config MembersysConfig
-	var db *MembershipDB
+	var config membersys.MembersysConfig
+	var db *membersys.MembershipDB
 	var err error
 
 	flag.BoolVar(&help, "help", false, "Display help")
 	flag.StringVar(&bindto, "bind", "127.0.0.1:8080",
 		"The address to bind the web server to")
-	flag.StringVar(&config_file, "config",
-		"", "Path to a file containing a MembersysConfig protocol buffer")
+	flag.StringVar(&config_file, "config", "",
+		"Path to a file containing a MembersysConfig protocol buffer")
 	flag.BoolVar(&debug_authenticator, "debug-authenticator", false,
 		"Debug the authenticator?")
 	flag.Parse()
@@ -130,7 +130,8 @@ func main() {
 		authenticator.Debug()
 	}
 
-	db, err = NewMembershipDB(config.DatabaseConfig.GetDatabaseServer(),
+	db, err = membersys.NewMembershipDB(
+		config.DatabaseConfig.GetDatabaseServer(),
 		config.DatabaseConfig.GetDatabaseName(),
 		time.Duration(config.DatabaseConfig.GetDatabaseTimeout())*time.Millisecond)
 	if err != nil {

@@ -29,7 +29,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package main
+package membersys
 
 import (
 	"database/cassandra"

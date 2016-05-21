@@ -44,6 +44,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/starshipfactory/membersys"
 )
 
 var fmap = template.FuncMap{
@@ -78,20 +80,10 @@ var phoneRe *regexp.Regexp
 // need to hold some state.
 type FormInputHandler struct {
 	applicationTmpl *template.Template
-	database        *MembershipDB
+	database        *membersys.MembershipDB
 	passthrough     http.Handler
 	printTmpl       *template.Template
 	useProxyRealIP  bool
-}
-
-// Data used by the HTML template. Contains not just data entered so far,
-// but also some error texts in case there was a problem submitting data.
-type FormInputData struct {
-	MemberData *Member
-	Metadata   *MembershipMetadata
-	Key        string
-	CommonErr  string
-	FieldErr   map[string]string
 }
 
 // Parse the form data from the membership signup form and verify that it
@@ -99,7 +91,7 @@ type FormInputData struct {
 // print template for the user to sign and send in.
 func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var err error
-	var data FormInputData
+	var data membersys.FormInputData
 	var fee float64
 	var yearly bool = false
 	var minfee float64
@@ -117,7 +109,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	}
 
 	data.FieldErr = make(map[string]string)
-	data.MemberData = &Member{}
+	data.MemberData = &membersys.Member{}
 
 	if err = req.ParseForm(); err != nil {
 		data.CommonErr = err.Error()
@@ -317,7 +309,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		data.MemberData.Fee = &intfee
 	}
 
-	data.Metadata = new(MembershipMetadata)
+	data.Metadata = new(membersys.MembershipMetadata)
 	data.Metadata.Comment = new(string)
 	*data.Metadata.Comment = req.PostFormValue("mr[comments]")
 

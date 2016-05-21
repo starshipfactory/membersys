@@ -45,6 +45,7 @@ import (
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
+	"github.com/starshipfactory/membersys"
 	"gopkg.in/ldap.v2"
 )
 
@@ -100,11 +101,11 @@ func main() {
 	var cf string = "members"
 	var config_file string
 	var config_contents []byte
-	var config MemberCreatorConfig
+	var config membersys.MemberCreatorConfig
 	var greatestUid uint64 = 1000
 	var now time.Time
 	var noop, verbose bool
-	var welcome *WelcomeMail
+	var welcome *membersys.WelcomeMail
 
 	var ld *ldap.Conn
 	var sreq *ldap.SearchRequest
@@ -147,7 +148,8 @@ func main() {
 		log.Fatal("Unable to parse ", config_file, ": ", err)
 	}
 	if config.WelcomeMailConfig != nil {
-		welcome, err = NewWelcomeMail(config.WelcomeMailConfig)
+		welcome, err = membersys.NewWelcomeMail(
+			config.WelcomeMailConfig)
 		if err != nil {
 			log.Fatal("Error creating WelcomeMail: ", err)
 		}
@@ -253,7 +255,7 @@ func main() {
 		var csc *cassandra.ColumnOrSuperColumn
 		for _, csc = range ks.Columns {
 			var col *cassandra.Column = csc.Column
-			var agreement MembershipAgreement
+			var agreement membersys.MembershipAgreement
 			var m *cassandra.Mutation
 
 			if col == nil {
@@ -428,7 +430,7 @@ func main() {
 			var uuid cassandra.UUID
 			var ldapuser string
 			var col *cassandra.Column = csc.Column
-			var agreement MembershipAgreement
+			var agreement membersys.MembershipAgreement
 			var attrs *ldap.ModifyRequest
 			var m *cassandra.Mutation
 

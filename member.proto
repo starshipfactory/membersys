@@ -1,4 +1,4 @@
-package main;
+package membersys;
 
 message MembershipMetadata {
 	// The time at which the membership request was filed, as a

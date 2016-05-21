@@ -1,4 +1,4 @@
-package main
+package membersys
 
 import (
 	"bytes"

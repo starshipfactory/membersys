@@ -37,18 +37,19 @@ import (
 	"net/http"
 
 	"ancient-solutions.com/ancientauth"
+	"github.com/starshipfactory/membersys"
 )
 
 // Object for displaying a list of deleted members.
 type MemberTrashListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 	pagesize   int32
 }
 
 func (m *MemberTrashListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var memberlist []*MemberWithKey
+	var memberlist []*membersys.MemberWithKey
 	var enc *json.Encoder
 	var err error
 
