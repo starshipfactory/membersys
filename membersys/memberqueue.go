@@ -34,6 +34,7 @@ package main
 import (
 	"ancient-solutions.com/ancientauth"
 	"encoding/json"
+	"github.com/starshipfactory/membersys"
 	"log"
 	"net/http"
 	"net/url"
@@ -41,15 +42,15 @@ import (
 )
 
 type queueListType struct {
-	Queued    []*MemberWithKey `json:"queued"`
-	CsrfToken string           `json:"csrf_token"`
+	Queued    []*membersys.MemberWithKey `json:"queued"`
+	CsrfToken string                     `json:"csrf_token"`
 }
 
 // Object for getting a list of currently queued members.
 type MemberQueueListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 	pagesize   int32
 }
 
@@ -57,7 +58,7 @@ type MemberQueueListHandler struct {
 type MemberDeQueueListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 	pagesize   int32
 }
 
@@ -151,7 +152,7 @@ func (m *MemberDeQueueListHandler) ServeHTTP(rw http.ResponseWriter, req *http.R
 type MemberQueueCancelHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 }
 
 func (m *MemberQueueCancelHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {

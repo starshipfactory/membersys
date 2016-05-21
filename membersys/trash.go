@@ -34,6 +34,7 @@ package main
 import (
 	"ancient-solutions.com/ancientauth"
 	"encoding/json"
+	"github.com/starshipfactory/membersys"
 	"log"
 	"net/http"
 )
@@ -42,12 +43,12 @@ import (
 type MemberTrashListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 	pagesize   int32
 }
 
 func (m *MemberTrashListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var memberlist []*MemberWithKey
+	var memberlist []*membersys.MemberWithKey
 	var enc *json.Encoder
 	var err error
 

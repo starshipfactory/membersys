@@ -34,6 +34,7 @@ package main
 import (
 	"ancient-solutions.com/ancientauth"
 	"encoding/json"
+	"github.com/starshipfactory/membersys"
 	"html/template"
 	"log"
 	"net/http"
@@ -43,8 +44,8 @@ import (
 )
 
 type memberListType struct {
-	Members   []*Member `json:"members"`
-	CsrfToken string    `json:"csrf_token"`
+	Members   []*membersys.Member `json:"members"`
+	CsrfToken string              `json:"csrf_token"`
 }
 
 var memberGoodbyeURL *url.URL
@@ -61,18 +62,18 @@ func init() {
 type TotalListHandler struct {
 	admingroup           string
 	auth                 *ancientauth.Authenticator
-	database             *MembershipDB
+	database             *membersys.MembershipDB
 	pagesize             int32
 	template             *template.Template
 	uniqueMemberTemplate *template.Template
 }
 
 type TotalRecordList struct {
-	Applicants []*MemberWithKey
-	Members    []*Member
-	Queue      []*MemberWithKey
-	DeQueue    []*MemberWithKey
-	Trash      []*MemberWithKey
+	Applicants []*membersys.MemberWithKey
+	Members    []*membersys.Member
+	Queue      []*membersys.MemberWithKey
+	DeQueue    []*membersys.MemberWithKey
+	Trash      []*membersys.MemberWithKey
 
 	ApprovalCsrfToken  string
 	RejectionCsrfToken string
@@ -95,7 +96,7 @@ func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
-		var agreement *MembershipAgreement
+		var agreement *membersys.MembershipAgreement
 
 		agreement, err = m.database.GetMemberDetailByUsername(user)
 		if err != nil {
@@ -186,7 +187,7 @@ func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 type MemberListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 	pagesize   int32
 }
 
@@ -232,7 +233,7 @@ func (m *MemberListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 type MemberGoodbyeHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 }
 
 func (m *MemberGoodbyeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -282,12 +283,12 @@ func (m *MemberGoodbyeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 type MemberDetailHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 }
 
 func (m *MemberDetailHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var user string = m.auth.GetAuthenticatedUser(req)
-	var member *MembershipAgreement
+	var member *membersys.MembershipAgreement
 	var memberid string = req.FormValue("email")
 	var enc *json.Encoder
 	var err error
@@ -338,7 +339,7 @@ func (m *MemberDetailHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 type MemberFeeHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 }
 
 func (m *MemberFeeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {

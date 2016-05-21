@@ -36,6 +36,7 @@ import (
 	"code.google.com/p/goprotobuf/proto"
 	"database/cassandra"
 	"encoding/json"
+	"github.com/starshipfactory/membersys"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -46,16 +47,16 @@ import (
 )
 
 type applicantListType struct {
-	Applicants               []*MemberWithKey `json:"applicants"`
-	ApprovalCsrfToken        string           `json:"approval_csrf_token"`
-	RejectionCsrfToken       string           `json:"rejection_csrf_token"`
-	AgreementUploadCsrfToken string           `json:"agreement_upload_csrf_token"`
+	Applicants               []*membersys.MemberWithKey `json:"applicants"`
+	ApprovalCsrfToken        string                     `json:"approval_csrf_token"`
+	RejectionCsrfToken       string                     `json:"rejection_csrf_token"`
+	AgreementUploadCsrfToken string                     `json:"agreement_upload_csrf_token"`
 }
 
 type ApplicantListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 	pagesize   int32
 }
 
@@ -91,8 +92,8 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 	}
 
 	if req.FormValue("single") == "true" && len(req.FormValue("start")) > 0 {
-		var memberreq *MembershipAgreement
-		var mwk *MemberWithKey
+		var memberreq *membersys.MembershipAgreement
+		var mwk *membersys.MemberWithKey
 		var bigint *big.Int = big.NewInt(0)
 		var uuid cassandra.UUID
 		var ok bool
@@ -113,10 +114,10 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 					uuid.String() + ": " + err.Error()))
 				return
 			}
-			mwk = new(MemberWithKey)
+			mwk = new(membersys.MemberWithKey)
 			mwk.Key = uuid.String()
 			proto.Merge(&mwk.Member, memberreq.GetMemberData())
-			applist.Applicants = []*MemberWithKey{mwk}
+			applist.Applicants = []*membersys.MemberWithKey{mwk}
 		}
 	} else {
 		applist.Applicants, err = a.database.EnumerateMembershipRequests(
@@ -170,7 +171,7 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 type MemberAcceptHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 }
 
 func (m *MemberAcceptHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -220,7 +221,7 @@ func (m *MemberAcceptHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 type MemberRejectHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 }
 
 func (m *MemberRejectHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -268,7 +269,7 @@ func (m *MemberRejectHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 type MemberAgreementUploadHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *MembershipDB
+	database   *membersys.MembershipDB
 }
 
 func (m *MemberAgreementUploadHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
