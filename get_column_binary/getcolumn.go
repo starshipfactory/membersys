@@ -10,10 +10,6 @@ func main() {
 	var uuid cassandra.UUID
 	var conn *cassandra.RetryCassandraClient
 	var r *cassandra.ColumnOrSuperColumn
-	var ire *cassandra.InvalidRequestException
-	var nfe *cassandra.NotFoundException
-	var ue *cassandra.UnavailableException
-	var te *cassandra.TimedOutException
 	var cp *cassandra.ColumnPath
 	var err error
 
@@ -41,10 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ire, err = conn.SetKeyspace(dbname)
-	if ire != nil {
-		log.Fatal(ire.Why)
-	}
+	err = conn.SetKeyspace(dbname)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,20 +46,8 @@ func main() {
 	cp.ColumnFamily = columnfamily
 	cp.Column = []byte(column)
 
-	r, ire, nfe, ue, te, err = conn.Get([]byte(uuid), cp,
+	r, err = conn.Get([]byte(uuid), cp,
 		cassandra.ConsistencyLevel_ONE)
-	if ire != nil {
-		log.Fatal(ire.Why)
-	}
-	if nfe != nil {
-		log.Fatal("Not found")
-	}
-	if ue != nil {
-		log.Fatal("Unavailable")
-	}
-	if te != nil {
-		log.Fatal("Timed out")
-	}
 	if err != nil {
 		log.Fatal(err)
 	}
