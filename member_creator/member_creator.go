@@ -32,17 +32,20 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"database/cassandra"
 	"encoding/binary"
 	"flag"
 	"io/ioutil"
 	"log"
+	"net"
 	"strconv"
 	"strings"
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
-	"github.com/mqu/openldap"
+	"gopkg.in/ldap.v2"
 )
 
 func makeMutation(mmap map[string][]*cassandra.Mutation, cf, name string,
@@ -103,9 +106,11 @@ func main() {
 	var noop, verbose bool
 	var welcome *WelcomeMail
 
-	var ldap *openldap.Ldap
-	var msg *openldap.LdapMessage
-	var lres *openldap.LdapSearchResult
+	var ld *ldap.Conn
+	var sreq *ldap.SearchRequest
+	var lres *ldap.SearchResult
+	var entry *ldap.Entry
+	var tlsconfig tls.Config
 
 	var mmap map[string]map[string][]*cassandra.Mutation
 	var db *cassandra.RetryCassandraClient
@@ -148,63 +153,71 @@ func main() {
 		}
 	}
 
+	tlsconfig.MinVersion = tls.VersionTLS12
+	tlsconfig.ServerName, _, err = net.SplitHostPort(
+		config.LdapConfig.GetServer())
+	if err != nil {
+		log.Fatal("Can't split ", config.LdapConfig.GetServer(),
+			" into host and port: ", err)
+	}
+
+	if config.LdapConfig.CaCertificate != nil {
+		var certData []byte
+
+		certData, err = ioutil.ReadFile(config.LdapConfig.GetCaCertificate())
+		if err != nil {
+			log.Fatal("Unable to read certificate from ",
+				config.LdapConfig.GetCaCertificate(), ": ", err)
+		}
+
+		tlsconfig.RootCAs = x509.NewCertPool()
+		tlsconfig.RootCAs.AppendCertsFromPEM(certData)
+	}
+
 	now = time.Now()
 
 	if !noop {
-		ldap, err = openldap.Initialize(config.LdapConfig.GetServer())
+		ld, err = ldap.DialTLS("tcp", config.LdapConfig.GetServer(),
+			&tlsconfig)
 		if err != nil {
 			log.Fatal("Error connecting to LDAP server ",
 				config.LdapConfig.GetServer(), ": ", err)
 		}
 
-		err = ldap.SetOption(openldap.LDAP_OPT_PROTOCOL_VERSION,
-			openldap.LDAP_VERSION3)
-		if err != nil {
-			log.Print("Error setting version to 3: ", err)
-		}
-
-		err = ldap.SetOption(openldap.LDAP_OPT_SIZELIMIT, 0)
-		if err != nil {
-			log.Print("Error setting the size limit to 0: ", err)
-		}
-
-		err = ldap.Bind(config.LdapConfig.GetSuperUser()+","+
+		err = ld.Bind(config.LdapConfig.GetSuperUser()+","+
 			config.LdapConfig.GetBase(), config.LdapConfig.GetSuperPassword())
 		if err != nil {
 			log.Fatal("Unable to bind as ", config.LdapConfig.GetSuperUser()+
 				","+config.LdapConfig.GetBase(), " to ",
 				config.LdapConfig.GetServer(), ": ", err)
 		}
-		defer ldap.Unbind()
+		defer ld.Close()
+
+		sreq = ldap.NewSearchRequest(
+			config.LdapConfig.GetBase(), ldap.ScopeWholeSubtree,
+			ldap.NeverDerefAliases, 1000, 90, false,
+			"(objectClass=posixAccount)", []string{"uidNumber"},
+			[]ldap.Control{})
 
 		// Find the highest assigned UID.
-		msg, err = ldap.Search(config.LdapConfig.GetBase(),
-			openldap.LDAP_SCOPE_SUBTREE, "(objectClass=posixAccount)",
-			[]string{"uidNumber"})
+		lres, err = ld.Search(sreq)
 		if err != nil {
 			log.Fatal("Unable to search for posix accounts in ",
 				config.LdapConfig.GetBase(), ": ", err)
 		}
-		for msg != nil {
-			var entry = msg.FirstEntry()
+		for _, entry = range lres.Entries {
+			var uid string
 
-			for entry != nil {
-				var uid string
-
-				for _, uid = range entry.GetValues("uidNumber") {
-					var uidNumber uint64
-					uidNumber, err = strconv.ParseUint(uid, 10, 64)
-					if err != nil {
-						log.Print("Error parsing \"", uid, "\" as a number: ",
-							err)
-					} else if uidNumber > greatestUid {
-						greatestUid = uidNumber
-					}
+			for _, uid = range entry.GetAttributeValues("uidNumber") {
+				var uidNumber uint64
+				uidNumber, err = strconv.ParseUint(uid, 10, 64)
+				if err != nil {
+					log.Print("Error parsing \"", uid, "\" as a number: ",
+						err)
+				} else if uidNumber > greatestUid {
+					greatestUid = uidNumber
 				}
-				entry = entry.NextEntry()
 			}
-
-			msg = msg.NextMessage()
 		}
 	}
 
@@ -241,7 +254,6 @@ func main() {
 		for _, csc = range ks.Columns {
 			var col *cassandra.Column = csc.Column
 			var agreement MembershipAgreement
-			var attrs map[string][]string
 			var m *cassandra.Mutation
 
 			if col == nil {
@@ -261,83 +273,80 @@ func main() {
 				continue
 			}
 
-			greatestUid++
-			attrs = make(map[string][]string)
-			attrs["uidNumber"] = []string{
-				strconv.FormatUint(greatestUid, 10)}
-			attrs["gecos"] = []string{agreement.MemberData.GetName()}
-			attrs["shadowLastChange"] = []string{"11457"}
-			attrs["shadowMax"] = []string{"9999"}
-			attrs["shadowWarning"] = []string{"7"}
-			attrs["gidNumber"] = []string{strconv.FormatUint(uint64(
-				config.LdapConfig.GetNewUserGid()), 10)}
-			attrs["objectClass"] = []string{
-				"account", "posixAccount", "shadowAccount", "top",
-			}
-			attrs["uid"] = []string{agreement.MemberData.GetUsername()}
-			attrs["cn"] = []string{agreement.MemberData.GetUsername()}
-			attrs["homeDirectory"] = []string{
-				"/home/" + agreement.MemberData.GetUsername()}
-			attrs["loginShell"] = []string{
-				config.LdapConfig.GetNewUserShell()}
-			attrs["userPassword"] = []string{
-				agreement.MemberData.GetPwhash(),
-			}
+			if agreement.MemberData.Username != nil {
+				var attrs *ldap.AddRequest
 
-			for key, ivalue := range attrs {
-				for i, value := range ivalue {
-					attrs[key][i] = asciiFilter(value)
+				greatestUid++
+
+				attrs = ldap.NewAddRequest("uid=" +
+					asciiFilter(agreement.MemberData.GetUsername()) + "," +
+					config.LdapConfig.GetNewUserSuffix() + "," +
+					config.LdapConfig.GetBase())
+
+				attrs.Attribute("uidNumber", []string{
+					strconv.FormatUint(greatestUid, 10)})
+				attrs.Attribute("gecos", []string{
+					asciiFilter(agreement.MemberData.GetName())})
+				attrs.Attribute("shadowLastChange", []string{"11457"})
+				attrs.Attribute("shadowMax", []string{"9999"})
+				attrs.Attribute("shadowWarning", []string{"7"})
+				attrs.Attribute("gidNumber", []string{strconv.FormatUint(
+					uint64(config.LdapConfig.GetNewUserGid()), 10)})
+				attrs.Attribute("objectClass", []string{
+					"account", "posixAccount", "shadowAccount", "top",
+				})
+				attrs.Attribute("uid", []string{
+					asciiFilter(agreement.MemberData.GetUsername())})
+				attrs.Attribute("cn", []string{
+					asciiFilter(agreement.MemberData.GetUsername())})
+				attrs.Attribute("homeDirectory", []string{"/home/" +
+					asciiFilter(agreement.MemberData.GetUsername())})
+				attrs.Attribute("loginShell", []string{
+					config.LdapConfig.GetNewUserShell()})
+				attrs.Attribute("userPassword", []string{
+					agreement.MemberData.GetPwhash(),
+				})
+
+				agreement.MemberData.Id = proto.Uint64(greatestUid)
+				if verbose {
+					log.Print("Creating user: uid=" +
+						agreement.MemberData.GetUsername() +
+						"," + config.LdapConfig.GetNewUserSuffix() + "," +
+						config.LdapConfig.GetBase())
+				}
+
+				if !noop {
+					var group string
+
+					err = ld.Add(attrs)
+					if err != nil {
+						log.Print("Unable to create LDAP Account ",
+							agreement.MemberData.GetUsername(), ": ", err)
+						continue
+					}
+
+					for _, group = range config.LdapConfig.GetNewUserGroup() {
+						var grpadd = ldap.NewModifyRequest("cn=" + group +
+							",ou=Groups," + config.LdapConfig.GetBase())
+
+						grpadd.Add("memberUid", []string{
+							agreement.MemberData.GetUsername()})
+
+						err = ld.Modify(grpadd)
+						if err != nil {
+							log.Print("Unable to add user ",
+								agreement.MemberData.GetUsername(),
+								" to group ", group, ": ",
+								err)
+						}
+					}
 				}
 			}
 
-			agreement.MemberData.Id = proto.Uint64(greatestUid)
 			col.Value, err = proto.Marshal(&agreement)
 			if err != nil {
 				log.Print("Error marshalling agreement: ", err)
 				continue
-			}
-
-			if verbose {
-				log.Print("Creating user: uid=" +
-					agreement.MemberData.GetUsername() +
-					"," + config.LdapConfig.GetNewUserSuffix() + "," +
-					config.LdapConfig.GetBase())
-			}
-
-			if agreement.MemberData.Username == nil {
-				if verbose {
-					log.Print("Member without user account, nothing to do")
-				}
-			} else if noop {
-				log.Print("Would create user: ", attrs)
-			} else {
-				var group string
-
-				err = ldap.Add("uid="+agreement.MemberData.GetUsername()+
-					","+config.LdapConfig.GetNewUserSuffix()+","+
-					config.LdapConfig.GetBase(), attrs)
-				if err != nil {
-					log.Print("Unable to create user ",
-						agreement.MemberData.GetUsername(), ": ", err)
-					continue
-				}
-
-				attrs = make(map[string][]string)
-				attrs["memberUid"] = []string{
-					agreement.MemberData.GetUsername()}
-
-				for _, group = range config.LdapConfig.GetNewUserGroup() {
-					err = ldap.ModifyAdd("cn="+group+
-						",ou=Groups,"+
-						config.LdapConfig.GetBase(),
-						attrs)
-					if err != nil {
-						log.Print("Unable to add user ",
-							agreement.MemberData.GetUsername(),
-							" to group ", group, ": ",
-							err)
-					}
-				}
 			}
 
 			mmap["member:"+string(agreement.MemberData.GetEmail())] =
@@ -420,7 +429,7 @@ func main() {
 			var ldapuser string
 			var col *cassandra.Column = csc.Column
 			var agreement MembershipAgreement
-			var attrs map[string][]string
+			var attrs *ldap.ModifyRequest
 			var m *cassandra.Mutation
 
 			if col == nil {
@@ -439,42 +448,45 @@ func main() {
 				continue
 			}
 
-			ldapuser = "uid=" + agreement.MemberData.GetUsername() +
-				"," + config.LdapConfig.GetNewUserSuffix() + "," +
-				config.LdapConfig.GetBase()
 			if agreement.MemberData.Username == nil {
-				if verbose {
-					log.Print("Member without user name, nothing to do")
-				}
-			} else if noop {
+				continue
+			}
+
+			ldapuser = "uid=" +
+				asciiFilter(agreement.MemberData.GetUsername()) + "," +
+				config.LdapConfig.GetNewUserSuffix() + "," +
+				config.LdapConfig.GetBase()
+			if noop {
 				log.Print("Would remove user ", ldapuser)
 			} else {
 				var groups []string
 				var groups_differ bool
-				var entry openldap.LdapEntry
+				var entry *ldap.Entry
 				var group string
 
-				lres, err = ldap.SearchAll(
-					config.LdapConfig.GetBase(),
-					openldap.LDAP_SCOPE_SUB,
+				sreq = ldap.NewSearchRequest(
+					config.LdapConfig.GetBase(), ldap.ScopeWholeSubtree,
+					ldap.NeverDerefAliases, 1000, 90, false,
 					"(&(objectClass=posixGroup)(memberUid="+
-						agreement.MemberData.GetUsername()+"))",
-					[]string{"cn"})
+						asciiFilter(agreement.MemberData.GetUsername())+"))",
+					[]string{"cn"}, []ldap.Control{})
+
+				lres, err = ld.Search(sreq)
 				if err != nil {
 					log.Print("Error searching groups for user ",
 						agreement.MemberData.GetUsername(), ": ", err)
 					continue
 				}
 
-				for _, entry = range lres.Entries() {
+				for _, entry = range lres.Entries {
 					var cn string
 					var found bool
 
-					cn, err = entry.GetOneValueByName("cn")
-					if err != nil {
-						log.Fatal("Error determining groups for ",
-							agreement.MemberData.GetUsername(), ": ",
-							err)
+					cn = entry.GetAttributeValue("cn")
+					if cn == "" {
+						log.Print("No group name set for ",
+							agreement.MemberData.GetUsername())
+						continue
 					}
 					groups = append(groups, cn)
 
@@ -493,17 +505,23 @@ func main() {
 					log.Print("User is in other groups than expected: ",
 						strings.Join(groups, ", "))
 
-					attrs = make(map[string][]string)
-					attrs["memberUid"] = []string{
-						agreement.MemberData.GetUsername()}
 					for _, group = range config.LdapConfig.GetNewUserGroup() {
-						ldap.ModifyDel("cn="+group+",ou=Groups,"+
-							config.LdapConfig.GetBase(), attrs)
+						attrs = ldap.NewModifyRequest("cn=" + group +
+							",ou=Groups," + config.LdapConfig.GetBase())
+						attrs.Delete("memberUid", []string{
+							asciiFilter(agreement.MemberData.GetUsername())})
+						err = ld.Modify(attrs)
+						if err != nil {
+							log.Print("Error deleting ",
+								agreement.MemberData.GetUsername(), " from ",
+								group, ": ", err)
+						}
 					}
 				} else {
+					var dr = ldap.NewDelRequest(ldapuser, []ldap.Control{})
 					// The user appears to be only in the groups given in
 					// the config.
-					err = ldap.Delete(ldapuser)
+					err = ld.Del(dr)
 					if err != nil {
 						log.Print("Unable to delete user ", ldapuser, ": ",
 							err)

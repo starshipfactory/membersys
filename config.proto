@@ -101,6 +101,9 @@ message LdapConfig {
 
 	// Default shell for new users.
 	optional string new_user_shell = 8 [default = "/bin/bash"];
+
+	// Path to the CA certificate to verify the LDAP server against.
+	optional string ca_certificate = 9;
 }
 
 message WelcomeMailConfig {
