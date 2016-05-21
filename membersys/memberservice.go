@@ -35,7 +35,6 @@ import (
 	"ancient-solutions.com/ancientauth"
 	"code.google.com/p/goprotobuf/proto"
 	"flag"
-	"github.com/tonnerre/golang-doozer-exportedservice"
 	"github.com/starshipfactory/membersys"
 	"html/template"
 	"io/ioutil"
@@ -51,7 +50,6 @@ func main() {
 	var config_contents []byte
 	var application_tmpl, memberlist_tmpl, print_tmpl *template.Template
 	var unique_member_detail_template *template.Template
-	var exporter *exportedservice.ServiceExporter
 	var authenticator *ancientauth.Authenticator
 	var debug_authenticator bool
 	var config membersys.MembersysConfig
@@ -237,29 +235,8 @@ func main() {
 		useProxyRealIP:  config.GetUseProxyRealIp(),
 	})
 
-	// If a lock server was specified, attempt to use an anonymous port as
-	// a Doozer exported HTTP service. Otherwise, just bind to the address
-	// given in bindto, for debugging etc.
-	if config.LockserviceConfig != nil {
-		exporter, err = exportedservice.NewExporter(
-			config.LockserviceConfig.GetLockserverUri(),
-			config.LockserviceConfig.GetLockserverBootUri())
-		if err != nil {
-			log.Fatal("doozer.DialUri ",
-				config.LockserviceConfig.GetLockserverUri(), " (",
-				config.LockserviceConfig.GetLockserverBootUri(), "): ", err)
-		}
-
-		defer exporter.UnexportPort()
-		err = exporter.ListenAndServeNamedHTTP(
-			config.LockserviceConfig.GetDoozerServiceName(), bindto, nil)
-		if err != nil {
-			log.Fatal("ListenAndServe: ", err)
-		}
-	} else {
-		err = http.ListenAndServe(bindto, nil)
-		if err != nil {
-			log.Fatal("ListenAndServe: ", err)
-		}
+	err = http.ListenAndServe(bindto, nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
 	}
 }

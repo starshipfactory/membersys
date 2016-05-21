@@ -117,40 +117,6 @@ e.g. how many members appear on one page without having to click through
 to the next one.
 .PP
 Apart from those, the following sections are recognized:
-.SS lockservice_config
-This section contains settings pertaining to the
-.IR doozer (1)
-lock service.
-Thus far, they are only used for the
-.B exported port
-feature.
-The entire section is optional; if it is omitted,
-.IR doozer (1)
-will not be used.
-.TP
-.BI lockserver_uri " required
-.TP
-.BI lockserver_boot_uri " optional
-These settings are used to determine the
-.IR doozer (1)
-lock service to publish the presence of this specific
-.B membersys
-backend to.
-Both are normal
-.IR doozer (1)
-service URIs and will be used as in any other
-.IR doozer (1)
-client.
-See the
-.IR doozer (1)
-manual page for more details on how these URLs are formed.
-.TP
-.BI doozer_service_name " optional
-Instructs
-.B membersys
-what service name to publish under to the
-.IR doozer (1)
-service.
 .SS database_config
 This required section indicates where to find the
 .IR cassandra (8)
