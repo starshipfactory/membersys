@@ -1,18 +1,5 @@
 package membersys;
 
-// Lock service related configuration.
-message LockserviceConfig {
-	// URI of the Doozer lockservice used for locking and publishing.
-	required string lockserver_uri = 1;
-
-	// Boot URL of the lock server (e.g. to find other lock servers).
-	optional string lockserver_boot_uri = 2;
-
-	// Service name to publish as to the lock server
-	optional string doozer_service_name = 3;
-
-}
-
 // Database configuration.
 message DatabaseConfig {
 	// Host name of the Cassandra database server to use.
@@ -57,9 +44,6 @@ message AuthenticationConfig {
 
 // Main configuration for the Starship Factory membership management system.
 message MembersysConfig {
-	// Configuration for exporting to and reading from Doozer.
-	optional LockserviceConfig lockservice_config = 1;
-
 	// Database configuration.
 	required DatabaseConfig database_config = 2;
 
