@@ -23,7 +23,7 @@ _testmain.go
 *.exe
 
 # Executables
-membersys
+membersys/membersys
 get_column_binary/get_column_binary
 member_creator/member_creator
 
