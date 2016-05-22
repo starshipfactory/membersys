@@ -23,9 +23,11 @@ _testmain.go
 *.exe
 
 # Executables
-membersys/membersys
 get_column_binary/get_column_binary
 member_creator/member_creator
+member_list/member_list
+member_remailer/member_remailer
+membersys/membersys
 
 # Artifacts of local configuration
 *.conf
