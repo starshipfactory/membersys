@@ -33,9 +33,9 @@ package main
 
 import (
 	"ancient-solutions.com/ancientauth"
-	"code.google.com/p/goprotobuf/proto"
 	"database/cassandra"
 	"encoding/json"
+	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"io/ioutil"
 	"log"

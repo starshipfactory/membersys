@@ -32,11 +32,11 @@
 package membersys
 
 import (
-	"code.google.com/p/goprotobuf/proto"
 	"database/cassandra"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"github.com/golang/protobuf/proto"
 	"time"
 )
 

@@ -32,12 +32,12 @@
 package main
 
 import (
-	"code.google.com/p/goprotobuf/proto"
 	"crypto/tls"
 	"crypto/x509"
 	"database/cassandra"
 	"encoding/binary"
 	"flag"
+	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"gopkg.in/ldap.v2"
 	"io/ioutil"

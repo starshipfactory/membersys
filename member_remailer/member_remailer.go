@@ -32,8 +32,8 @@
 package main
 
 import (
-	"code.google.com/p/goprotobuf/proto"
 	"flag"
+	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"io/ioutil"
 	"log"

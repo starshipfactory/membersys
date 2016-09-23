@@ -33,8 +33,8 @@ package main
 
 import (
 	"ancient-solutions.com/ancientauth"
-	"code.google.com/p/goprotobuf/proto"
 	"flag"
+	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"html/template"
 	"io/ioutil"
