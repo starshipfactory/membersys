@@ -539,7 +539,7 @@ func main() {
 			mmap[string(ks.Key)]["membership_dequeue"] = []*cassandra.Mutation{m}
 
 			// 2 years retention.
-			col.Ttl = proto.Int32(720 * 24 * 3600)
+			col.TTL = proto.Int32(720 * 24 * 3600)
 			col.Timestamp = proto.Int64(now.UnixNano())
 
 			uuid = cassandra.UUIDFromBytes(ks.Key[len("dequeue:"):])

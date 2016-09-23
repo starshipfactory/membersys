@@ -109,7 +109,7 @@ func newCassandraMutationBytes(name string, value []byte, now *time.Time, ttl in
 	col.Value = value
 
 	if ttl > 0 {
-		col.Ttl = &ttl
+		col.TTL = &ttl
 	}
 
 	ret.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
