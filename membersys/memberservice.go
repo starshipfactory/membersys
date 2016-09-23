@@ -41,7 +41,7 @@ import (
 	"time"
 
 	"ancient-solutions.com/ancientauth"
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 )
 

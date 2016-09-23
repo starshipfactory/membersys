@@ -44,7 +44,7 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"gopkg.in/ldap.v2"
 )

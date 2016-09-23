@@ -38,7 +38,7 @@ import (
 	"errors"
 	"time"
 
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 )
 
 // Data used by the HTML template. Contains not just data entered so far,
