@@ -498,6 +498,12 @@ func main() {
 						}
 					}
 
+					for _, group = range config.LdapConfig.GetIgnoreUserGroup() {
+						if cn == group {
+							found = true
+						}
+					}
+
 					if !found {
 						groups_differ = true
 					}
