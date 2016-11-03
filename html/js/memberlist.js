@@ -505,7 +505,8 @@ function loadMembers(start) {
 				a = document.createElement('a');
 				a.href = "#";
 				a.onclick = function(e) {
-					var tr = e.srcElement.parentNode.parentNode;
+					var target = e.target == null ? e.srcElement : e.target;
+					var tr = target.parentNode.parentNode;
 					var email = tr.childNodes[4].firstChild.data;
 					goodbyeMember(email, token);
 				}
@@ -517,7 +518,8 @@ function loadMembers(start) {
 				a = document.createElement('a');
 				a.href = "#";
 				a.onclick = function(e) {
-					var tr = e.srcElement.parentNode.parentNode;
+					var target = e.target == null ? e.srcElement : e.target;
+					var tr = target.parentNode.parentNode;
 					var email = tr.childNodes[4].firstChild.data;
 					loadMember(email);
 				}
@@ -619,7 +621,8 @@ function loadApplicants(criterion, start, single) {
 				a = document.createElement('a');
 				a.href = "#";
 				a.onclick = function(e) {
-					var tr = e.srcElement.parentNode.parentNode;
+					var target = e.target == null ? e.srcElement : e.target;
+					var tr = target.parentNode.parentNode;
 					var id = tr.id;
 					openUploadAgreement(id, approval_token, upload_token);
 				}
@@ -631,7 +634,8 @@ function loadApplicants(criterion, start, single) {
 				a = document.createElement('a');
 				a.href = "#";
 				a.onclick = function(e) {
-					var tr = e.srcElement.parentNode.parentNode;
+					var target = e.target == null ? e.srcElement : e.target;
+					var tr = target.parentNode.parentNode;
 					var id = tr.id.replace("q-", "");
 					rejectMember(id, rejection_token);
 				}
@@ -741,7 +745,8 @@ function loadQueue(start) {
 				a = document.createElement('a');
 				a.href = "#";
 				a.onclick = function(e) {
-					var tr = e.srcElement.parentNode.parentNode;
+					var target = e.target == null ? e.srcElement : e.target;
+					var tr = target.parentNode.parentNode;
 					cancelQueued(tr.id.replace("q-", ""), token);
 				}
 				a.appendChild(document.createTextNode('Abbrechen'));
