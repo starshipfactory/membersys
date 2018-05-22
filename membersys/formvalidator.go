@@ -48,6 +48,9 @@ import (
 	"github.com/starshipfactory/membersys"
 )
 
+// accepted as a string is used repeatedly in fields.
+const accepted = "accepted"
+
 var fmap = template.FuncMap{
 	"html":      template.HTMLEscaper,
 	"url":       UserInputFormatter,
@@ -232,21 +235,33 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		data.MemberData.Pwhash = &pw
 	}
 
-	if req.PostFormValue("mr[statutes]") != "accepted" {
+	if req.PostFormValue("mr[statutes]") != accepted {
 		data.FieldErr["statutes"] = "Statuten müssen akzeptiert werden"
 		numSubmitErrors.Add("statutes-not-accepted", 1)
 		ok = false
 	}
 
-	if req.PostFormValue("mr[ipay]") != "accepted" {
+	if req.PostFormValue("mr[ipay]") != accepted {
 		data.FieldErr["ipay"] = "Zahlungsbereitschaft ist notwendig"
 		numSubmitErrors.Add("payment-not-accepted", 1)
 		ok = false
 	}
 
-	if req.PostFormValue("mr[rules]") != "accepted" {
+	if req.PostFormValue("mr[rules]") != accepted {
 		data.FieldErr["rules"] = "Reglement muss akzeptiert werden"
 		numSubmitErrors.Add("rules-not-accepted", 1)
+		ok = false
+	}
+
+	if req.PostFormValue("mr[privacy_ok]") != accepted {
+		data.FieldErr["privacy_ok"] = "Datenverarbeitung muss genehmigt werden"
+		numSubmitErrors.Add("gdpr-not-accepted", 1)
+		ok = false
+	}
+
+	if req.PostFormValue("mr[email_ok]") != accepted {
+		data.FieldErr["email_ok"] = "E-Mailverkehr muss genehmigt werden"
+		numSubmitErrors.Add("email-not-accepted", 1)
 		ok = false
 	}
 
@@ -290,7 +305,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	}
 	if req.PostFormValue("mr[fee]") == "custom" {
 		if fee < minfee && req.PostFormValue("mr[reduction]") != "requested" {
-			data.FieldErr["customFee"] = fmt.Sprintf("Für einen Betrag unter %d CHF muss eine Ermässigung beantragt werden", minfee)
+			data.FieldErr["customFee"] = fmt.Sprintf("Für einen Betrag unter %.0f CHF muss eine Ermässigung beantragt werden", minfee)
 			numSubmitErrors.Add("low-fee-without-reduction", 1)
 			ok = false
 		} else if len(req.PostFormValue("mr[customFee]")) <= 0 {

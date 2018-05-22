@@ -13,7 +13,7 @@
 		<script src="js/additional-methods.min.js" type="text/javascript"></script>
 		<script src="js/form-handling.js" type="text/javascript"></script>
 	</head>
-	
+
 	<body>
 		<div id="main">
 			<div class="content">
@@ -59,7 +59,7 @@
 							<input type="tel" id="telephone" name="mr[telephone]" value="{{if .MemberData.Phone}}{{.MemberData.Phone}}{{end}}" />
 						</div>
 					</fieldset>
-					
+
 					<h2>Monatlicher Mitgliederbeitrag <span class="required">*</span></h2>
 					<fieldset class="stdForm radio" title="Mitgliederbeitrag">
 						<div class="formRow">
@@ -89,7 +89,7 @@
 							<label class="checkbox" for="reduction">Ich beantrage Ermässigung des Mitglieder-Mindestbeitrages.</label>
 						</div>
 					</fieldset>
-					
+
 					<script type="text/javascript">
 						// enable field "customFee" when corresponding option is selected,
 						// disable it if not.
@@ -120,8 +120,8 @@
 							$('#fee1')[0].value = val;
 						});
 					</script>
-					
-					<!-- 
+
+					<!--
 						Format of username? (allowed set of characters)
 						Format of password?
 					-->
@@ -168,7 +168,19 @@
 							<label class="checkbox" for="gt18">Ich bin mindestens 18 Jahre alt. <span class="required">*</span></label>
 						</div>
 					</fieldset>
-					
+
+					<h2>Datenschutz</h2>
+					<fieldset class="stdForm" title="Datenschutz">
+						<div class="formRow">
+							<input class="checkbox" type="checkbox" id="privacy_ok" name="mr[privacy_ok]" required="required" value="accepted" />
+							<label class="checkbox" for="privacy_ok">Ich habe die <a href="https://www.starship-factory.ch/datenschutz/">Datenschutzerklärung</a> gelesen und erlaube dem Verein Starship Factory, die oben eingegebenen Daten elektronisch zu speichern und zum Zwecke der Mitgliederverwaltung auszuwerten. <span class="required">*</span></label>
+						</div>
+						<div class="formRow">
+							<input class="checkbox" type="checkbox" id="email_ok" name="mr[email_ok]" required="required" value="accepted" />
+							<label class="checkbox" for="email_ok">Ich erlaube dem Verein Starship Factory und seinen Mitgliedern, mich über die oben eingegebene E-Mailadresse über Themen betreffend meiner Mitgliedschaft und meiner Mitbestimmung zu kontaktieren. <span class="required">*</span></label>
+						</div>
+					</fieldset>
+
 					<h2>Kommentare</h2>
 					<fieldset class="stdForm" title="Kommentare">
 						<div class="formRow">
@@ -177,16 +189,16 @@
 							<textarea id="comments" name="mr[comments]" cols="80" rows="3">{{if .Metadata}}{{if .Metadata.Comment}}{{.Metadata.Comment}}{{end}}{{end}}</textarea>
 						</div>
 					</fieldset>
-					
+
 					<fieldset class="stdForm" title="Antrag abschicken">
 						<p><span class="required">*</span> Information muss angegeben werden.</p>
-						
+
 						<p>
 							<strong>Die Mitgliedschaft muss durch das monatliche Plenum der
 							Mitgliederversammlung bestätigt werden. Die Mitgliedschaft wird
 							erst durch diese Bestätigung rechtsgültig.</strong>
 						</p>
-						
+
 						<p>
 							Der Antrag wird anschliessend im Drucklayout angezeigt.
 							Ausdrucken, unterschreiben und an unterstehende Adresse senden oder
