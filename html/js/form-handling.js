@@ -18,9 +18,9 @@ $(document).ready(function() {
 		},
 		responseTime: 500
 	});
-	
+
 	/** current edit BEGIN */
-	
+
 	$.validator.addMethod("feeSelect", function(value, element, params) {
 			/**
 			params[0] : id of the radiobutton (fee2)
@@ -39,7 +39,7 @@ $(document).ready(function() {
 				minfee = 200;
 			else
 				minfee = 20;
-			
+
 			if ($(params[0]).prop('checked')) {
 				return true;
 			}
@@ -52,7 +52,7 @@ $(document).ready(function() {
 			//return value === target.prop('checked');
 			//return this.optional(element) || value == $(params[0]).value();
 	}, $.validator.format("Der Betrag muss grösser als der Mindestbetrag sein, andernfalls musst du Reduktion beantragen."));
-	
+
 	/** current edit END */
 
 	// validate request form on keyup and submit
@@ -88,7 +88,9 @@ $(document).ready(function() {
 			"mr[rules]": "required",
 			"mr[ipay]": "required",
 			"mr[gt18]": "required",
-			
+			"mr[privacy_ok]": "required",
+			"mr[email_ok]": "required",
+
 			"mr[username]": {
 				required: false,
 				minlength: 2,
@@ -121,10 +123,12 @@ $(document).ready(function() {
 			"mr[rules]": "Das Reglement muss gelesen und akzeptiert werden.",
 			"mr[ipay]": "Bitte bestätigen.",
 			"mr[gt18]": "Bitte bestätigen.",
+			"mr[privacy_ok]": "Elektronische Datenverarbeitung muss genehmigt werden.",
+			"mr[email_ok]": "E-Mailverkehr muss genehmigt werden.",
 			"mr[username]": {
 				required: "Benutzernamen eingeben",
 				minlength: jQuery.format("Bitte mindestens {0} Zeichen verwenden"),
-				remote: jQuery.format("{0} wurde bereits verwenet")
+				remote: jQuery.format("{0} wurde bereits verwendet")
 			},
 			"mr[password]": {
 				required: "Bitte ein Passwort angeben",

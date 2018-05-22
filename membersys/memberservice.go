@@ -32,16 +32,17 @@
 package main
 
 import (
-	"ancient-solutions.com/ancientauth"
 	"flag"
-	"github.com/golang/protobuf/proto"
-	"github.com/starshipfactory/membersys"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"ancient-solutions.com/ancientauth"
+	"github.com/golang/protobuf/proto"
+	"github.com/starshipfactory/membersys"
 )
 
 func main() {
