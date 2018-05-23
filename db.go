@@ -78,7 +78,7 @@ var allColumns [][]byte = [][]byte{
 	[]byte("phone"), []byte("fee"), []byte("username"), []byte("pwhash"),
 	[]byte("fee_yearly"), []byte("sourceip"), []byte("useragent"),
 	[]byte("metadata"), []byte("pb_data"), []byte("application_pdf"),
-	[]byte("approval_ts"),
+	[]byte("agreement_pdf"), []byte("approval_ts"),
 }
 
 // Create a new connection to the membership database on the given "host".
