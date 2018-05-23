@@ -1,0 +1,12 @@
+FROM fedora:28
+LABEL maintainer Caoimhe Chaos <caoimhechaos@protonmail.com>
+
+COPY membersys /go/bin/membersys
+
+RUN dnf --refresh -q -y install librados2
+
+RUN ["/usr/sbin/adduser", "--system", "--home", "/nonexistent", "--no-create-home", "--comment", "Starship Factory Membership Management System", "--user-group", "sf-membersys"]
+VOLUME ["/etc/ceph", "/etc/membersys", "/tls", "/var/www/templates"]
+USER sf-membersys
+ENTRYPOINT ["/go/bin/membersys"]
+CMD ["--config=/etc/membersys/membersys.conf"]
