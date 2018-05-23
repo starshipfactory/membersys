@@ -32,15 +32,16 @@
 package main
 
 import (
-	"ancient-solutions.com/ancientauth"
 	"encoding/json"
-	"github.com/starshipfactory/membersys"
 	"html/template"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	"ancient-solutions.com/ancientauth"
+	"github.com/starshipfactory/membersys"
 )
 
 type memberListType struct {
