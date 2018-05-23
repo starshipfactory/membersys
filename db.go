@@ -245,7 +245,7 @@ func (m *MembershipDB) GetMemberDetailByUsername(username string) (
 			if string(col.Name) == "pb_data" {
 				member = new(MembershipAgreement)
 				err = proto.Unmarshal(col.Value, member)
-				return member, nil
+				return member, err
 			} else {
 				return nil, errors.New("Unexpected column " +
 					string(col.Name))
@@ -314,16 +314,24 @@ func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
 
 	r.Column.Value, err = proto.Marshal(member)
 	r.Column.Timestamp = &ts
+	if err != nil {
+		return err
+	}
 
+	// Write pb_data back.
 	mmap = make(map[string]map[string][]*cassandra.Mutation)
 	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
 	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
+	mmap[memberPrefix+id]["member_agreements"] = make([]*cassandra.Mutation, 0)
 
 	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
 	mu.ColumnOrSupercolumn.Column = r.Column
 	mmap[memberPrefix+id]["members"] = append(
 		mmap[memberPrefix+id]["members"], mu)
+	mmap[memberPrefix+id]["member_agreements"] = append(
+		mmap[memberPrefix+id]["member_agreements"], mu)
 
+	// Now update data columns.
 	bdata = make([]byte, 8)
 	binary.BigEndian.PutUint64(bdata, fee)
 	mu = newCassandraMutationBytes("fee", bdata, &now, 0)
