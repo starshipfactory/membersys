@@ -28,6 +28,7 @@ member_creator/member_creator
 member_list/member_list
 member_remailer/member_remailer
 membersys/membersys
+setup_cassandra/setup_cassandra
 
 # Artifacts of local configuration
 *.conf
@@ -36,6 +37,7 @@ membersys/membersys
 *.pem
 *.min.css
 *.min.js
+*.pb
 
 # ditz
 .ditz-config
