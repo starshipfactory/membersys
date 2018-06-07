@@ -336,6 +336,43 @@ func (m *MemberDetailHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 	}
 }
 
+// Change one of a number of text fields.
+type MemberTextFieldHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *membersys.MembershipDB
+}
+
+func (m *MemberTextFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var memberid string = req.FormValue("email")
+	var field string = req.FormValue("field")
+	var value string = req.FormValue("value")
+	var err error
+
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	if len(memberid) == 0 || len(field) == 0 || len(value) == 0 {
+		rw.WriteHeader(http.StatusLengthRequired)
+		rw.Write([]byte("Required parameter missing"))
+		return
+	}
+
+	err = m.database.SetTextValue(memberid, field, value)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error updating member details: " +
+			err.Error()))
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json; encoding=utf8")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
+}
+
 // Change the membership fee.
 type MemberFeeHandler struct {
 	admingroup string
@@ -381,7 +418,7 @@ func (m *MemberFeeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	err = m.database.SetMemberFee(memberid, fee, fee_yearly)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte("Error fetching member details: " +
+		rw.Write([]byte("Error updating membership fee: " +
 			err.Error()))
 		return
 	}
