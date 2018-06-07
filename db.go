@@ -36,6 +36,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -345,6 +346,84 @@ func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
 		bdata[0] = 0
 	}
 	mu = newCassandraMutationBytes("fee_yearly", bdata, &now, 0)
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+
+	return m.conn.AtomicBatchMutate(
+		mmap, cassandra.ConsistencyLevel_QUORUM)
+}
+
+// Update the specified text column on the membership data.
+func (m *MembershipDB) SetTextValue(id string, field, value string) error {
+	var now time.Time = time.Now()
+	var mmap map[string]map[string][]*cassandra.Mutation
+	var member *MembershipAgreement = new(MembershipAgreement)
+	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
+	var r *cassandra.ColumnOrSuperColumn
+
+	var mu *cassandra.Mutation = cassandra.NewMutation()
+	var ts int64 = now.UnixNano()
+	var err error
+
+	cp.ColumnFamily = "members"
+	cp.Column = []byte("pb_data")
+
+	// Retrieve the protobuf with all data from Cassandra.
+	r, err = m.conn.Get(
+		append([]byte(memberPrefix), []byte(id)...),
+		cp, cassandra.ConsistencyLevel_ONE)
+	if err != nil {
+		return err
+	}
+
+	// Decode the protobuf which was written to the column.
+	err = proto.Unmarshal(r.Column.Value, member)
+	if err != nil {
+		return err
+	}
+
+	if field == "name" {
+		member.MemberData.Name = proto.String(value)
+	} else if field == "street" {
+		member.MemberData.Street = proto.String(value)
+	} else if field == "city" {
+		member.MemberData.City = proto.String(value)
+	} else if field == "zipcode" {
+		member.MemberData.Zipcode = proto.String(value)
+	} else if field == "country" {
+		member.MemberData.Country = proto.String(value)
+	} else if field == "phone" {
+		member.MemberData.Phone = proto.String(value)
+	} else if field == "username" {
+		if member.MemberData.Username != nil && *member.MemberData.Username != "" {
+			return errors.New("Cannot modify user name")
+		}
+		member.MemberData.Username = proto.String(value)
+	} else {
+		return fmt.Errorf("Unknown field specified: %s", field)
+	}
+
+	r.Column.Value, err = proto.Marshal(member)
+	r.Column.Timestamp = &ts
+	if err != nil {
+		return err
+	}
+
+	// Write pb_data back.
+	mmap = make(map[string]map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
+	mmap[memberPrefix+id]["member_agreements"] = make([]*cassandra.Mutation, 0)
+
+	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+	mu.ColumnOrSupercolumn.Column = r.Column
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+	mmap[memberPrefix+id]["member_agreements"] = append(
+		mmap[memberPrefix+id]["member_agreements"], mu)
+
+	// Now update data columns.
+	mu = newCassandraMutationString(field, value, &now)
 	mmap[memberPrefix+id]["members"] = append(
 		mmap[memberPrefix+id]["members"], mu)
 

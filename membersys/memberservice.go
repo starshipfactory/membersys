@@ -187,6 +187,12 @@ func main() {
 		database:   db,
 	})
 
+	http.Handle("/admin/api/edittext", &MemberTextFieldHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+	})
+
 	http.Handle("/admin/api/editfee", &MemberFeeHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,
