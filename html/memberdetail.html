@@ -11,7 +11,7 @@
 		<script src="/js/memberlist.js" type="text/javascript"></script>
 		<script type="text/javascript" src="/js/bootstrap.min.js"></script>
 	</head>
-	
+
 	<body>
 		<h1>{{.Name}} <small>Starship Factory</small></h1>
 		<div class="container">
@@ -64,12 +64,42 @@
 				</div>
 			</div>
 
+{{ if .Username }}
 			<div class="row">
 				<div class="col-xs-4">
 					<strong>Benutzer:</strong>
 				</div>
 				<div class="col-xs-8">
 					{{.Username}}
+				</div>
+			</div>
+{{ end }}
+
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>Mitgliedsantrag:</strong>
+				</div>
+				<div class="col-xs-8">
+					<a href="/takeout/pdf">Herunterladen</a>
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>VCard-Format:</strong>
+				</div>
+				<div class="col-xs-8">
+					<a href="/takeout/vcf">Herunterladen</a>
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-xs-12">
+					Sollten die hier vorgefundenen Daten nicht korrekt und aktuell sein, kannst du sie jederzeit durch ein Mail an <a href="mailto:kassier@lists.starship-factory.ch">den Kassier</a> korrigieren lassen.
+					<br/>
+					Du hast das Recht auf Löschung der obigen Daten. Die Löschung hat allerdings den Austritt aus dem Verein zur Folge, da wir nicht in der Lage sind, die Mitgliedschaft eines Mitgliedes zu verwalten ohne grundlegende Namens- und Kontaktdaten des Mitglieds zu speichern.
+					<br/>
+					Zudem gelten für die Löschung der obigen Daten rechtliche Speicherfristen sowie unser berechtigtes Interesse, ausstehende Mitgliedsbeiträge auszugleichen. Für weitere Informationen siehe unsere <a href="https://www.starship-factory.ch/datenschutz/">Datenschutzerklärung</a>.
 				</div>
 			</div>
 		</div>

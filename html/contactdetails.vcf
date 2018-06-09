@@ -1,0 +1,15 @@
+BEGIN:VCARD
+VERSION:4.0
+FN:{{ .Name }}
+ORG:Starship Factory
+TITLE:Vereinsmitglied
+KIND:individual
+{{- if .Phone }}
+TEL;TYPE=home,voice;VALUE=uri:tel:{{ .Phone }}
+{{- end }}
+ADR;TYPE=HOME;LABEL="{{ .Street }}\n{{ .City }}\, {{ .Zipcode }}\n{{ .Country }}":;;{{ .Street }};{{ .City }};;{{ .Zipcode }};{{ .Country }}
+EMAIL:{{ .Email }}
+URL:https://members.starship-factory.ch/takeout
+SOURCE:https://members.starship-factory.ch/takeout/vcf
+NOTE:Membership fee: {{ .Fee }} per {{ if .FeeYearly }}year{{ else }}month{{ end }}{{ if .Username }}\nUser name: {{ .Username }}{{ end }}
+END:VCARD
