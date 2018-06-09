@@ -14,7 +14,7 @@
 		<script src="/js/memberlist.js" type="text/javascript"></script>
 		<script type="text/javascript" src="/js/bootstrap.min.js"></script>
 	</head>
-	
+
 	<body onload="load();">
 		<div class="modal fade" id="reasonEnterModal" tabindex="-1" role="dialog" aria-labelledby="reasonEnterLabel" aria-hidden="true">
 			<div class="modal-dialog">
@@ -112,6 +112,114 @@
 			</div>
 		</div>
 
+		<div class="modal fade" id="memberAddressEditModal" tabindex="-1" role="dialog" aria-labelledby="memberAddressEditLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+						<h4 class="modal-title" id="memberAddressEditLabel">Addresse bearbeiten</h4>
+					</div>
+					<div class="modal-body">
+						<div class="alert alert-warning alert-danger fade in hide" role="alert" id="memberAddressEditError">
+							<strong>Fehler beim Bearbeiten der Addresse!</strong>
+							<span id="memberAddressEditText">Fehler?</span>
+						</div>
+
+						<input type="hidden" name="memberAddressMail" id="memberAddressMail" value=""/>
+						<fieldset>
+							<div class="form-group">
+								<label for="memberAddressStreetField">Strasse</label>
+								<input type="text" id="memberAddressStreetField" placeholder="Strasse Hausnummer" />
+								<input type="hidden" id="memberAddressStreetOrig" value="" />
+							</div>
+							<div class="form-group">
+								<label for="memberAddressZipcodeField">Postleitzahl</label>
+								<input type="text" id="memberAddressZipcodeField" placeholder="Postleitzahl" />
+								<input type="hidden" id="memberAddressZipcodeOrig" value="" />
+							</div>
+							<div class="form-group">
+								<label for="memberAddressCityField">Wohnort</label>
+								<input type="text" id="memberAddressCityField" placeholder="Ortsname" />
+								<input type="hidden" id="memberAddressCityOrig" value="" />
+							</div>
+							<div class="form-group">
+								<label for="memberAddressCountryField">ISO-Ländercode</label>
+								<input type="text" id="memberAddressCountryField" placeholder="XX" />
+								<input type="hidden" id="memberAddressCountryOrig" value="" />
+							</div>
+						</fieldset>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						<button id="mmemberAddressEditBtn" type="button" class="btn btn-primary" onclick="doEditMemberAddress();">Speichern</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="memberPhoneEditModal" tabindex="-1" role="dialog" aria-labelledby="memberPhoneEditLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+						<h4 class="modal-title" id="memberPhoneEditLabel">Telephonnummer bearbeiten</h4>
+					</div>
+					<div class="modal-body">
+						<div class="alert alert-warning alert-danger fade in hide" role="alert" id="memberPhoneEditError">
+							<strong>Fehler beim Bearbeiten der Telephonnummer!</strong>
+							<span id="memberPhoneEditText">Fehler?</span>
+						</div>
+
+						<input type="hidden" name="memberPhoneMail" id="memberPhoneMail" value=""/>
+						<fieldset>
+							<div class="form-group">
+								<label for="memberPhoneNumberField">Strasse</label>
+								<input type="text" id="memberPhoneNumberField" placeholder="+4112345678" />
+							</div>
+						</fieldset>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						<button id="mmemberPhoneEditBtn" type="button" class="btn btn-primary" onclick="doEditMemberPhone();">Speichern</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="memberUserEditModal" tabindex="-1" role="dialog" aria-labelledby="memberUserEditLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+						<h4 class="modal-title" id="memberUserEditLabel">Benutzernamen bearbeiten</h4>
+					</div>
+					<div class="modal-body">
+						<div class="alert alert-warning alert-danger" role="alert">
+							<strong>Achtung</strong>
+							Das Ändern des Benutzernamens hier ändert den Benutzernamen in LDAP <b>nicht</b>! Diese Funktion ist nur zum Nachführen bereits durchgeführter Änderungen.
+						</div>
+
+						<div class="alert alert-warning alert-danger fade in hide" role="alert" id="memberUserEditError">
+							<strong>Fehler beim Bearbeiten des Benutzernamens!</strong>
+							<span id="memberUserEditText">Fehler?</span>
+						</div>
+
+						<input type="hidden" name="memberUserMail" id="memberUserMail" value=""/>
+						<fieldset>
+							<div class="form-group">
+								<label for="memberUserField">Benutzername</label>
+								<input type="text" id="memberUserField" placeholder="userlein" />
+							</div>
+						</fieldset>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						<button id="mmemberUserEditBtn" type="button" class="btn btn-primary" onclick="doEditMemberUser();">Speichern</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<div class="modal fade" id="formUploadModal" tabindex="-1" role="dialog" aria-labelledby="formUploadLabel" aria-hidden="true">
 			<div class="modal-dialog">
 				<div class="modal-content">
@@ -185,6 +293,7 @@
 								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
 								<td>
 									<a href="javascript:goodbyeMember(&quot;{{.Email}}&quot;, &quot;{{$.GoodbyeCsrfToken}}&quot;);">Verabschieden</a>
+									<a href="javascript:loadMember(&quot;{{.Email}}&quot;);">Details</a>
 								</td>
 							</tr>
 {{else}}
