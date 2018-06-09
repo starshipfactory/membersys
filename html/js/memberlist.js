@@ -471,7 +471,7 @@ function doEditMembershipFee() {
 		type: 'POST',
 		success: function(response) {
 			$('#memberFeeEditModal').modal('hide');
-			loadMembers("");
+			loadMembers(member_offset);
 		}
 	});
 }
@@ -544,7 +544,7 @@ function doEditMemberAddress() {
 				type: 'POST',
 				success: function(response) {
 					$('#memberAddressEditModal').modal('hide');
-					loadMembers('');
+					loadMembers(member_offset);
 				}
 			});
 		}
@@ -582,7 +582,7 @@ function doEditMemberPhone() {
 		type: 'POST',
 		success: function(response) {
 			$('#memberPhoneEditModal').modal('hide');
-			loadMembers('');
+			loadMembers(member_offset);
 		}
 	});
 }
@@ -619,7 +619,7 @@ function doEditMemberUser() {
 		type: 'POST',
 		success: function(response) {
 			$('#memberUserEditModal').modal('hide');
-			loadMembers('');
+			loadMembers(member_offset);
 		}
 	});
 }
@@ -746,6 +746,7 @@ function forwardMembers() {
 	var lastid = lastrecord.id.substr(4);
 
 	loadMembers(lastid);
+	member_offset = lastid;
 }
 
 // Use AJAX to load a list of all membership applications and populate the
