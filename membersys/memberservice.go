@@ -38,6 +38,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	textTemplate "text/template"
 	"time"
 
 	"ancient-solutions.com/ancientauth"
@@ -51,6 +52,7 @@ func main() {
 	var config_contents []byte
 	var application_tmpl, memberlist_tmpl, print_tmpl *template.Template
 	var unique_member_detail_template *template.Template
+	var vcf_template *textTemplate.Template
 	var authenticator *ancientauth.Authenticator
 	var debug_authenticator bool
 	var config membersys.MembersysConfig
@@ -111,6 +113,12 @@ func main() {
 			config.GetTemplateDir() + "/memberdetail.html")
 	if err != nil {
 		log.Fatal("Unable to parse member detail template: ", err)
+	}
+
+	vcf_template, err = textTemplate.ParseFiles(
+		config.GetTemplateDir() + "/contactdetails.vcf")
+	if err != nil {
+		log.Fatal("Unable to parse member VCF template: ", err)
 	}
 
 	authenticator, err = ancientauth.NewAuthenticator(
@@ -233,6 +241,24 @@ func main() {
 	})
 
 	http.HandleFunc("/barcode", MakeBarcode)
+
+	// Takeout related handlers
+	http.Handle("/takeout", &TakeoutOverviewHandler{
+		auth:                 authenticator,
+		database:             db,
+		uniqueMemberTemplate: unique_member_detail_template,
+	})
+
+	http.Handle("/takeout/pdf", &TakeoutPDFDownloadHandler{
+		auth:     authenticator,
+		database: db,
+	})
+
+	http.Handle("/takeout/vcf", &TakeoutVCFDownloadHandler{
+		auth:        authenticator,
+		database:    db,
+		vcfTemplate: vcf_template,
+	})
 
 	http.Handle("/", &FormInputHandler{
 		applicationTmpl: application_tmpl,
