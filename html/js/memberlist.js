@@ -262,6 +262,18 @@ function loadMember(email) {
 			inner_el.appendChild(document.createTextNode(md.city));
 			inner_el.appendChild(document.createElement('br'));
 			inner_el.appendChild(document.createTextNode(md.country));
+			inner_el.appendChild(document.createElement('br'));
+
+			a = document.createElement('a');
+			a.href = '#';
+			a.onclick = function() {
+				$('#memberDetailModal').modal('hide');
+				editMemberAddress(md.email, md.name, md.street,
+					md.zipcode, md.city, md.country);
+			}
+			a.appendChild(document.createTextNode('Bearbeiten'));
+			inner_el.appendChild(a);
+			inner_el.appendChild(document.createElement('br'));
 
 			if (md.phone != null) {
 				abbr = document.createElement('abbr');
@@ -271,6 +283,21 @@ function loadMember(email) {
 				inner_el.appendChild(abbr);
 				inner_el.appendChild(document.createTextNode(' ' +
 					md.phone));
+
+				abbr.ondblclick = function() {
+					$('#memberDetailModal').modal('hide');
+					editMemberPhone(md.email, md.name, md.phone);
+				}
+			} else {
+				a = document.createElement('a');
+				a.href = '#';
+				a.onclick = function() {
+					$('#memberDetailModal').modal('hide');
+					editMemberPhone(md.email, md.name, '');
+				}
+				a.appendChild(document.createTextNode('Telephon eintragen'));
+				inner_el.appendChild(a);
+				inner_el.appendChild(document.createElement('br'));
 			}
 
 			abbr = document.createElement('abbr');
@@ -336,6 +363,23 @@ function loadMember(email) {
 
 				col.appendChild(document.createTextNode(md.username));
 
+				row.appendChild(col);
+				data.appendChild(row);
+			} else {
+				row = document.createElement('div');
+				row.className = 'row';
+
+				col = document.createElement('div');
+				col.className = 'col-xs-12';
+				inner_el = document.createElement('a');
+				inner_el.href = '#';
+				inner_el.onclick = function() {
+					$('#memberDetailModal').modal('hide');
+					editMemberUser(md.email, md.name, '');
+				}
+				inner_el.appendChild(document.createTextNode('Benutzernamen setzen'));
+
+				col.appendChild(inner_el);
 				row.appendChild(col);
 				data.appendChild(row);
 			}
@@ -428,6 +472,154 @@ function doEditMembershipFee() {
 		success: function(response) {
 			$('#memberFeeEditModal').modal('hide');
 			loadMembers("");
+		}
+	});
+}
+
+// Edit address details of the specified member.
+function editMemberAddress(email, name, street, zip, city, country) {
+	var lbl = $('#memberAddressEditLabel')[0];
+	var streetf = $('#memberAddressStreetField')[0];
+	var streetorig = $('#memberAddressStreetOrig')[0];
+	var zipcodef = $('#memberAddressZipcodeField')[0];
+	var zipcodeorig = $('#memberAddressZipcodeOrig')[0];
+	var cityf = $('#memberAddressCityField')[0];
+	var cityorig = $('#memberAddressCityOrig')[0];
+	var countryf = $('#memberAddressCountryField')[0];
+	var countryorig = $('#memberAddressCountryOrig')[0];
+	var who = $('#memberAddressMail')[0];
+
+	while (lbl.childNodes.length > 0)
+		lbl.removeChild(lbl.firstChild);
+
+	lbl.appendChild(document.createTextNode(name + ': Adresse bearbeiten'));
+
+	streetf.value = street;
+	streetorig.value = street;
+	zipcodef.value = zip;
+	zipcodeorig.value = zip;
+	cityf.value = city;
+	cityorig.value = city;
+	countryf.value = country;
+	countryorig.value = country;
+	who.value = email;
+
+	$('#memberAddressEditModal').modal('show');
+}
+
+// Update address details of the affected member.
+function doEditMemberAddress() {
+	var streetf = $('#memberAddressStreetField')[0];
+	var streetorig = $('#memberAddressStreetOrig')[0];
+	var zipcodef = $('#memberAddressZipcodeField')[0];
+	var zipcodeorig = $('#memberAddressZipcodeOrig')[0];
+	var cityf = $('#memberAddressCityField')[0];
+	var cityorig = $('#memberAddressCityOrig')[0];
+	var countryf = $('#memberAddressCountryField')[0];
+	var countryorig = $('#memberAddressCountryOrig')[0];
+	var who = $('#memberAddressMail')[0];
+
+	var origValues = {};
+	var newValues = {};
+
+	origValues['street'] = streetorig.value;
+	origValues['zipcode'] = zipcodeorig.value;
+	origValues['city'] = cityorig.value;
+	origValues['country'] = countryorig.value;
+	newValues['street'] = streetf.value;
+	newValues['zipcode'] = zipcodef.value;
+	newValues['city'] = cityf.value;
+	newValues['country'] = countryf.value;
+
+	for (var property in origValues) {
+		if (newValues[property] != '' &&
+			origValues[property] != newValues[property]) {
+			new $.ajax({
+				url: '/admin/api/edittext',
+				data: {
+					email: who.value,
+					field: property,
+					value: newValues[property],
+				},
+				type: 'POST',
+				success: function(response) {
+					$('#memberAddressEditModal').modal('hide');
+					loadMembers('');
+				}
+			});
+		}
+	}
+}
+
+// Edit the phone number of the specified user.
+function editMemberPhone(email, name, phone) {
+	var lbl = $('#memberPhoneEditLabel')[0];
+	var phonef = $('#memberPhoneNumberField')[0];
+	var who = $('#memberPhoneMail')[0];
+
+	while (lbl.childNodes.length > 0)
+		lbl.removeChild(lbl.firstChild);
+
+	lbl.appendChild(document.createTextNode(name + ': Telephonnummer bearbeiten'));
+	phonef.value = phone;
+	who.value = email;
+
+	$('#memberPhoneEditModal').modal('show');
+}
+
+// Update the stored user name of the affected member.
+function doEditMemberPhone() {
+	var phonef = $('#memberPhoneNumberField')[0];
+	var who = $('#memberPhoneMail')[0];
+
+	new $.ajax({
+		url: '/admin/api/edittext',
+		data: {
+			email: who.value,
+			field: 'phone',
+			value: phonef.value,
+		},
+		type: 'POST',
+		success: function(response) {
+			$('#memberPhoneEditModal').modal('hide');
+			loadMembers('');
+		}
+	});
+}
+
+
+// Edit the stored user name of the specified user.
+function editMemberUser(email, name, username) {
+	var lbl = $('#memberUserEditLabel')[0];
+	var userf = $('#memberUserField')[0];
+	var who = $('#memberUserMail')[0];
+
+	while (lbl.childNodes.length > 0)
+		lbl.removeChild(lbl.firstChild);
+
+	lbl.appendChild(document.createTextNode(name + ': Benutzernamen bearbeiten'));
+	userf.value = username;
+	who.value = email;
+
+	$('#memberUserEditModal').modal('show');
+}
+
+// Update the stored user name of the affected member.
+function doEditMemberUser() {
+	var userf = $('#memberUserField')[0];
+	var who = $('#memberUserMail')[0];
+
+	new $.ajax({
+		url: '/admin/api/edittext',
+		data: {
+			email: who.value,
+			field: 'username',
+			value: userf.value,
+		},
+		type: 'POST',
+		success: function(response) {
+			$('#memberUserEditModal').modal('hide');
+			loadMembers('');
 		}
 	});
 }
