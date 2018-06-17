@@ -40,6 +40,8 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 // Data used by the HTML template. Contains not just data entered so far,
@@ -235,7 +237,7 @@ func (m *MembershipDB) GetMemberDetailByUsername(username string) (
 	r, err = m.conn.GetRangeSlices(
 		cp, pred, kr, cassandra.ConsistencyLevel_ONE)
 	if err != nil {
-		return nil, err
+		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}
 
 	for _, ks = range r {
@@ -248,13 +250,13 @@ func (m *MembershipDB) GetMemberDetailByUsername(username string) (
 				err = proto.Unmarshal(col.Value, member)
 				return member, err
 			} else {
-				return nil, errors.New("Unexpected column " +
+				return nil, grpc.Errorf(codes.DataLoss, "Unexpected column "+
 					string(col.Name))
 			}
 		}
 	}
 
-	return nil, errors.New("Not found")
+	return nil, grpc.Errorf(codes.NotFound, "Not found")
 }
 
 // Retrieve a specific members detailed membership data.

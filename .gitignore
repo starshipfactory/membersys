@@ -28,6 +28,7 @@ member_creator/member_creator
 member_list/member_list
 member_remailer/member_remailer
 membersys/membersys
+rpc_server/rpc_server
 setup_cassandra/setup_cassandra
 
 # Artifacts of local configuration
