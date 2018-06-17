@@ -44,6 +44,7 @@ import (
 	"ancient-solutions.com/ancientauth"
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
+	"github.com/starshipfactory/membersys/config"
 )
 
 func main() {
@@ -55,7 +56,7 @@ func main() {
 	var vcf_template *textTemplate.Template
 	var authenticator *ancientauth.Authenticator
 	var debug_authenticator bool
-	var config membersys.MembersysConfig
+	var config config.MembersysConfig
 	var db *membersys.MembershipDB
 	var err error
 
