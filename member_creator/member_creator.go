@@ -37,15 +37,17 @@ import (
 	"database/cassandra"
 	"encoding/binary"
 	"flag"
-	"github.com/golang/protobuf/proto"
-	"github.com/starshipfactory/membersys"
-	"gopkg.in/ldap.v2"
 	"io/ioutil"
 	"log"
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/starshipfactory/membersys"
+	"github.com/starshipfactory/membersys/config"
+	"gopkg.in/ldap.v2"
 )
 
 func makeMutation(mmap map[string][]*cassandra.Mutation, cf, name string,
@@ -100,7 +102,7 @@ func main() {
 	var cf string = "members"
 	var config_file string
 	var config_contents []byte
-	var config membersys.MemberCreatorConfig
+	var config config.MemberCreatorConfig
 	var greatestUid uint64 = 1000
 	var now time.Time
 	var noop, verbose bool

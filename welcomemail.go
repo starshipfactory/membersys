@@ -6,6 +6,8 @@ import (
 	"text/template"
         "time"
         "net"
+
+	"github.com/starshipfactory/membersys/config"
 )
 
 type WelcomeMail struct {
@@ -25,7 +27,7 @@ type welcomeTemplateData struct {
         Date            string
 }
 
-func NewWelcomeMail(config *WelcomeMailConfig) (*WelcomeMail, error) {
+func NewWelcomeMail(config *config.WelcomeMailConfig) (*WelcomeMail, error) {
 	var tmpl *template.Template
 	var auth smtp.Auth
 	var err error

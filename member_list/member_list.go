@@ -34,17 +34,19 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/golang/protobuf/proto"
-	"github.com/starshipfactory/membersys"
 	"io/ioutil"
 	"log"
 	"os"
 	"time"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/starshipfactory/membersys"
+	"github.com/starshipfactory/membersys/config"
 )
 
 func main() {
 	var db *membersys.MembershipDB
-	var config membersys.MembersysConfig
+	var config config.MembersysConfig
 	var config_contents []byte
 	var config_path string
 	var prev_key string

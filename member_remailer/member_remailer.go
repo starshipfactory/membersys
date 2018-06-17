@@ -33,18 +33,20 @@ package main
 
 import (
 	"flag"
-	"github.com/golang/protobuf/proto"
-	"github.com/starshipfactory/membersys"
 	"io/ioutil"
 	"log"
 	"os"
 	"time"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/starshipfactory/membersys"
+	"github.com/starshipfactory/membersys/config"
 )
 
 func main() {
 	var db *membersys.MembershipDB
 	var agreement *membersys.MembershipAgreement
-	var config membersys.MemberCreatorConfig
+	var config config.MemberCreatorConfig
 	var wm *membersys.WelcomeMail
 	var config_contents []byte
 	var config_path string
