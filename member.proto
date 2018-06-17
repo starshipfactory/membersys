@@ -85,3 +85,14 @@ message MembershipAgreement {
 	// Metadata about the membership submission.
 	optional MembershipMetadata metadata = 3;
 }
+
+// UserIdentifier is basically just a wrapper for the user name.
+message UserIdentifier {
+	required string username = 1;
+}
+
+// EndUserService contains RPCs for fetching data from the perspective
+// of an end user.
+service EndUser {
+	rpc GetMemberDetail (UserIdentifier) returns (MembershipAgreement);
+}
