@@ -648,7 +648,7 @@ function loadMembers(start) {
 				var tr = document.createElement('tr');
 				var td = document.createElement('td');
 				td.colspan = 7;
-				td.appendChild(document.createTextNode('Derzeit verfügen wir über keine Mitglieder.'));
+				td.appendChild(document.createTextNode('Es wurden keine weiteren Mitglieder gefunden.'));
 				tr.appendChild(td);
 				body.appendChild(tr);
 				return;
