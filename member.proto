@@ -67,12 +67,18 @@ message Member {
 	// The membership fee we agreed on for the member.
 	required uint64 fee = 10;
 
-	// User name and password hash the user desires.
+	// User name and password hash the member desires.
 	optional string username = 11;
 	optional string pwhash = 12;
 
-	// Whether the user pays monthly or yearly.
+	// Whether the member pays monthly or yearly.
 	required bool fee_yearly = 13 [default=false];
+
+	// Whether the member has a key.
+	optional bool has_key = 14 [default=false];
+
+	// Time until when the member has caught up with membership fees.
+	optional uint64 payments_caught_up_to = 15;
 }
 
 message MembershipAgreement {

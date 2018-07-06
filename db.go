@@ -79,9 +79,10 @@ var allColumns [][]byte = [][]byte{
 	[]byte("name"), []byte("street"), []byte("city"), []byte("zipcode"),
 	[]byte("country"), []byte("email"), []byte("email_verified"),
 	[]byte("phone"), []byte("fee"), []byte("username"), []byte("pwhash"),
-	[]byte("fee_yearly"), []byte("sourceip"), []byte("useragent"),
-	[]byte("metadata"), []byte("pb_data"), []byte("application_pdf"),
-	[]byte("agreement_pdf"), []byte("approval_ts"),
+	[]byte("fee_yearly"), []byte("has_key"), []byte("payments_caught_up_to"),
+	[]byte("sourceip"), []byte("useragent"), []byte("metadata"),
+	[]byte("pb_data"), []byte("application_pdf"), []byte("agreement_pdf"),
+	[]byte("approval_ts"),
 }
 
 // Create a new connection to the membership database on the given "host".
@@ -282,7 +283,7 @@ func (m *MembershipDB) GetMemberDetail(id string) (*MembershipAgreement, error) 
 	return member, err
 }
 
-// Update the membership fee for the given user.
+// Update the membership fee for the given member.
 func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
 	var now time.Time = time.Now()
 	var mmap map[string]map[string][]*cassandra.Mutation
@@ -348,6 +349,143 @@ func (m *MembershipDB) SetMemberFee(id string, fee uint64, yearly bool) error {
 		bdata[0] = 0
 	}
 	mu = newCassandraMutationBytes("fee_yearly", bdata, &now, 0)
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+
+	return m.conn.AtomicBatchMutate(
+		mmap, cassandra.ConsistencyLevel_QUORUM)
+}
+
+// Update the specified long field for the given member.
+func (m *MembershipDB) SetLongValue(
+	id string, field string, value uint64) error {
+	var now time.Time = time.Now()
+	var mmap map[string]map[string][]*cassandra.Mutation
+	var member *MembershipAgreement = new(MembershipAgreement)
+	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
+	var r *cassandra.ColumnOrSuperColumn
+
+	var mu *cassandra.Mutation = cassandra.NewMutation()
+	var ts int64 = now.UnixNano()
+	var bdata []byte
+	var err error
+
+	cp.ColumnFamily = "members"
+	cp.Column = []byte("pb_data")
+
+	// Retrieve the protobuf with all data from Cassandra.
+	r, err = m.conn.Get(
+		append([]byte(memberPrefix), []byte(id)...),
+		cp, cassandra.ConsistencyLevel_ONE)
+	if err != nil {
+		return err
+	}
+
+	// Decode the protobuf which was written to the column.
+	err = proto.Unmarshal(r.Column.Value, member)
+	if err != nil {
+		return err
+	}
+
+	if field == "payments_caught_up_to" {
+		member.MemberData.PaymentsCaughtUpTo = proto.Uint64(value)
+	} else {
+		return fmt.Errorf("Unknown field specified: %s", field)
+	}
+
+	r.Column.Value, err = proto.Marshal(member)
+	r.Column.Timestamp = &ts
+	if err != nil {
+		return err
+	}
+
+	// Write pb_data back.
+	mmap = make(map[string]map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
+	mmap[memberPrefix+id]["member_agreements"] = make([]*cassandra.Mutation, 0)
+
+	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+	mu.ColumnOrSupercolumn.Column = r.Column
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+	mmap[memberPrefix+id]["member_agreements"] = append(
+		mmap[memberPrefix+id]["member_agreements"], mu)
+
+	// Now update data columns.
+	bdata = make([]byte, 8)
+	binary.BigEndian.PutUint64(bdata, value)
+	mu = newCassandraMutationBytes(field, bdata, &now, 0)
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+
+	return m.conn.AtomicBatchMutate(
+		mmap, cassandra.ConsistencyLevel_QUORUM)
+}
+
+// Update the specified boolean field for the given member.
+func (m *MembershipDB) SetBoolValue(id string, field string, value bool) error {
+	var now time.Time = time.Now()
+	var mmap map[string]map[string][]*cassandra.Mutation
+	var member *MembershipAgreement = new(MembershipAgreement)
+	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
+	var r *cassandra.ColumnOrSuperColumn
+
+	var mu *cassandra.Mutation = cassandra.NewMutation()
+	var ts int64 = now.UnixNano()
+	var bdata []byte
+	var err error
+
+	cp.ColumnFamily = "members"
+	cp.Column = []byte("pb_data")
+
+	// Retrieve the protobuf with all data from Cassandra.
+	r, err = m.conn.Get(
+		append([]byte(memberPrefix), []byte(id)...),
+		cp, cassandra.ConsistencyLevel_ONE)
+	if err != nil {
+		return err
+	}
+
+	// Decode the protobuf which was written to the column.
+	err = proto.Unmarshal(r.Column.Value, member)
+	if err != nil {
+		return err
+	}
+
+	if field == "has_key" {
+		member.MemberData.HasKey = proto.Bool(value)
+	} else {
+		return fmt.Errorf("Unknown field specified: %s", field)
+	}
+
+	r.Column.Value, err = proto.Marshal(member)
+	r.Column.Timestamp = &ts
+	if err != nil {
+		return err
+	}
+
+	// Write pb_data back.
+	mmap = make(map[string]map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
+	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
+	mmap[memberPrefix+id]["member_agreements"] = make([]*cassandra.Mutation, 0)
+
+	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+	mu.ColumnOrSupercolumn.Column = r.Column
+	mmap[memberPrefix+id]["members"] = append(
+		mmap[memberPrefix+id]["members"], mu)
+	mmap[memberPrefix+id]["member_agreements"] = append(
+		mmap[memberPrefix+id]["member_agreements"], mu)
+
+	// Now update data columns.
+	bdata = make([]byte, 1)
+	if value {
+		bdata[0] = 1
+	} else {
+		bdata[0] = 0
+	}
+	mu = newCassandraMutationBytes(field, bdata, &now, 0)
 	mmap[memberPrefix+id]["members"] = append(
 		mmap[memberPrefix+id]["members"], mu)
 
@@ -478,9 +616,10 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 	// Fetch all relevant non-protobuf columns of the members column family.
 	cp.ColumnFamily = "members"
 	pred.ColumnNames = [][]byte{
-		[]byte("name"), []byte("street"), []byte("city"), []byte("country"),
-		[]byte("email"), []byte("phone"), []byte("username"), []byte("fee"),
-		[]byte("fee_yearly"),
+		[]byte("name"), []byte("city"), []byte("country"), []byte("email"),
+		[]byte("phone"), []byte("username"), []byte("fee"),
+		[]byte("fee_yearly"), []byte("has_key"),
+		[]byte("payments_caught_up_to"),
 	}
 	r.StartKey = []byte(memberPrefix + prev)
 	r.EndKey = []byte(memberEnd)
@@ -524,6 +663,11 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 				member.Fee = proto.Uint64(binary.BigEndian.Uint64(col.Value))
 			} else if colname == "fee_yearly" {
 				member.FeeYearly = proto.Bool(col.Value[0] == 1)
+			} else if colname == "has_key" {
+				member.HasKey = proto.Bool(col.Value[0] == 1)
+			} else if colname == "payments_caught_up_to" {
+				member.PaymentsCaughtUpTo =
+					proto.Uint64(binary.BigEndian.Uint64(col.Value))
 			}
 		}
 

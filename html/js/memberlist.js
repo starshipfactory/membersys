@@ -347,6 +347,62 @@ function loadMember(email) {
 			row.appendChild(col);
 			data.appendChild(row);
 
+			row = document.createElement('div');
+			row.className = 'row';
+			col = document.createElement('div');
+			col.className = 'col-xs-4';
+			inner_el = document.createElement('strong');
+			inner_el.appendChild(document.createTextNode('Schlüssel'));
+			col.appendChild(inner_el);
+			row.appendChild(col);
+
+			col = document.createElement('div');
+			col.className = 'col-xs-8';
+			inner_el = document.createElement('input');
+			inner_el.type = 'checkbox';
+			inner_el.checked = md.has_key;
+			inner_el.id = 'memberDetailHasKey';
+			inner_el.onchange = function() {
+				keyElem = $('#memberDetailHasKey')[0];
+				editHasKey(md.email, keyElem.checked);
+			}
+			col.appendChild(inner_el);
+			inner_el = document.createElement('label');
+			inner_el.appendChild(document.createTextNode(
+				'Mitglied verfügt über einen Schlüssel'));
+			inner_el.for = 'memberDetailHasKey';
+			col.appendChild(inner_el);
+			row.appendChild(col);
+			data.appendChild(row)
+
+			row = document.createElement('div');
+			row.className = 'row';
+			col = document.createElement('div');
+			col.className = 'col-xs-4';
+			inner_el = document.createElement('strong');
+			inner_el.appendChild(document.createTextNode('Gezahlt bis'));
+			col.appendChild(inner_el);
+			row.appendChild(col);
+
+			col = document.createElement('div');
+			col.className = 'col-xs-8';
+			inner_el = document.createElement('input');
+			inner_el.type = 'date';
+			inner_el.id = 'memberDetailPaymentsTo';
+			if (md.payments_caught_up_to != null &&
+				md.payments_caught_up_to > 0) {
+				dt = new Date(value=md.payments_caught_up_to * 1000);
+				inner_el.value = dt.toISOString().split('T')[0];
+			}
+			inner_el.onchange = function() {
+				dateField = $('#memberDetailPaymentsTo')[0];
+				dt = new Date(dateField.value);
+				editPaymentsCaughtUpTo(md.email, dt);
+			}
+			col.appendChild(inner_el);
+			row.appendChild(col);
+			data.appendChild(row)
+
 			if (md.username != null) {
 				row = document.createElement('div');
 				row.className = 'row';
@@ -587,6 +643,45 @@ function doEditMemberPhone() {
 	});
 }
 
+// Set whether the member has a key.
+function editHasKey(email, has_key) {
+	new $.ajax({
+		url: '/admin/api/editbool',
+		data: {
+			email: email,
+			field: 'has_key',
+			value: has_key,
+		},
+		type: 'POST',
+		error: function(jqXHR, textStatus, errorThrown) {
+			$('#memberDetailHasKey').popover({
+				'title': 'Fehler beim Speichern',
+				'content': textStatus,
+			});
+			$('#memberDetailHasKey').popover('show');
+		}
+	});
+}
+
+// Set the date up to which payments are caught up.
+function editPaymentsCaughtUpTo(email, dt) {
+	new $.ajax({
+		url: '/admin/api/editlong',
+		data: {
+			email: email,
+			field: 'payments_caught_up_to',
+			value: Number(dt) / 1000,
+		},
+		type: 'POST',
+		error: function(jqXHR, textStatus, errorThrown) {
+			$('#memberDetailPaymentsTo').popover({
+				'title': 'Fehler beim Speichern',
+				'content': textStatus,
+			});
+			$('#memberDetailPaymentsTo').popover('show');
+		}
+	});
+}
 
 // Edit the stored user name of the specified user.
 function editMemberUser(email, name, username) {
@@ -668,10 +763,6 @@ function loadMembers(start) {
 				tr.appendChild(td);
 
 				td = document.createElement('td');
-				td.appendChild(document.createTextNode(members[i].street));
-				tr.appendChild(td);
-
-				td = document.createElement('td');
 				td.appendChild(document.createTextNode(members[i].city));
 				tr.appendChild(td);
 
@@ -694,12 +785,25 @@ function loadMembers(start) {
 				tr.appendChild(td);
 
 				td = document.createElement('td');
+				td.appendChild(document.createTextNode(
+					members[i].has_key ? 'Ja' : 'Nein'));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				td.appendChild(document.createTextNode(
+					members[i].payments_caught_up_to ?
+					(new Date(
+						value=members[i].payments_caught_up_to*1000))
+					.toDateString() : '-'));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
 				a = document.createElement('a');
 				a.href = "#";
 				a.onclick = function(e) {
 					var target = e.target == null ? e.srcElement : e.target;
 					var tr = target.parentNode.parentNode;
-					var email = tr.childNodes[4].firstChild.data;
+					var email = tr.childNodes[3].firstChild.data;
 					goodbyeMember(email, token);
 				}
 				a.appendChild(document.createTextNode('Verabschieden'));
@@ -712,7 +816,7 @@ function loadMembers(start) {
 				a.onclick = function(e) {
 					var target = e.target == null ? e.srcElement : e.target;
 					var tr = target.parentNode.parentNode;
-					var email = tr.childNodes[4].firstChild.data;
+					var email = tr.childNodes[3].firstChild.data;
 					loadMember(email);
 				}
 				a.appendChild(document.createTextNode('Details'));

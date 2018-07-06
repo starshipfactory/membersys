@@ -196,6 +196,18 @@ func main() {
 		database:   db,
 	})
 
+	http.Handle("/admin/api/editlong", &MemberLongFieldHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+	})
+
+	http.Handle("/admin/api/editbool", &MemberBoolFieldHandler{
+		admingroup: config.AuthenticationConfig.GetAuthGroup(),
+		auth:       authenticator,
+		database:   db,
+	})
+
 	http.Handle("/admin/api/edittext", &MemberTextFieldHandler{
 		admingroup: config.AuthenticationConfig.GetAuthGroup(),
 		auth:       authenticator,

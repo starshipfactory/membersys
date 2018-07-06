@@ -44,6 +44,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/starshipfactory/membersys"
 )
@@ -52,9 +53,10 @@ import (
 const accepted = "accepted"
 
 var fmap = template.FuncMap{
-	"html":      template.HTMLEscaper,
-	"url":       UserInputFormatter,
-	"derefbool": DereferenceBoolean,
+	"html":       template.HTMLEscaper,
+	"url":        UserInputFormatter,
+	"derefbool":  DereferenceBoolean,
+	"formatDate": FormatDate,
 }
 
 func UserInputFormatter(v ...interface{}) string {
@@ -67,6 +69,12 @@ func DereferenceBoolean(v ...interface{}) bool {
 		return false
 	}
 	return *bref
+}
+
+func FormatDate(v ...interface{}) string {
+	var lref *uint64 = v[0].(*uint64)
+	var then = time.Unix(int64(*lref), 0)
+	return then.Format("Mon Jan 2 2006")
 }
 
 // Statistics.

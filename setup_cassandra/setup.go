@@ -163,6 +163,16 @@ var desired_cf_defs = []*cassandra.CfDef{
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
 			&cassandra.ColumnDef{
+				Name:            []byte("has_key"),
+				ValidationClass: "BooleanType",
+				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
+			},
+			&cassandra.ColumnDef{
+				Name:            []byte("payments_caught_up_to"),
+				ValidationClass: "LongType",
+				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
+			},
+			&cassandra.ColumnDef{
 				Name:            []byte("approval_ts"),
 				ValidationClass: "LongType",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
