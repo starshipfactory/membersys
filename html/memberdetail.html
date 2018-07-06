@@ -64,6 +64,24 @@
 				</div>
 			</div>
 
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>Schlüssel:</strong>
+				</div>
+				<div class="col-xs-8">
+					{{if .HasKey}}Vergeben{{else}}Nicht vergeben{{end}}
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-xs-4">
+					<strong>Letzte Zahlung:</strong>
+				</div>
+				<div class="col-xs-8">
+					{{if .PaymentsCaughtUpTo}}{{.PaymentsCaughtUpTo|formatDate}}{{else}}Nicht vermerkt{{end}}
+				</div>
+			</div>
+
 {{ if .Username }}
 			<div class="row">
 				<div class="col-xs-4">

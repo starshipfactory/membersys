@@ -56,7 +56,7 @@
 					</div>
 					<div class="modal-body">
 						<div class="alert alert-warning alert-danger fade in hide" role="alert" id="memberDetailError">
-							<strong>Fehler beim Anzeigen des Mitglieds!</strong>
+							<strong id="memberDetailErrorTitle">Fehler beim Anzeigen des Mitglieds!</strong>
 							<span id="memberDetailErrorText">Fehler?</span>
 						</div>
 
@@ -273,11 +273,12 @@
 						<thead>
 							<tr>
 								<th>Name</th>
-								<th>Adresse</th>
 								<th>Ort</th>
 								<th>Benutzer</th>
 								<th>Email</th>
 								<th>Beitrag</th>
+								<th>Schl&uuml;ssel</th>
+								<th>Bezahlt bis</th>
 								<th>Aktionen</th>
 							</tr>
 						</thead>
@@ -285,11 +286,13 @@
 {{range $app := .Members}}
 							<tr id="mem-{{.Email}}">
 								<td>{{.Name}}</td>
-								<td>{{.Street}}</td>
 								<td>{{.City}}</td>
 								<td>{{.Username}}</td>
 								<td>{{.Email}}</td>
 								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
+								<td>{{if .HasKey|derefbool}}ja{{else}}nein{{end}}</td>
+								<td>{{if .PaymentsCaughtUpTo}}{{.PaymentsCaughtUpTo}}{{end}}</td>
+								<td>{{.}}</td>
 								<td>
 									<a href="javascript:void(goodbyeMember(&quot;{{.Email}}&quot;, &quot;{{$.GoodbyeCsrfToken}}&quot;));">Verabschieden</a>
 									<a href="javascript:void(loadMember(&quot;{{.Email}}&quot;));">Details</a>

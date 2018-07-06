@@ -336,6 +336,99 @@ func (m *MemberDetailHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 	}
 }
 
+// Change one of a number of long fields.
+type MemberLongFieldHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *membersys.MembershipDB
+}
+
+func (m *MemberLongFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var memberid string = req.FormValue("email")
+	var field string = req.FormValue("field")
+	var value string = req.FormValue("value")
+	var longValue uint64
+	var err error
+
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	if len(memberid) == 0 || len(field) == 0 || len(value) == 0 {
+		rw.WriteHeader(http.StatusLengthRequired)
+		rw.Write([]byte("Required parameter missing"))
+		return
+	}
+
+	longValue, err = strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		rw.Write([]byte("Not a number: " + err.Error()))
+		return
+	}
+
+	err = m.database.SetLongValue(memberid, field, longValue)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error updating member details: " +
+			err.Error()))
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json; encoding=utf8")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
+}
+
+// Change one of a number of boolean fields.
+type MemberBoolFieldHandler struct {
+	admingroup string
+	auth       *ancientauth.Authenticator
+	database   *membersys.MembershipDB
+}
+
+func (m *MemberBoolFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var memberid string = req.FormValue("email")
+	var field string = req.FormValue("field")
+	var value string = req.FormValue("value")
+	var boolValue bool
+	var err error
+
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+		rw.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	if len(memberid) == 0 || len(field) == 0 || len(value) == 0 {
+		rw.WriteHeader(http.StatusLengthRequired)
+		rw.Write([]byte("Required parameter missing"))
+		return
+	}
+
+	if value == "true" {
+		boolValue = true
+	} else if value == "false" {
+		boolValue = false
+	} else {
+		rw.WriteHeader(http.StatusBadRequest)
+		rw.Write([]byte("Value is not boolean: " + value))
+		return
+	}
+
+	err = m.database.SetBoolValue(memberid, field, boolValue)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte("Error updating member details: " +
+			err.Error()))
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json; encoding=utf8")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
+}
+
 // Change one of a number of text fields.
 type MemberTextFieldHandler struct {
 	admingroup string
