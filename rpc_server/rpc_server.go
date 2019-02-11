@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -27,6 +28,7 @@ func main() {
 
 	var certFile string
 	var keyFile string
+	var caFile string
 
 	var db *membersys.MembershipDB
 	var end_user_service *EndUserService
@@ -41,6 +43,7 @@ func main() {
 
 	flag.StringVar(&certFile, "cert", "", "Path to TLS certificate")
 	flag.StringVar(&keyFile, "key", "", "Path to TLS private key")
+	flag.StringVar(&caFile, "ca", "", "Path to TLS client CA certificate")
 	flag.Parse()
 
 	if len(config_file) == 0 {
@@ -78,13 +81,22 @@ func main() {
 
 		log.Print("WARNING: running RPC server in insecure mode. NEVER use " +
 			"this mode with a production database!")
-	} else {
+	} else if caFile == "" {
 		var creds credentials.TransportCredentials
 		creds, err = credentials.NewServerTLSFromFile(certFile, keyFile)
 		if err != nil {
 			log.Fatal("Error reading credentails from (",
 				certFile, ", ", keyFile, ": ", err)
 		}
+		grpc_server = grpc.NewServer(grpc.Creds(creds))
+
+		log.Print("WARNING: running RPC server without client " +
+			"authentication. NEVER use this mode with a production database!")
+	} else {
+		var tlsConfig *tls.Config = &tls.Config{}
+		var creds credentials.TransportCredentials
+
+		creds = credentials.NewTLS(tlsConfig)
 		grpc_server = grpc.NewServer(grpc.Creds(creds))
 	}
 
