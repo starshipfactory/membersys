@@ -324,16 +324,17 @@
 								<th>Adresse</th>
 								<th>Ort</th>
 								<th>Angestrebter Beitrag</th>
+								<th>Antragsstellung am</th>
 								<th>Aktionen</th>
 							</tr>
 						</thead>
 						<tbody>
 {{range $app := .Applicants}}
-							<tr id="{{.Key}}">
-								<td>{{.Name}}</td>
-								<td>{{.Street}}</td>
-								<td>{{.City}}</td>
-								<td>{{.Fee}} CHF pro {{if .FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
+							<tr id="{{$app.Key}}">
+								<td>{{$app.MemberData.Name}}</td>
+								<td>{{$app.MemberData.Street}}</td>
+								<td>{{$app.MemberData.City}}</td>
+								<td>{{$app.MemberData.Fee}} CHF pro {{if $app.MemberData.FeeYearly|derefbool}}Jahr{{else}}Monat{{end}}</td>
 								<td>
 									<a href="javascript:void(openUploadAgreement(&quot;{{$app.Key}}&quot;, &quot;{{$.ApprovalCsrfToken}}&quot;, &quot;{{$.UploadCsrfToken}}&quot;));">Annehmen</a>
 									<a href="javascript:void(rejectMember(&quot;{{$app.Key}}&quot;, &quot;{{$.RejectionCsrfToken}}&quot;));">Ablehnen</a>

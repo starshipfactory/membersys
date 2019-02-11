@@ -70,7 +70,7 @@ type TotalListHandler struct {
 }
 
 type TotalRecordList struct {
-	Applicants []*membersys.MemberWithKey
+	Applicants []*membersys.MembershipAgreementWithKey
 	Members    []*membersys.Member
 	Queue      []*membersys.MemberWithKey
 	DeQueue    []*membersys.MemberWithKey

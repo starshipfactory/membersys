@@ -888,12 +888,13 @@ function loadApplicants(criterion, start, single) {
 			}
 
 			for (i = 0; i < applicants.length; i++) {
-				var applicant = applicants[i];
+				var applicantMD = applicants[i].metadata;
+				var applicant = applicants[i].member_data;
 				var tr = document.createElement('tr');
 				var td;
 				var a;
 
-				tr.id = applicant.key;
+				tr.id = applicants[i].key;
 
 				td = document.createElement('td');
 				td.appendChild(document.createTextNode(applicant.name));
@@ -912,6 +913,15 @@ function loadApplicants(criterion, start, single) {
 					applicant.fee + " CHF pro " +
 					(applicant.fee_yearly ? "Jahr" : "Monat")
 					));
+				tr.appendChild(td);
+
+				td = document.createElement('td');
+				dt = new Date(applicantMD.request_timestamp * 1000);
+				td.appendChild(document.createTextNode(dt.toLocaleString()));
+				br = document.createElement('br');
+				td.appendChild(br);
+				td.appendChild(document.createTextNode(
+					applicantMD.request_source_ip));
 				tr.appendChild(td);
 
 				td = document.createElement('td');

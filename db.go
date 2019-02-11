@@ -63,6 +63,11 @@ type MemberWithKey struct {
 	Member
 }
 
+type MembershipAgreementWithKey struct {
+	Key string `json:"key"`
+	MembershipAgreement
+}
+
 var applicationPrefix string = "applicant:"
 var applicationEnd string = "applicant;"
 var queuePrefix string = "queue:"
@@ -681,21 +686,18 @@ func (m *MembershipDB) EnumerateMembers(prev string, num int32) (
 // Returns a set of "num" entries beginning after "prev". If "criterion" is
 // given, it will be compared against the name of the member.
 func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num int32) (
-	[]*MemberWithKey, error) {
+	[]*MembershipAgreementWithKey, error) {
 	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
 	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
 	var r *cassandra.KeyRange = cassandra.NewKeyRange()
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
-	var rv []*MemberWithKey
+	var rv []*MembershipAgreementWithKey
 	var err error
 
 	// Fetch the name, street, city and fee columns of the application column family.
 	cp.ColumnFamily = "application"
-	pred.ColumnNames = [][]byte{
-		[]byte("name"), []byte("street"), []byte("city"), []byte("fee"),
-		[]byte("fee_yearly"),
-	}
+	pred.ColumnNames = [][]byte{[]byte("pb_data")}
 	if len(prev) > 0 {
 		var uuid cassandra.UUID
 		if uuid, err = cassandra.ParseUUID(prev); err != nil {
@@ -715,7 +717,7 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 	}
 
 	for _, ks = range kss {
-		var member *MemberWithKey = new(MemberWithKey)
+		var member *MembershipAgreementWithKey = new(MembershipAgreementWithKey)
 		var scol *cassandra.ColumnOrSuperColumn
 		var uuid cassandra.UUID = cassandra.UUIDFromBytes(
 			ks.Key[len(applicationPrefix):])
@@ -729,16 +731,14 @@ func (m *MembershipDB) EnumerateMembershipRequests(criterion, prev string, num i
 		for _, scol = range ks.Columns {
 			var col *cassandra.Column = scol.Column
 
-			if string(col.Name) == "name" {
-				member.Name = proto.String(string(col.Value))
-			} else if string(col.Name) == "street" {
-				member.Street = proto.String(string(col.Value))
-			} else if string(col.Name) == "city" {
-				member.City = proto.String(string(col.Value))
-			} else if string(col.Name) == "fee" {
-				member.Fee = proto.Uint64(binary.BigEndian.Uint64(col.Value))
-			} else if string(col.Name) == "fee_yearly" {
-				member.FeeYearly = proto.Bool(col.Value[0] == 1)
+			if string(col.Name) == "pb_data" {
+				var agreement *MembershipAgreement = new(MembershipAgreement)
+				err = proto.Unmarshal(col.Value, agreement)
+				if err != nil {
+					// FIXME: We should bump some form of counter here.
+					continue
+				}
+				proto.Merge(&member.MembershipAgreement, agreement)
 			}
 		}
 

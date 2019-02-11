@@ -48,10 +48,10 @@ import (
 )
 
 type applicantListType struct {
-	Applicants               []*membersys.MemberWithKey `json:"applicants"`
-	ApprovalCsrfToken        string                     `json:"approval_csrf_token"`
-	RejectionCsrfToken       string                     `json:"rejection_csrf_token"`
-	AgreementUploadCsrfToken string                     `json:"agreement_upload_csrf_token"`
+	Applicants               []*membersys.MembershipAgreementWithKey `json:"applicants"`
+	ApprovalCsrfToken        string                                  `json:"approval_csrf_token"`
+	RejectionCsrfToken       string                                  `json:"rejection_csrf_token"`
+	AgreementUploadCsrfToken string                                  `json:"agreement_upload_csrf_token"`
 }
 
 type ApplicantListHandler struct {
@@ -94,7 +94,7 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 
 	if req.FormValue("single") == "true" && len(req.FormValue("start")) > 0 {
 		var memberreq *membersys.MembershipAgreement
-		var mwk *membersys.MemberWithKey
+		var mwk *membersys.MembershipAgreementWithKey
 		var bigint *big.Int = big.NewInt(0)
 		var uuid cassandra.UUID
 		var ok bool
@@ -115,10 +115,10 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 					uuid.String() + ": " + err.Error()))
 				return
 			}
-			mwk = new(membersys.MemberWithKey)
+			mwk = new(membersys.MembershipAgreementWithKey)
 			mwk.Key = uuid.String()
-			proto.Merge(&mwk.Member, memberreq.GetMemberData())
-			applist.Applicants = []*membersys.MemberWithKey{mwk}
+			proto.Merge(&mwk.MembershipAgreement, memberreq)
+			applist.Applicants = []*membersys.MembershipAgreementWithKey{mwk}
 		}
 	} else {
 		applist.Applicants, err = a.database.EnumerateMembershipRequests(
