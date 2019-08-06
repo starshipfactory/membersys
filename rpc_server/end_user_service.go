@@ -22,7 +22,8 @@ func (e *EndUserService) GetMemberDetail(
 	var agreement *membersys.MembershipAgreement
 	var err error
 
-	agreement, err = e.database.GetMemberDetailByUsername(user.GetUsername())
+	agreement, err = e.database.GetMemberDetailByUsername(
+		ctx, user.GetUsername())
 	// Generate a gRPC compatible error.
 	if err != nil && grpc.Code(err) == codes.Unknown {
 		err = grpc.Errorf(codes.Internal, err.Error())

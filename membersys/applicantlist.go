@@ -108,7 +108,7 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		if bigint.BitLen() == 128 {
 			uuid = cassandra.UUIDFromBytes(bigint.Bytes())
 			memberreq, _, err = a.database.GetMembershipRequest(
-				uuid.String(), "application", "applicant:")
+				req.Context(), uuid.String(), "application", "applicant:")
 			if err != nil {
 				rw.WriteHeader(http.StatusInternalServerError)
 				rw.Write([]byte("Unable to retrieve the membership request " +
@@ -122,7 +122,8 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		}
 	} else {
 		applist.Applicants, err = a.database.EnumerateMembershipRequests(
-			req.FormValue("criterion"), req.FormValue("start"), a.pagesize)
+			req.Context(), req.FormValue("criterion"), req.FormValue("start"),
+			a.pagesize)
 		if err != nil {
 			log.Print("Error enumerating applications: ", err)
 			rw.WriteHeader(http.StatusInternalServerError)
@@ -206,7 +207,7 @@ func (m *MemberAcceptHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	err = m.database.MoveApplicantToNewMember(id, user)
+	err = m.database.MoveApplicantToNewMember(req.Context(), id, user)
 	if err != nil {
 		log.Print("Error moving applicant ", id, " to new user: ", err)
 		rw.WriteHeader(http.StatusLengthRequired)
@@ -254,7 +255,7 @@ func (m *MemberRejectHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	err = m.database.MoveApplicantToTrash(id, user)
+	err = m.database.MoveApplicantToTrash(req.Context(), id, user)
 	if err != nil {
 		log.Print("Error moving applicant ", id, " to trash: ", err)
 		rw.WriteHeader(http.StatusLengthRequired)
@@ -325,7 +326,8 @@ func (m *MemberAgreementUploadHandler) ServeHTTP(rw http.ResponseWriter, req *ht
 
 	mf.Close()
 
-	err = m.database.StoreMembershipAgreement(id, agreement_data)
+	err = m.database.StoreMembershipAgreement(
+		req.Context(), id, agreement_data)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte("Error storing membership agreement: " + err.Error()))

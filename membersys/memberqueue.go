@@ -73,7 +73,8 @@ func init() {
 	}
 }
 
-func (m *MemberQueueListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberQueueListHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var qlist queueListType
 	var enc *json.Encoder
 	var err error
@@ -84,7 +85,7 @@ func (m *MemberQueueListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Req
 	}
 
 	qlist.Queued, err = m.database.EnumerateQueuedMembers(
-		req.FormValue("start"), m.pagesize)
+		req.Context(), req.FormValue("start"), m.pagesize)
 	if err != nil {
 		log.Print("Error enumerating membership queue: ", err)
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -111,7 +112,8 @@ func (m *MemberQueueListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Req
 	}
 }
 
-func (m *MemberDeQueueListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberDeQueueListHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var qlist queueListType
 	var enc *json.Encoder
 	var err error
@@ -122,7 +124,7 @@ func (m *MemberDeQueueListHandler) ServeHTTP(rw http.ResponseWriter, req *http.R
 	}
 
 	qlist.Queued, err = m.database.EnumerateDeQueuedMembers(
-		req.FormValue("start"), m.pagesize)
+		req.Context(), req.FormValue("start"), m.pagesize)
 	if err != nil {
 		log.Print("Error enumerating membership queue: ", err)
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -156,7 +158,8 @@ type MemberQueueCancelHandler struct {
 	database   *membersys.MembershipDB
 }
 
-func (m *MemberQueueCancelHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberQueueCancelHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var user string = m.auth.GetAuthenticatedUser(req)
 	var id string = req.PostFormValue("uuid")
 	var ok bool
@@ -185,7 +188,7 @@ func (m *MemberQueueCancelHandler) ServeHTTP(rw http.ResponseWriter, req *http.R
 		return
 	}
 
-	err = m.database.MoveQueuedRecordToTrash(id, user)
+	err = m.database.MoveQueuedRecordToTrash(req.Context(), id, user)
 	if err != nil {
 		log.Print("Error moving queued record ", id, " to trash: ", err)
 		rw.WriteHeader(http.StatusLengthRequired)

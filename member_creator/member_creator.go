@@ -32,6 +32,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"database/cassandra"
@@ -121,6 +122,10 @@ func main() {
 	var kr *cassandra.KeyRange
 	var kss []*cassandra.KeySlice
 	var ks *cassandra.KeySlice
+	var batchOpTimeout time.Duration
+
+	var ctx context.Context
+	var cancel context.CancelFunc
 
 	var err error
 
@@ -129,6 +134,8 @@ func main() {
 	flag.BoolVar(&noop, "dry-run", false, "Do a dry run")
 	flag.BoolVar(&verbose, "verbose", false,
 		"Whether or not to display verbose messages")
+	flag.DurationVar(&batchOpTimeout, "batch-op-timeout",
+		5*time.Minute, "Timeout for batch operations")
 	flag.Parse()
 
 	if len(config_file) == 0 {
@@ -232,7 +239,9 @@ func main() {
 			config.DatabaseConfig.GetDatabaseServer(), ": ", err)
 	}
 
-	err = db.SetKeyspace(config.DatabaseConfig.GetDatabaseName())
+	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
+	err = db.SetKeyspace(ctx, config.DatabaseConfig.GetDatabaseName())
+	cancel()
 	if err != nil {
 		log.Fatal("Error setting keyspace: ", err)
 	}
@@ -245,8 +254,10 @@ func main() {
 	kr.StartKey = []byte("queue:")
 	kr.EndKey = []byte("queue;")
 
-	kss, err = db.GetRangeSlices(cp, pred, kr,
+	ctx, cancel = context.WithTimeout(context.Background(), batchOpTimeout)
+	kss, err = db.GetRangeSlices(ctx, cp, pred, kr,
 		cassandra.ConsistencyLevel_QUORUM)
+	cancel()
 	if err != nil {
 		log.Fatal("Error getting range slice: ", err)
 	}
@@ -408,18 +419,23 @@ func main() {
 		}
 
 		// Apply all database mutations.
-		err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
+		ctx, cancel = context.WithTimeout(context.Background(),
+			batchOpTimeout)
+		err = db.BatchMutate(ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
+		cancel()
 		if err != nil {
 			log.Fatal("Error getting range slice: ", err)
 		}
 	}
 
 	// Delete parting members.
+	ctx, cancel = context.WithTimeout(context.Background(), batchOpTimeout)
 	cp.ColumnFamily = "membership_dequeue"
 	kr.StartKey = []byte("dequeue:")
 	kr.EndKey = []byte("dequeue;")
-	kss, err = db.GetRangeSlices(cp, pred, kr,
+	kss, err = db.GetRangeSlices(ctx, cp, pred, kr,
 		cassandra.ConsistencyLevel_QUORUM)
+	cancel()
 	if err != nil {
 		log.Fatal("Error getting range slice: ", err)
 	}
@@ -561,7 +577,10 @@ func main() {
 		}
 
 		// Apply all database mutations.
-		err = db.BatchMutate(mmap, cassandra.ConsistencyLevel_QUORUM)
+		ctx, cancel = context.WithTimeout(context.Background(),
+			batchOpTimeout)
+		err = db.BatchMutate(ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
+		cancel()
 		if err != nil {
 			log.Fatal("Error getting range slice: ", err)
 		}

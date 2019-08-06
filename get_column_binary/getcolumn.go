@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/cassandra"
 	"flag"
 	"log"
@@ -37,7 +38,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = conn.SetKeyspace(dbname)
+	err = conn.SetKeyspace(context.Background(), dbname)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -46,7 +47,7 @@ func main() {
 	cp.ColumnFamily = columnfamily
 	cp.Column = []byte(column)
 
-	r, err = conn.Get([]byte(uuid), cp,
+	r, err = conn.Get(context.Background(), []byte(uuid), cp,
 		cassandra.ConsistencyLevel_ONE)
 	if err != nil {
 		log.Fatal(err)

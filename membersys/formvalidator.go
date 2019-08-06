@@ -347,7 +347,7 @@ func (self *FormInputHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 	*data.Metadata.UserAgent = req.Header.Get("User-Agent")
 
 	if ok {
-		data.Key, err = self.database.StoreMembershipRequest(&data)
+		data.Key, err = self.database.StoreMembershipRequest(req.Context(), &data)
 		if err != nil {
 			log.Print("Error storing membership request for ", data.MemberData.GetName(),
 				" in database: ", err)

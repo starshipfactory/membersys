@@ -59,7 +59,7 @@ func (m *MemberTrashListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Req
 	}
 
 	memberlist, err = m.database.EnumerateTrashedMembers(
-		req.FormValue("start"), m.pagesize)
+		req.Context(), req.FormValue("start"), m.pagesize)
 	if err != nil {
 		log.Print("Error enumerating trashed members: ", err)
 		rw.WriteHeader(http.StatusInternalServerError)

@@ -86,7 +86,8 @@ type TotalRecordList struct {
 }
 
 // Serve the list of current membership applications to the requestor.
-func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *TotalListHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var user string
 	var all_records TotalRecordList
 	var err error
@@ -96,10 +97,12 @@ func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(req, m.admingroup) {
+	if len(m.admingroup) > 0 && !m.auth.IsAuthenticatedScope(
+		req, m.admingroup) {
 		var agreement *membersys.MembershipAgreement
 
-		agreement, err = m.database.GetMemberDetailByUsername(user)
+		agreement, err = m.database.GetMemberDetailByUsername(
+			req.Context(), user)
 		if err != nil {
 			log.Print("Can't get membership agreement for ", user, ": ", err)
 			return
@@ -115,7 +118,7 @@ func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	all_records.Applicants, err = m.database.EnumerateMembershipRequests(
-		req.FormValue("applicant_criterion"),
+		req.Context(), req.FormValue("applicant_criterion"),
 		req.FormValue("applicant_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list applicants from ",
@@ -123,28 +126,28 @@ func (m *TotalListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	all_records.Members, err = m.database.EnumerateMembers(
-		req.FormValue("member_start"), m.pagesize)
+		req.Context(), req.FormValue("member_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list members from ",
 			req.FormValue("member_start"), ": ", err)
 	}
 
 	all_records.Queue, err = m.database.EnumerateQueuedMembers(
-		req.FormValue("queued_start"), m.pagesize)
+		req.Context(), req.FormValue("queued_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list queued members from ",
 			req.FormValue("queued_start"), ": ", err)
 	}
 
 	all_records.DeQueue, err = m.database.EnumerateDeQueuedMembers(
-		req.FormValue("queued_start"), m.pagesize)
+		req.Context(), req.FormValue("queued_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list dequeued members from ",
 			req.FormValue("queued_start"), ": ", err)
 	}
 
 	all_records.Trash, err = m.database.EnumerateTrashedMembers(
-		req.FormValue("trashed_start"), m.pagesize)
+		req.Context(), req.FormValue("trashed_start"), m.pagesize)
 	if err != nil {
 		log.Print("Unable to list trashed members from ",
 			req.FormValue("trashed_start"), ": ", err)
@@ -192,7 +195,8 @@ type MemberListHandler struct {
 	pagesize   int32
 }
 
-func (m *MemberListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberListHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var memlist memberListType
 	var enc *json.Encoder
 	var err error
@@ -203,7 +207,7 @@ func (m *MemberListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	}
 
 	memlist.Members, err = m.database.EnumerateMembers(
-		req.FormValue("start"), m.pagesize)
+		req.Context(), req.FormValue("start"), m.pagesize)
 	if err != nil {
 		log.Print("Error enumerating members: ", err)
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -237,7 +241,8 @@ type MemberGoodbyeHandler struct {
 	database   *membersys.MembershipDB
 }
 
-func (m *MemberGoodbyeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberGoodbyeHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var user string = m.auth.GetAuthenticatedUser(req)
 	var reason string = req.PostFormValue("reason")
 	var id string = req.PostFormValue("id")
@@ -267,7 +272,7 @@ func (m *MemberGoodbyeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	err = m.database.MoveMemberToTrash(id, user, reason)
+	err = m.database.MoveMemberToTrash(req.Context(), id, user, reason)
 	if err != nil {
 		log.Print("Error moving member ", id, " to trash: ", err)
 		rw.WriteHeader(http.StatusLengthRequired)
@@ -287,7 +292,8 @@ type MemberDetailHandler struct {
 	database   *membersys.MembershipDB
 }
 
-func (m *MemberDetailHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberDetailHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var user string = m.auth.GetAuthenticatedUser(req)
 	var member *membersys.MembershipAgreement
 	var memberid string = req.FormValue("email")
@@ -305,7 +311,7 @@ func (m *MemberDetailHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	member, err = m.database.GetMemberDetail(memberid)
+	member, err = m.database.GetMemberDetail(req.Context(), memberid)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte("Error fetching member details: " +
@@ -343,7 +349,8 @@ type MemberLongFieldHandler struct {
 	database   *membersys.MembershipDB
 }
 
-func (m *MemberLongFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberLongFieldHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var memberid string = req.FormValue("email")
 	var field string = req.FormValue("field")
 	var value string = req.FormValue("value")
@@ -368,7 +375,7 @@ func (m *MemberLongFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Req
 		return
 	}
 
-	err = m.database.SetLongValue(memberid, field, longValue)
+	err = m.database.SetLongValue(req.Context(), memberid, field, longValue)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte("Error updating member details: " +
@@ -388,7 +395,8 @@ type MemberBoolFieldHandler struct {
 	database   *membersys.MembershipDB
 }
 
-func (m *MemberBoolFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberBoolFieldHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var memberid string = req.FormValue("email")
 	var field string = req.FormValue("field")
 	var value string = req.FormValue("value")
@@ -416,7 +424,7 @@ func (m *MemberBoolFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Req
 		return
 	}
 
-	err = m.database.SetBoolValue(memberid, field, boolValue)
+	err = m.database.SetBoolValue(req.Context(), memberid, field, boolValue)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte("Error updating member details: " +
@@ -436,7 +444,8 @@ type MemberTextFieldHandler struct {
 	database   *membersys.MembershipDB
 }
 
-func (m *MemberTextFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberTextFieldHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var memberid string = req.FormValue("email")
 	var field string = req.FormValue("field")
 	var value string = req.FormValue("value")
@@ -453,7 +462,7 @@ func (m *MemberTextFieldHandler) ServeHTTP(rw http.ResponseWriter, req *http.Req
 		return
 	}
 
-	err = m.database.SetTextValue(memberid, field, value)
+	err = m.database.SetTextValue(req.Context(), memberid, field, value)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte("Error updating member details: " +
@@ -473,7 +482,8 @@ type MemberFeeHandler struct {
 	database   *membersys.MembershipDB
 }
 
-func (m *MemberFeeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *MemberFeeHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var memberid string = req.FormValue("email")
 	var fee_s string = req.FormValue("fee")
 	var fee_yearly_s string = req.FormValue("fee_yearly")
@@ -508,7 +518,7 @@ func (m *MemberFeeHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		rw.Write([]byte("Not a boolean"))
 	}
 
-	err = m.database.SetMemberFee(memberid, fee, fee_yearly)
+	err = m.database.SetMemberFee(req.Context(), memberid, fee, fee_yearly)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte("Error updating membership fee: " +

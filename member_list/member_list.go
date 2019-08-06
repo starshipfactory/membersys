@@ -32,6 +32,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -51,11 +52,14 @@ func main() {
 	var config_path string
 	var prev_key string
 	var help bool
+	var batchOpTimeout time.Duration
 	var err error
 
 	flag.BoolVar(&help, "help", false, "Display help")
 	flag.StringVar(&config_path, "config", "",
 		"Path to the member creator configuration file")
+	flag.DurationVar(&batchOpTimeout, "batch-op-timeout",
+		5*time.Minute, "Timeout for batch operations")
 	flag.Parse()
 
 	if help || config_path == "" {
@@ -86,10 +90,15 @@ func main() {
 	}
 
 	for {
+		var ctx context.Context
+		var cancel context.CancelFunc
 		var members []*membersys.Member
 		var member *membersys.Member
 
-		members, err = db.EnumerateMembers(prev_key, 25)
+		ctx, cancel = context.WithTimeout(context.Background(),
+			batchOpTimeout)
+		defer cancel()
+		members, err = db.EnumerateMembers(ctx, prev_key, 25)
 
 		if err != nil {
 			log.Fatal("Error fetching data starting from ", prev_key, ": ",

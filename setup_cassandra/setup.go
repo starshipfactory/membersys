@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"database/cassandra"
 	"flag"
 	"log"
+	"time"
 )
 
 func mkstringp(input string) *string {
@@ -32,7 +34,7 @@ func contains(list []string, elem string) bool {
 
 var desired_cf_defs = []*cassandra.CfDef{
 	// column family: application
-	&cassandra.CfDef{
+	{
 		Name:               "application",
 		ComparatorType:     "AsciiType",
 		Comment:            mkstringp("Membership applications"),
@@ -41,70 +43,70 @@ var desired_cf_defs = []*cassandra.CfDef{
 		Caching:            "keys_only",
 		SpeculativeRetry:   "100ms",
 		ColumnMetadata: []*cassandra.ColumnDef{
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("name"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("street"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("city"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("zipcode"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("country"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("email"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("phone"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("username"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("sourceip"),
 				ValidationClass: "AsciiType",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("useragent"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("pwhash"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("fee"),
 				ValidationClass: "LongType",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("email_verified"),
 				ValidationClass: "BooleanType",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("fee_yearly"),
 				ValidationClass: "BooleanType",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("pb_data"),
 				ValidationClass: "BytesType",
 			},
 		},
 	},
 	// column family: members
-	&cassandra.CfDef{
+	{
 		Name:               "members",
 		ComparatorType:     "AsciiType",
 		Comment:            mkstringp("Current Starship Factory members"),
@@ -113,82 +115,82 @@ var desired_cf_defs = []*cassandra.CfDef{
 		Caching:            "keys_only",
 		SpeculativeRetry:   "20ms",
 		ColumnMetadata: []*cassandra.ColumnDef{
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("name"),
 				ValidationClass: "UTF8Type",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("street"),
 				ValidationClass: "UTF8Type",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("city"),
 				ValidationClass: "UTF8Type",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("zipcode"),
 				ValidationClass: "UTF8Type",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("country"),
 				ValidationClass: "UTF8Type",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("email"),
 				ValidationClass: "UTF8Type",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("phone"),
 				ValidationClass: "UTF8Type",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("username"),
 				ValidationClass: "UTF8Type",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("fee"),
 				ValidationClass: "LongType",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("fee_yearly"),
 				ValidationClass: "BooleanType",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("has_key"),
 				ValidationClass: "BooleanType",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("payments_caught_up_to"),
 				ValidationClass: "LongType",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("approval_ts"),
 				ValidationClass: "LongType",
 				IndexType:       mkindextypep(cassandra.IndexType_KEYS),
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("agreement_pdf"),
 				ValidationClass: "BytesType",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("pb_data"),
 				ValidationClass: "BytesType",
 			},
 		},
 	},
 	// column family: member_agreements
-	&cassandra.CfDef{
+	{
 		Name:               "member_agreements",
 		ComparatorType:     "AsciiType",
 		Comment:            mkstringp("PDFs of membership agreements"),
@@ -197,18 +199,18 @@ var desired_cf_defs = []*cassandra.CfDef{
 		Caching:            "keys_only",
 		SpeculativeRetry:   "100ms",
 		ColumnMetadata: []*cassandra.ColumnDef{
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("agreement_pdf"),
 				ValidationClass: "BytesType",
 			},
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("pb_data"),
 				ValidationClass: "BytesType",
 			},
 		},
 	},
 	// column family: membership_queue
-	&cassandra.CfDef{
+	{
 		Name:               "membership_queue",
 		ComparatorType:     "AsciiType",
 		Comment:            mkstringp("Queue of approved membership agreements"),
@@ -217,14 +219,14 @@ var desired_cf_defs = []*cassandra.CfDef{
 		Caching:            "keys_only",
 		SpeculativeRetry:   "100ms",
 		ColumnMetadata: []*cassandra.ColumnDef{
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("pb_data"),
 				ValidationClass: "BytesType",
 			},
 		},
 	},
 	// column family: membership_dequeue
-	&cassandra.CfDef{
+	{
 		Name:               "membership_dequeue",
 		ComparatorType:     "AsciiType",
 		Comment:            mkstringp("Queue of departing members for deletion"),
@@ -233,14 +235,14 @@ var desired_cf_defs = []*cassandra.CfDef{
 		Caching:            "keys_only",
 		SpeculativeRetry:   "100ms",
 		ColumnMetadata: []*cassandra.ColumnDef{
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("pb_data"),
 				ValidationClass: "BytesType",
 			},
 		},
 	},
 	// column family: membership_archive
-	&cassandra.CfDef{
+	{
 		Name:               "membership_archive",
 		ComparatorType:     "AsciiType",
 		Comment:            mkstringp("Recently departed former members"),
@@ -249,7 +251,7 @@ var desired_cf_defs = []*cassandra.CfDef{
 		Caching:            "keys_only",
 		SpeculativeRetry:   "100ms",
 		ColumnMetadata: []*cassandra.ColumnDef{
-			&cassandra.ColumnDef{
+			{
 				Name:            []byte("pb_data"),
 				ValidationClass: "BytesType",
 			},
@@ -258,10 +260,13 @@ var desired_cf_defs = []*cassandra.CfDef{
 }
 
 func main() {
+	var ctx context.Context
+	var cancel context.CancelFunc
 	var existing_cfs []string = make([]string, 0)
 	var ks_def *cassandra.KsDef
 	var cf_def *cassandra.CfDef
 	var conn *cassandra.RetryCassandraClient
+	var batchOpTimeout time.Duration
 	var err error
 
 	var dbserver, dbname string
@@ -270,19 +275,24 @@ func main() {
 		"Database server to set up")
 	flag.StringVar(&dbname, "dbname", "sfmembersys",
 		"Database name to set up")
+	flag.DurationVar(&batchOpTimeout, "batch-op-timeout",
+		5*time.Minute, "Timeout for batch operations")
 	flag.Parse()
+
+	ctx, cancel = context.WithTimeout(context.Background(), batchOpTimeout)
+	defer cancel()
 
 	conn, err = cassandra.NewRetryCassandraClient(dbserver)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = conn.SetKeyspace(dbname)
+	err = conn.SetKeyspace(ctx, dbname)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ks_def, err = conn.DescribeKeyspace(dbname)
+	ks_def, err = conn.DescribeKeyspace(ctx, dbname)
 	if err != nil {
 		log.Fatal("Error describing keyspace ", dbname, ": ", err)
 	}
@@ -297,14 +307,14 @@ func main() {
 
 		if contains(existing_cfs, cf_def.Name) {
 			var rv string
-			rv, err = conn.SystemUpdateColumnFamily(cf_def)
+			rv, err = conn.SystemUpdateColumnFamily(ctx, cf_def)
 			if err != nil {
 				log.Fatal("Unable to update column family ", cf_def.Name, ": ", err)
 			}
 			log.Print("Successfully updated column family ", cf_def.Name, ": ", rv)
 		} else {
 			var rv string
-			rv, err = conn.SystemAddColumnFamily(cf_def)
+			rv, err = conn.SystemAddColumnFamily(ctx, cf_def)
 			if err != nil {
 				log.Fatal("Unable to add column family ", cf_def.Name, ": ", err)
 			}

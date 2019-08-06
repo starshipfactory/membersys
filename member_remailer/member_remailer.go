@@ -32,6 +32,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -44,6 +45,8 @@ import (
 )
 
 func main() {
+	var ctx context.Context
+	var cancel context.CancelFunc
 	var db *membersys.MembershipDB
 	var agreement *membersys.MembershipAgreement
 	var config config.MemberCreatorConfig
@@ -51,6 +54,7 @@ func main() {
 	var config_contents []byte
 	var config_path string
 	var lookup_key string
+	var batchOpTimeout time.Duration
 	var help bool
 	var err error
 
@@ -59,6 +63,8 @@ func main() {
 		"Path to the member creator configuration file")
 	flag.StringVar(&lookup_key, "key", "",
 		"Key of the user record to look up")
+	flag.DurationVar(&batchOpTimeout, "batch-op-timeout",
+		5*time.Minute, "Timeout for batch operations")
 	flag.Parse()
 
 	if help || config_path == "" {
@@ -93,7 +99,10 @@ func main() {
 		log.Fatal("Error setting up mailer: ", err)
 	}
 
-	agreement, err = db.GetMemberDetail(lookup_key)
+	ctx, cancel = context.WithTimeout(context.Background(),
+		batchOpTimeout)
+	defer cancel()
+	agreement, err = db.GetMemberDetail(ctx, lookup_key)
 	if err != nil {
 		log.Fatal("Error fetching member ", lookup_key, ": ", err)
 	}

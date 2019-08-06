@@ -49,7 +49,8 @@ type TakeoutOverviewHandler struct {
 }
 
 // Serve the takeout console of the requestor.
-func (m *TakeoutOverviewHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *TakeoutOverviewHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var agreement *membersys.MembershipAgreement
 	var user string
 	var err error
@@ -59,7 +60,7 @@ func (m *TakeoutOverviewHandler) ServeHTTP(rw http.ResponseWriter, req *http.Req
 		return
 	}
 
-	agreement, err = m.database.GetMemberDetailByUsername(user)
+	agreement, err = m.database.GetMemberDetailByUsername(req.Context(), user)
 	if err != nil {
 		log.Print("Can't get membership agreement for ", user, ": ", err)
 		rw.Header().Set("Content-type", "text/plain; charset=utf-8")
@@ -82,7 +83,8 @@ type TakeoutPDFDownloadHandler struct {
 }
 
 // Serve the membership agreement PDF of the requestor.
-func (m *TakeoutPDFDownloadHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *TakeoutPDFDownloadHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var agreement *membersys.MembershipAgreement
 	var user string
 	var err error
@@ -92,7 +94,7 @@ func (m *TakeoutPDFDownloadHandler) ServeHTTP(rw http.ResponseWriter, req *http.
 		return
 	}
 
-	agreement, err = m.database.GetMemberDetailByUsername(user)
+	agreement, err = m.database.GetMemberDetailByUsername(req.Context(), user)
 	if err != nil {
 		log.Print("Can't get membership agreement for ", user, ": ", err)
 		rw.Header().Set("Content-type", "text/plain; charset=utf-8")
@@ -122,7 +124,8 @@ type TakeoutVCFDownloadHandler struct {
 }
 
 // Serve the members own data in VCF standard.
-func (m *TakeoutVCFDownloadHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *TakeoutVCFDownloadHandler) ServeHTTP(
+	rw http.ResponseWriter, req *http.Request) {
 	var agreement *membersys.MembershipAgreement
 	var user string
 	var err error
@@ -132,7 +135,7 @@ func (m *TakeoutVCFDownloadHandler) ServeHTTP(rw http.ResponseWriter, req *http.
 		return
 	}
 
-	agreement, err = m.database.GetMemberDetailByUsername(user)
+	agreement, err = m.database.GetMemberDetailByUsername(req.Context(), user)
 	if err != nil {
 		log.Print("Can't get membership agreement for ", user, ": ", err)
 		rw.Header().Set("Content-type", "text/plain; charset=utf-8")
