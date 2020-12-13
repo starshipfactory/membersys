@@ -72,6 +72,7 @@ type MembershipAgreementWithKey struct {
 }
 
 var applicationPrefix string = "applicant:"
+var applicationEnd string = "applicant;"
 var queuePrefix string = "queue:"
 var dequeuePrefix string = "dequeue:"
 var archivePrefix string = "archive:"
@@ -530,6 +531,7 @@ func (m *MembershipDB) EnumerateMembers(
 func (m *MembershipDB) EnumerateMembershipRequests(
 	ctx context.Context, criterion, prev string, num int32) (
 	[]*MembershipAgreementWithKey, error) {
+	var query string
 	var stmt *gocql.Query
 	var iter *gocql.Iter
 	var rv []*MembershipAgreementWithKey
@@ -548,9 +550,17 @@ func (m *MembershipDB) EnumerateMembershipRequests(
 		startKey = []byte(applicationPrefix)
 	}
 
-	stmt = m.sess.Query(
-		"SELECT key, pb_data FROM application WHERE key > ? LIMIT "+strconv.Itoa(int(num))+
-			" ALLOW FILTERING", startKey).WithContext(ctx).Consistency(gocql.One)
+	query = "SELECT key, pb_data FROM application WHERE key > ?"
+
+	if num > 0 {
+		query += " LIMIT " + strconv.Itoa(int(num)) + " ALLOW FILTERING"
+		stmt = m.sess.Query(query, startKey)
+	} else {
+		query += " AND key < ? ALLOW FILTERING"
+		stmt = m.sess.Query(query, startKey, applicationEnd)
+	}
+
+	stmt = stmt.WithContext(ctx).Consistency(gocql.One)
 	defer stmt.Release()
 
 	iter = stmt.Iter()
