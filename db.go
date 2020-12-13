@@ -71,26 +71,10 @@ type MembershipAgreementWithKey struct {
 }
 
 var applicationPrefix string = "applicant:"
-var applicationEnd string = "applicant;"
 var queuePrefix string = "queue:"
-var queueEnd string = "queue;"
 var dequeuePrefix string = "dequeue:"
-var dequeueEnd string = "dequeue;"
 var archivePrefix string = "archive:"
-var archiveEnd string = "archive;"
 var memberPrefix string = "member:"
-var memberEnd string = "member;"
-
-// List of all relevant columns; used for a few copies here.
-var allColumns [][]byte = [][]byte{
-	[]byte("name"), []byte("street"), []byte("city"), []byte("zipcode"),
-	[]byte("country"), []byte("email"), []byte("email_verified"),
-	[]byte("phone"), []byte("fee"), []byte("username"), []byte("pwhash"),
-	[]byte("fee_yearly"), []byte("has_key"), []byte("payments_caught_up_to"),
-	[]byte("sourceip"), []byte("useragent"), []byte("metadata"),
-	[]byte("pb_data"), []byte("application_pdf"), []byte("agreement_pdf"),
-	[]byte("approval_ts"),
-}
 
 // Create a new connection to the membership database on the given "host".
 // Will set the keyspace to "dbname".
