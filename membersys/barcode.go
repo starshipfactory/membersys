@@ -32,7 +32,6 @@
 package main
 
 import (
-	"database/cassandra"
 	"image/png"
 	"log"
 	"math/big"
@@ -40,13 +39,14 @@ import (
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/code128"
+	"github.com/gocql/gocql"
 )
 
 func MakeBarcode(rw http.ResponseWriter, req *http.Request) {
 	var id = req.FormValue("id")
 	var bigint *big.Int = big.NewInt(0)
 	var code barcode.Barcode
-	var uuid cassandra.UUID
+	var uuid gocql.UUID
 	var err error
 
 	if id == "" {
@@ -54,7 +54,7 @@ func MakeBarcode(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	uuid, err = cassandra.ParseUUID(id)
+	uuid, err = gocql.ParseUUID(id)
 	if err != nil {
 		log.Print("Error parsing UUID: ", err)
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -62,7 +62,7 @@ func MakeBarcode(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bigint.SetBytes([]byte(uuid))
+	bigint.SetBytes(uuid.Bytes())
 	id = bigint.String()
 
 	code, err = code128.Encode(id)

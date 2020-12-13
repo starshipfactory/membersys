@@ -32,7 +32,6 @@
 package main
 
 import (
-	"database/cassandra"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -43,6 +42,7 @@ import (
 	"time"
 
 	"ancient-solutions.com/ancientauth"
+	"github.com/gocql/gocql"
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 )
@@ -96,7 +96,7 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		var memberreq *membersys.MembershipAgreement
 		var mwk *membersys.MembershipAgreementWithKey
 		var bigint *big.Int = big.NewInt(0)
-		var uuid cassandra.UUID
+		var uuid gocql.UUID
 		var ok bool
 		bigint, ok = bigint.SetString(req.FormValue("start"), 10)
 		if !ok {
@@ -106,7 +106,13 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 			return
 		}
 		if bigint.BitLen() == 128 {
-			uuid = cassandra.UUIDFromBytes(bigint.Bytes())
+			uuid, err = gocql.UUIDFromBytes(bigint.Bytes())
+			if err != nil {
+				rw.WriteHeader(http.StatusBadRequest)
+				rw.Write([]byte("Unable to parse start ID " +
+					req.FormValue("start") + ": " + err.Error()))
+				return
+			}
 			memberreq, _, err = a.database.GetMembershipRequest(
 				req.Context(), uuid.String(), "application", "applicant:")
 			if err != nil {

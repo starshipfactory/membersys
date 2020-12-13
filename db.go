@@ -33,13 +33,13 @@ package membersys
 
 import (
 	"context"
-	"database/cassandra"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/gocql/gocql"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -56,7 +56,8 @@ type FormInputData struct {
 }
 
 type MembershipDB struct {
-	conn *cassandra.RetryCassandraClient
+	config *gocql.ClusterConfig
+	sess   *gocql.Session
 }
 
 type MemberWithKey struct {
@@ -93,114 +94,47 @@ var allColumns [][]byte = [][]byte{
 
 // Create a new connection to the membership database on the given "host".
 // Will set the keyspace to "dbname".
-func NewMembershipDB(host, dbname string, timeout time.Duration) (*MembershipDB, error) {
-	var conn *cassandra.RetryCassandraClient
+func NewMembershipDB(hosts []string, dbname string, timeout time.Duration) (*MembershipDB, error) {
+	var config *gocql.ClusterConfig
+	var sess *gocql.Session
 	var err error
 
-	var ctx context.Context
 	var cancel context.CancelFunc
 
-	ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	config = gocql.NewCluster(hosts...)
+	config.Timeout = timeout
+	config.ConnectTimeout = timeout
+	config.RetryPolicy = &gocql.ExponentialBackoffRetryPolicy{
+		NumRetries: 3,
+		Min:        timeout / 10,
+		Max:        timeout / 2,
+	}
+	config.Keyspace = dbname
+
+	_, cancel = context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	conn, err = cassandra.NewRetryCassandraClientTimeout(host, timeout)
-	if err != nil {
-		return nil, err
-	}
-	err = conn.SetKeyspace(ctx, dbname)
+	sess, err = config.CreateSession()
 	if err != nil {
 		return nil, err
 	}
 	return &MembershipDB{
-		conn: conn,
+		config: config,
+		sess:   sess,
 	}, nil
-}
-
-// Create a new mutation with the given name, value and time stamp.
-func newCassandraMutationBytes(name string, value []byte, now *time.Time, ttl int32) *cassandra.Mutation {
-	var ret = cassandra.NewMutation()
-	var col = cassandra.NewColumn()
-	var now_long = int64(now.UnixNano())
-
-	col.Timestamp = &now_long
-	col.Name = []byte(name)
-	col.Value = value
-
-	if ttl > 0 {
-		col.TTL = &ttl
-	}
-
-	ret.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
-	ret.ColumnOrSupercolumn.Column = col
-
-	return ret
-}
-
-// Create a new mutation with the given name, value and time stamp.
-func newCassandraMutationString(name, value string, now *time.Time) *cassandra.Mutation {
-	return newCassandraMutationBytes(name, []byte(value), now, 0)
-}
-
-// Funciton for lazy people to add a column to a membership request mutation map.
-func addMembershipRequestInfoBytes(mmap map[string][]*cassandra.Mutation, name string, value []byte, now *time.Time) {
-	mmap["application"] = append(mmap["application"],
-		newCassandraMutationBytes(name, value, now, 0))
-}
-
-// Funciton for lazy people to add a column to a membership request mutation map.
-func addMembershipRequestInfoString(mmap map[string][]*cassandra.Mutation, name string, value *string, now *time.Time) {
-	if value != nil && len(*value) > 0 {
-		mmap["application"] = append(mmap["application"],
-			newCassandraMutationString(name, *value, now))
-	}
 }
 
 // Store the given membership request in the database.
 func (m *MembershipDB) StoreMembershipRequest(ctx context.Context, req *FormInputData) (key string, err error) {
-	var bmods map[string]map[string][]*cassandra.Mutation
 	var pb *MembershipAgreement = new(MembershipAgreement)
+	var stmt *gocql.Query
 	var bdata []byte
 	var now = time.Now()
-	var uuid cassandra.UUID
-	var c_key string
+	var uuid gocql.UUID
 
 	// First, let's generate an UUID for the new record.
-	uuid, err = cassandra.GenTimeUUID(&now)
-	if err != nil {
-		return "", err
-	}
-
-	c_key = applicationPrefix + string(uuid)
-	key = hex.EncodeToString(uuid)
-
-	bmods = make(map[string]map[string][]*cassandra.Mutation)
-	bmods[c_key] = make(map[string][]*cassandra.Mutation)
-	bmods[c_key]["application"] = make([]*cassandra.Mutation, 0)
-
-	addMembershipRequestInfoString(bmods[c_key], "name", req.MemberData.Name, &now)
-	addMembershipRequestInfoString(bmods[c_key], "street", req.MemberData.Street, &now)
-	addMembershipRequestInfoString(bmods[c_key], "city", req.MemberData.City, &now)
-	addMembershipRequestInfoString(bmods[c_key], "zipcode", req.MemberData.Zipcode, &now)
-	addMembershipRequestInfoString(bmods[c_key], "country", req.MemberData.Country, &now)
-	addMembershipRequestInfoString(bmods[c_key], "email", req.MemberData.Email, &now)
-	addMembershipRequestInfoBytes(bmods[c_key], "email_verified", []byte{0}, &now)
-	addMembershipRequestInfoString(bmods[c_key], "phone", req.MemberData.Phone, &now)
-	bdata = make([]byte, 8)
-	binary.BigEndian.PutUint64(bdata, req.MemberData.GetFee())
-	addMembershipRequestInfoBytes(bmods[c_key], "fee", bdata, &now)
-	addMembershipRequestInfoString(bmods[c_key], "username", req.MemberData.Username, &now)
-	addMembershipRequestInfoString(bmods[c_key], "pwhash", req.MemberData.Pwhash, &now)
-	if req.MemberData.GetFeeYearly() {
-		addMembershipRequestInfoBytes(bmods[c_key], "fee_yearly", []byte{1}, &now)
-	} else {
-		addMembershipRequestInfoBytes(bmods[c_key], "fee_yearly", []byte{0}, &now)
-	}
-
-	// Set the IP explicitly.
-	addMembershipRequestInfoString(bmods[c_key], "sourceip",
-		req.Metadata.RequestSourceIp, &now)
-	addMembershipRequestInfoString(bmods[c_key], "useragent",
-		req.Metadata.UserAgent, &now)
+	uuid = gocql.UUIDFromTime(now)
+	key = hex.EncodeToString(uuid.Bytes())
 
 	// Add the membership metadata.
 	if req.Metadata.RequestTimestamp == nil {
@@ -214,13 +148,21 @@ func (m *MembershipDB) StoreMembershipRequest(ctx context.Context, req *FormInpu
 	if err != nil {
 		return
 	}
-	addMembershipRequestInfoBytes(bmods[c_key], "pb_data", bdata, &now)
+
+	// This is the perfect illustration of why SQL / CQL is not an appropriate way to exchange data.
+	stmt = m.sess.Query("INSERT INTO application "+
+		"(name, street, city, zipcode, country, email, email_verified, phone, fee, username, "+
+		"pwhash, fee_yearly, sourceip, useragent, pb_data) VALUES "+
+		"(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		req.MemberData.Name, req.MemberData.Street, req.MemberData.City,
+		req.MemberData.Zipcode, req.MemberData.Country, req.MemberData.Email, false,
+		req.MemberData.Phone, req.MemberData.GetFee(), req.MemberData.Username,
+		req.MemberData.Pwhash, req.MemberData.GetFeeYearly(), req.Metadata.RequestSourceIp,
+		req.Metadata.UserAgent, bdata).WithContext(ctx).Consistency(gocql.Quorum).Idempotent(true)
+	defer stmt.Release()
 
 	// Now execute the batch mutation.
-	err = m.conn.BatchMutate(ctx, bmods, cassandra.ConsistencyLevel_QUORUM)
-	if err != nil {
-		return
-	}
+	err = stmt.Exec()
 	return
 }
 
@@ -229,101 +171,78 @@ func (m *MembershipDB) StoreMembershipRequest(ctx context.Context, req *FormInpu
 func (m *MembershipDB) GetMemberDetailByUsername(
 	ctx context.Context, username string) (*MembershipAgreement, error) {
 	var member *MembershipAgreement = new(MembershipAgreement)
-	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
-	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
-	var kr *cassandra.KeyRange = cassandra.NewKeyRange()
-	var expr *cassandra.IndexExpression = cassandra.NewIndexExpression()
-
-	var r []*cassandra.KeySlice
-	var ks *cassandra.KeySlice
+	var stmt *gocql.Query
+	var encodedProto []byte
 	var err error
 
-	expr.ColumnName = []byte("username")
-	expr.Op = cassandra.IndexOperator_EQ
-	expr.Value = []byte(username)
+	stmt = m.sess.Query(
+		"SELECT pb_data FROM members WHERE username = ?", username).WithContext(ctx).Consistency(
+		gocql.One)
+	defer stmt.Release()
 
-	cp.ColumnFamily = "members"
-	pred.ColumnNames = [][]byte{[]byte("pb_data")}
-	kr.StartKey = []byte(memberPrefix)
-	kr.EndKey = []byte(memberEnd)
-	kr.RowFilter = []*cassandra.IndexExpression{expr}
-
-	r, err = m.conn.GetRangeSlices(
-		ctx, cp, pred, kr, cassandra.ConsistencyLevel_ONE)
+	err = stmt.Scan(&encodedProto)
+	if err == gocql.ErrNotFound {
+		return nil, grpc.Errorf(codes.NotFound, "No user found for %s: %s", username, err.Error())
+	}
 	if err != nil {
-		return nil, grpc.Errorf(codes.Internal, err.Error())
+		return nil, grpc.Errorf(codes.Internal, "Error running query: %s", err.Error())
 	}
 
-	for _, ks = range r {
-		var cos *cassandra.ColumnOrSuperColumn
-
-		for _, cos = range ks.Columns {
-			var col = cos.Column
-			if string(col.Name) == "pb_data" {
-				member = new(MembershipAgreement)
-				err = proto.Unmarshal(col.Value, member)
-				return member, err
-			} else {
-				return nil, grpc.Errorf(codes.DataLoss, "Unexpected column "+
-					string(col.Name))
-			}
-		}
-	}
-
-	return nil, grpc.Errorf(codes.NotFound, "Not found")
+	err = proto.Unmarshal(encodedProto, member)
+	return member, err
 }
 
 // Retrieve a specific members detailed membership data.
 func (m *MembershipDB) GetMemberDetail(ctx context.Context, id string) (
 	*MembershipAgreement, error) {
 	var member *MembershipAgreement = new(MembershipAgreement)
-	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
-	var r *cassandra.ColumnOrSuperColumn
+	var stmt *gocql.Query
+	var encodedProto []byte
 	var err error
 
-	cp.ColumnFamily = "members"
-	cp.Column = []byte("pb_data")
+	stmt = m.sess.Query(
+		"SELECT pb_data FROM members WHERE key = ?", append([]byte(memberPrefix),
+			[]byte(id)...)).WithContext(ctx).Consistency(gocql.One)
+	defer stmt.Release()
 
-	// Retrieve the protobuf with all data from Cassandra.
-	r, err = m.conn.Get(
-		ctx, append([]byte(memberPrefix), []byte(id)...),
-		cp, cassandra.ConsistencyLevel_ONE)
+	err = stmt.Scan(&encodedProto)
+	if err == gocql.ErrNotFound {
+		return nil, grpc.Errorf(codes.NotFound, "No member found for %s: %s", id, err.Error())
+	}
 	if err != nil {
-		return nil, err
+		return nil, grpc.Errorf(codes.Internal, "Error running query: %s", err.Error())
 	}
 
-	// Decode the protobuf which was written to the column.
-	err = proto.Unmarshal(r.Column.Value, member)
+	err = proto.Unmarshal(encodedProto, member)
 	return member, err
 }
 
 // Update the membership fee for the given member.
 func (m *MembershipDB) SetMemberFee(
 	ctx context.Context, id string, fee uint64, yearly bool) error {
-	var now time.Time = time.Now()
-	var mmap map[string]map[string][]*cassandra.Mutation
 	var member *MembershipAgreement = new(MembershipAgreement)
-	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
-	var r *cassandra.ColumnOrSuperColumn
-
-	var mu *cassandra.Mutation = cassandra.NewMutation()
-	var ts int64 = now.UnixNano()
-	var bdata []byte
+	var batch *gocql.Batch
+	var encodedProto []byte
+	var stmt *gocql.Query
 	var err error
 
-	cp.ColumnFamily = "members"
-	cp.Column = []byte("pb_data")
+	// Retrieve the protobuf with all data from Cassandra. Use a quorum read to make sure we aren't
+	// missing any recent updates.
+	stmt = m.sess.Query(
+		"SELECT pb_data FROM members WHERE key = ?", append([]byte(memberPrefix),
+			[]byte(id)...)).WithContext(ctx).Consistency(gocql.Quorum)
+	defer stmt.Release()
 
-	// Retrieve the protobuf with all data from Cassandra.
-	r, err = m.conn.Get(
-		ctx, append([]byte(memberPrefix), []byte(id)...),
-		cp, cassandra.ConsistencyLevel_ONE)
+	err = stmt.Scan(&encodedProto)
+	if err == gocql.ErrNotFound {
+		return fmt.Errorf("No member found for %s: %s", id, err.Error())
+	}
 	if err != nil {
-		return err
+		return fmt.Errorf("Error running query: %s", err.Error())
 	}
 
 	// Decode the protobuf which was written to the column.
-	err = proto.Unmarshal(r.Column.Value, member)
+	err = proto.Unmarshal(encodedProto, member)
 	if err != nil {
 		return err
 	}
@@ -331,73 +250,54 @@ func (m *MembershipDB) SetMemberFee(
 	member.MemberData.Fee = &fee
 	member.MemberData.FeeYearly = &yearly
 
-	r.Column.Value, err = proto.Marshal(member)
-	r.Column.Timestamp = &ts
+	encodedProto, err = proto.Marshal(member)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error parsing stored membership data: %s", err.Error())
 	}
 
-	// Write pb_data back.
-	mmap = make(map[string]map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
-	mmap[memberPrefix+id]["member_agreements"] = make([]*cassandra.Mutation, 0)
-
-	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
-	mu.ColumnOrSupercolumn.Column = r.Column
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
-	mmap[memberPrefix+id]["member_agreements"] = append(
-		mmap[memberPrefix+id]["member_agreements"], mu)
-
-	// Now update data columns.
-	bdata = make([]byte, 8)
-	binary.BigEndian.PutUint64(bdata, fee)
-	mu = newCassandraMutationBytes("fee", bdata, &now, 0)
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
-
-	bdata = make([]byte, 1)
-	if yearly {
-		bdata[0] = 1
-	} else {
-		bdata[0] = 0
+	// Write data columns and pb_data back.
+	batch = m.sess.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query(
+		"UPDATE members SET pb_data = ?, fee = ?, fee_yearly = ? WHERE key = ?",
+		encodedProto, fee, yearly, append([]byte(memberPrefix), []byte(id)...))
+	batch.Query(
+		"UPDATE member_agreements SET pb_data = ? WHERE key = ?",
+		encodedProto, append([]byte(memberPrefix), []byte(id)...))
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return fmt.Errorf("Error writing back membership data: %s", err.Error())
 	}
-	mu = newCassandraMutationBytes("fee_yearly", bdata, &now, 0)
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
 
-	return m.conn.AtomicBatchMutate(
-		ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
+	return nil
 }
 
 // Update the specified long field for the given member.
 func (m *MembershipDB) SetLongValue(
 	ctx context.Context, id string, field string, value uint64) error {
-	var now time.Time = time.Now()
-	var mmap map[string]map[string][]*cassandra.Mutation
 	var member *MembershipAgreement = new(MembershipAgreement)
-	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
-	var r *cassandra.ColumnOrSuperColumn
-
-	var mu *cassandra.Mutation = cassandra.NewMutation()
-	var ts int64 = now.UnixNano()
-	var bdata []byte
+	var batch *gocql.Batch
+	var encodedProto []byte
+	var stmt *gocql.Query
 	var err error
 
-	cp.ColumnFamily = "members"
-	cp.Column = []byte("pb_data")
+	// Retrieve the protobuf with all data from Cassandra. Use a quorum read to make sure we aren't
+	// missing any recent updates.
+	stmt = m.sess.Query(
+		"SELECT pb_data FROM members WHERE key = ?", append([]byte(memberPrefix),
+			[]byte(id)...)).WithContext(ctx).Consistency(gocql.Quorum)
+	defer stmt.Release()
 
-	// Retrieve the protobuf with all data from Cassandra.
-	r, err = m.conn.Get(
-		ctx, append([]byte(memberPrefix), []byte(id)...),
-		cp, cassandra.ConsistencyLevel_ONE)
+	err = stmt.Scan(&encodedProto)
+	if err == gocql.ErrNotFound {
+		return fmt.Errorf("No member found for %s: %s", id, err.Error())
+	}
 	if err != nil {
-		return err
+		return fmt.Errorf("Error running query: %s", err.Error())
 	}
 
 	// Decode the protobuf which was written to the column.
-	err = proto.Unmarshal(r.Column.Value, member)
+	err = proto.Unmarshal(encodedProto, member)
 	if err != nil {
 		return err
 	}
@@ -408,63 +308,54 @@ func (m *MembershipDB) SetLongValue(
 		return fmt.Errorf("Unknown field specified: %s", field)
 	}
 
-	r.Column.Value, err = proto.Marshal(member)
-	r.Column.Timestamp = &ts
+	encodedProto, err = proto.Marshal(member)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error parsing stored membership data: %s", err.Error())
 	}
 
-	// Write pb_data back.
-	mmap = make(map[string]map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
-	mmap[memberPrefix+id]["member_agreements"] = make([]*cassandra.Mutation, 0)
+	// Write data columns and pb_data back.
+	batch = m.sess.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query(
+		"UPDATE members SET "+field+" = ?, pb_data = ? WHERE key = ?",
+		value, encodedProto, append([]byte(memberPrefix), []byte(id)...))
+	batch.Query(
+		"UPDATE member_agreements SET pb_data = ? WHERE key = ?",
+		encodedProto, append([]byte(memberPrefix), []byte(id)...))
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return fmt.Errorf("Error writing back membership data: %s", err.Error())
+	}
 
-	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
-	mu.ColumnOrSupercolumn.Column = r.Column
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
-	mmap[memberPrefix+id]["member_agreements"] = append(
-		mmap[memberPrefix+id]["member_agreements"], mu)
-
-	// Now update data columns.
-	bdata = make([]byte, 8)
-	binary.BigEndian.PutUint64(bdata, value)
-	mu = newCassandraMutationBytes(field, bdata, &now, 0)
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
-
-	return m.conn.AtomicBatchMutate(
-		ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
+	return nil
 }
 
 // Update the specified boolean field for the given member.
 func (m *MembershipDB) SetBoolValue(
 	ctx context.Context, id string, field string, value bool) error {
-	var now time.Time = time.Now()
-	var mmap map[string]map[string][]*cassandra.Mutation
 	var member *MembershipAgreement = new(MembershipAgreement)
-	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
-	var r *cassandra.ColumnOrSuperColumn
-
-	var mu *cassandra.Mutation = cassandra.NewMutation()
-	var ts int64 = now.UnixNano()
-	var bdata []byte
+	var batch *gocql.Batch
+	var encodedProto []byte
+	var stmt *gocql.Query
 	var err error
 
-	cp.ColumnFamily = "members"
-	cp.Column = []byte("pb_data")
+	// Retrieve the protobuf with all data from Cassandra. Use a quorum read to make sure we aren't
+	// missing any recent updates.
+	stmt = m.sess.Query(
+		"SELECT pb_data FROM members WHERE key = ?", append([]byte(memberPrefix),
+			[]byte(id)...)).WithContext(ctx).Consistency(gocql.Quorum)
+	defer stmt.Release()
 
-	// Retrieve the protobuf with all data from Cassandra.
-	r, err = m.conn.Get(
-		ctx, append([]byte(memberPrefix), []byte(id)...),
-		cp, cassandra.ConsistencyLevel_ONE)
+	err = stmt.Scan(&encodedProto)
+	if err == gocql.ErrNotFound {
+		return fmt.Errorf("No member found for %s: %s", id, err.Error())
+	}
 	if err != nil {
-		return err
+		return fmt.Errorf("Error running query: %s", err.Error())
 	}
 
 	// Decode the protobuf which was written to the column.
-	err = proto.Unmarshal(r.Column.Value, member)
+	err = proto.Unmarshal(encodedProto, member)
 	if err != nil {
 		return err
 	}
@@ -475,66 +366,54 @@ func (m *MembershipDB) SetBoolValue(
 		return fmt.Errorf("Unknown field specified: %s", field)
 	}
 
-	r.Column.Value, err = proto.Marshal(member)
-	r.Column.Timestamp = &ts
+	encodedProto, err = proto.Marshal(member)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error parsing stored membership data: %s", err.Error())
 	}
 
-	// Write pb_data back.
-	mmap = make(map[string]map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
-	mmap[memberPrefix+id]["member_agreements"] = make([]*cassandra.Mutation, 0)
-
-	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
-	mu.ColumnOrSupercolumn.Column = r.Column
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
-	mmap[memberPrefix+id]["member_agreements"] = append(
-		mmap[memberPrefix+id]["member_agreements"], mu)
-
-	// Now update data columns.
-	bdata = make([]byte, 1)
-	if value {
-		bdata[0] = 1
-	} else {
-		bdata[0] = 0
+	// Write data columns and pb_data back.
+	batch = m.sess.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query(
+		"UPDATE members SET "+field+" = ?, pb_data = ? WHERE key = ?",
+		value, encodedProto, append([]byte(memberPrefix), []byte(id)...))
+	batch.Query(
+		"UPDATE member_agreements SET pb_data = ? WHERE key = ?",
+		encodedProto, append([]byte(memberPrefix), []byte(id)...))
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return fmt.Errorf("Error writing back membership data: %s", err.Error())
 	}
-	mu = newCassandraMutationBytes(field, bdata, &now, 0)
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
 
-	return m.conn.AtomicBatchMutate(
-		ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
+	return nil
 }
 
 // Update the specified text column on the membership data.
 func (m *MembershipDB) SetTextValue(
 	ctx context.Context, id string, field, value string) error {
-	var now time.Time = time.Now()
-	var mmap map[string]map[string][]*cassandra.Mutation
 	var member *MembershipAgreement = new(MembershipAgreement)
-	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
-	var r *cassandra.ColumnOrSuperColumn
-
-	var mu *cassandra.Mutation = cassandra.NewMutation()
-	var ts int64 = now.UnixNano()
+	var batch *gocql.Batch
+	var encodedProto []byte
+	var stmt *gocql.Query
 	var err error
 
-	cp.ColumnFamily = "members"
-	cp.Column = []byte("pb_data")
+	// Retrieve the protobuf with all data from Cassandra. Use a quorum read to make sure we aren't
+	// missing any recent updates.
+	stmt = m.sess.Query(
+		"SELECT pb_data FROM members WHERE key = ?", append([]byte(memberPrefix),
+			[]byte(id)...)).WithContext(ctx).Consistency(gocql.Quorum)
+	defer stmt.Release()
 
-	// Retrieve the protobuf with all data from Cassandra.
-	r, err = m.conn.Get(
-		ctx, append([]byte(memberPrefix), []byte(id)...),
-		cp, cassandra.ConsistencyLevel_ONE)
+	err = stmt.Scan(&encodedProto)
+	if err == gocql.ErrNotFound {
+		return fmt.Errorf("No member found for %s: %s", id, err.Error())
+	}
 	if err != nil {
-		return err
+		return fmt.Errorf("Error running query: %s", err.Error())
 	}
 
 	// Decode the protobuf which was written to the column.
-	err = proto.Unmarshal(r.Column.Value, member)
+	err = proto.Unmarshal(encodedProto, member)
 	if err != nil {
 		return err
 	}
@@ -560,62 +439,64 @@ func (m *MembershipDB) SetTextValue(
 		return fmt.Errorf("Unknown field specified: %s", field)
 	}
 
-	r.Column.Value, err = proto.Marshal(member)
-	r.Column.Timestamp = &ts
+	encodedProto, err = proto.Marshal(member)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error parsing stored membership data: %s", err.Error())
 	}
 
-	// Write pb_data back.
-	mmap = make(map[string]map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id]["members"] = make([]*cassandra.Mutation, 0)
-	mmap[memberPrefix+id]["member_agreements"] = make([]*cassandra.Mutation, 0)
+	// Write data columns and pb_data back.
+	batch = m.sess.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query(
+		"UPDATE members SET "+field+" = ?, pb_data = ? WHERE key = ?",
+		value, encodedProto, append([]byte(memberPrefix), []byte(id)...))
+	batch.Query(
+		"UPDATE member_agreements SET pb_data = ? WHERE key = ?",
+		encodedProto, append([]byte(memberPrefix), []byte(id)...))
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return fmt.Errorf("Error writing back membership data: %s", err.Error())
+	}
 
-	mu.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
-	mu.ColumnOrSupercolumn.Column = r.Column
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
-	mmap[memberPrefix+id]["member_agreements"] = append(
-		mmap[memberPrefix+id]["member_agreements"], mu)
-
-	// Now update data columns.
-	mu = newCassandraMutationString(field, value, &now)
-	mmap[memberPrefix+id]["members"] = append(
-		mmap[memberPrefix+id]["members"], mu)
-
-	return m.conn.AtomicBatchMutate(
-		ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
+	return nil
 }
 
 // Retrieve an individual applicants data.
 func (m *MembershipDB) GetMembershipRequest(
 	ctx context.Context, id, table, prefix string) (
 	*MembershipAgreement, int64, error) {
-	var uuid cassandra.UUID
+	var uuid gocql.UUID
 	var member *MembershipAgreement = new(MembershipAgreement)
-	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
-	var r *cassandra.ColumnOrSuperColumn
+	var encodedProto []byte
+	var stmt *gocql.Query
+	var timestamp int64
 	var err error
 
-	if uuid, err = cassandra.ParseUUID(id); err != nil {
-		return nil, 0, err
+	if uuid, err = gocql.ParseUUID(id); err != nil {
+		return nil, 0, fmt.Errorf("Cannot parse %s as an UUID: %s", id, err.Error())
 	}
 
-	cp.ColumnFamily = table
-	cp.Column = []byte("pb_data")
-
 	// Retrieve the protobuf with all data from Cassandra.
-	r, err = m.conn.Get(
-		ctx, append([]byte(prefix), []byte(uuid)...),
-		cp, cassandra.ConsistencyLevel_ONE)
+	stmt = m.sess.Query(
+		"SELECT pb_data, WRITETIME(pb_data) FROM "+table+" WHERE key = ?",
+		append([]byte(prefix), uuid.Bytes()...)).WithContext(ctx).Consistency(gocql.One)
+	defer stmt.Release()
+
+	err = stmt.Scan(&encodedProto, &timestamp)
+	if err == gocql.ErrNotFound {
+		return nil, 0, fmt.Errorf("No member found for %s: %s", id, err.Error())
+	}
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("Error running query: %s", err.Error())
 	}
 
 	// Decode the protobuf which was written to the column.
-	err = proto.Unmarshal(r.Column.Value, member)
-	return member, *r.Column.Timestamp, err
+	err = proto.Unmarshal(encodedProto, member)
+	if err != nil {
+		return nil, 0, fmt.Errorf("Unable to parse membership data: %s", err.Error())
+	}
+
+	return member, timestamp, err
 }
 
 // Get a list of all members currently in the database. Returns a set of
@@ -624,73 +505,35 @@ func (m *MembershipDB) GetMembershipRequest(
 // membership was approved.
 func (m *MembershipDB) EnumerateMembers(
 	ctx context.Context, prev string, num int32) ([]*Member, error) {
-	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
-	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
-	var r *cassandra.KeyRange = cassandra.NewKeyRange()
-	var kss []*cassandra.KeySlice
-	var ks *cassandra.KeySlice
+	var stmt *gocql.Query
+	var iter *gocql.Iter
 	var rv []*Member
 	var err error
 
-	// Fetch all relevant non-protobuf columns of the members column family.
-	cp.ColumnFamily = "members"
-	pred.ColumnNames = [][]byte{
-		[]byte("name"), []byte("city"), []byte("country"), []byte("email"),
-		[]byte("phone"), []byte("username"), []byte("fee"),
-		[]byte("fee_yearly"), []byte("has_key"),
-		[]byte("payments_caught_up_to"),
-	}
-	r.StartKey = []byte(memberPrefix + prev)
-	r.EndKey = []byte(memberEnd)
-	r.Count = num
+	stmt = m.sess.Query(
+		"SELECT name, street, city, country, email, phone, username, fee, fee_yearly, has_key, "+
+			"payments_caught_up_to FROM members WHERE key > ? AND email > '' LIMIT "+
+			strconv.Itoa(int(num))+" ALLOW FILTERING",
+		append([]byte(memberPrefix), []byte(prev)...)).WithContext(ctx).Consistency(gocql.One)
+	defer stmt.Release()
 
-	kss, err = m.conn.GetRangeSlices(
-		ctx, cp, pred, r, cassandra.ConsistencyLevel_ONE)
-	if err != nil {
-		return rv, err
-	}
+	iter = stmt.Iter()
 
-	for _, ks = range kss {
+	for {
 		var member *Member = new(Member)
-		var scol *cassandra.ColumnOrSuperColumn
+		var done bool
 
-		if len(ks.Columns) == 0 {
-			continue
+		done = iter.Scan(member.Name, member.Street, member.City, member.Country, member.Email,
+			member.Phone, member.Username, member.Fee, member.FeeYearly, member.HasKey,
+			member.PaymentsCaughtUpTo)
+		if !done {
+			rv = append(rv, member)
 		}
+	}
 
-		member.Email = proto.String(string(ks.Key[len(memberPrefix):]))
-
-		for _, scol = range ks.Columns {
-			var col *cassandra.Column = scol.Column
-			var colname string = string(col.Name)
-
-			if colname == "name" {
-				member.Name = proto.String(string(col.Value))
-			} else if colname == "street" {
-				member.Street = proto.String(string(col.Value))
-			} else if colname == "city" {
-				member.City = proto.String(string(col.Value))
-			} else if colname == "country" {
-				member.Country = proto.String(string(col.Value))
-			} else if colname == "email" {
-				member.Email = proto.String(string(col.Value))
-			} else if colname == "phone" {
-				member.Phone = proto.String(string(col.Value))
-			} else if colname == "username" {
-				member.Username = proto.String(string(col.Value))
-			} else if colname == "fee" {
-				member.Fee = proto.Uint64(binary.BigEndian.Uint64(col.Value))
-			} else if colname == "fee_yearly" {
-				member.FeeYearly = proto.Bool(col.Value[0] == 1)
-			} else if colname == "has_key" {
-				member.HasKey = proto.Bool(col.Value[0] == 1)
-			} else if colname == "payments_caught_up_to" {
-				member.PaymentsCaughtUpTo =
-					proto.Uint64(binary.BigEndian.Uint64(col.Value))
-			}
-		}
-
-		rv = append(rv, member)
+	err = iter.Close()
+	if err != nil {
+		return rv, fmt.Errorf("Error fetching member overview: %s", err.Error())
 	}
 
 	return rv, nil
@@ -702,62 +545,64 @@ func (m *MembershipDB) EnumerateMembers(
 func (m *MembershipDB) EnumerateMembershipRequests(
 	ctx context.Context, criterion, prev string, num int32) (
 	[]*MembershipAgreementWithKey, error) {
-	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
-	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
-	var r *cassandra.KeyRange = cassandra.NewKeyRange()
-	var kss []*cassandra.KeySlice
-	var ks *cassandra.KeySlice
+	var stmt *gocql.Query
+	var iter *gocql.Iter
 	var rv []*MembershipAgreementWithKey
+	var startKey []byte
 	var err error
 
 	// Fetch the name, street, city and fee columns of the application column family.
-	cp.ColumnFamily = "application"
-	pred.ColumnNames = [][]byte{[]byte("pb_data")}
 	if len(prev) > 0 {
-		var uuid cassandra.UUID
-		if uuid, err = cassandra.ParseUUID(prev); err != nil {
+		var uuid gocql.UUID
+		if uuid, err = gocql.ParseUUID(prev); err != nil {
 			return rv, err
 		}
-		r.StartKey = append([]byte(applicationPrefix), []byte(uuid)...)
+		startKey = append([]byte(applicationPrefix), []byte(uuid.Bytes())...)
 	} else {
-		r.StartKey = []byte(applicationPrefix)
-	}
-	r.EndKey = []byte(applicationEnd)
-	r.Count = num
-
-	kss, err = m.conn.GetRangeSlices(
-		ctx, cp, pred, r, cassandra.ConsistencyLevel_ONE)
-	if err != nil {
-		return rv, err
+		startKey = []byte(applicationPrefix)
 	}
 
-	for _, ks = range kss {
+	stmt = m.sess.Query(
+		"SELECT key, pb_data FROM application WHERE key > ? LIMIT "+strconv.Itoa(int(num))+
+			" ALLOW FILTERING", startKey).WithContext(ctx).Consistency(gocql.One)
+	defer stmt.Release()
+
+	iter = stmt.Iter()
+
+	for {
 		var member *MembershipAgreementWithKey = new(MembershipAgreementWithKey)
-		var scol *cassandra.ColumnOrSuperColumn
-		var uuid cassandra.UUID = cassandra.UUIDFromBytes(
-			ks.Key[len(applicationPrefix):])
+		var agreement *MembershipAgreement = new(MembershipAgreement)
+		var key []byte
+		var encodedProto []byte
+		var uuid gocql.UUID
+		var done bool
 
-		member.Key = uuid.String()
+		done = iter.Scan(&key, &encodedProto)
+		if done {
+			break
+		}
 
-		if len(ks.Columns) == 0 {
+		uuid, err = gocql.UUIDFromBytes(key[len(applicationPrefix):])
+		if err != nil {
+			// FIXME: We should bump some form of counter here.
+			continue
+		} else {
+			member.Key = uuid.String()
+		}
+
+		err = proto.Unmarshal(encodedProto, agreement)
+		if err != nil {
+			// FIXME: We should bump some form of counter here.
 			continue
 		}
-
-		for _, scol = range ks.Columns {
-			var col *cassandra.Column = scol.Column
-
-			if string(col.Name) == "pb_data" {
-				var agreement *MembershipAgreement = new(MembershipAgreement)
-				err = proto.Unmarshal(col.Value, agreement)
-				if err != nil {
-					// FIXME: We should bump some form of counter here.
-					continue
-				}
-				proto.Merge(&member.MembershipAgreement, agreement)
-			}
-		}
+		proto.Merge(&member.MembershipAgreement, agreement)
 
 		rv = append(rv, member)
+	}
+
+	err = iter.Close()
+	if err != nil {
+		return rv, fmt.Errorf("Error fetching applicant overview: %s", err.Error())
 	}
 
 	return rv, nil
@@ -767,75 +612,77 @@ func (m *MembershipDB) EnumerateMembershipRequests(
 func (m *MembershipDB) EnumerateQueuedMembers(
 	ctx context.Context, prev string, num int32) ([]*MemberWithKey, error) {
 	return m.enumerateQueuedMembersIn(
-		ctx, "membership_queue", queuePrefix, queueEnd, prev, num)
+		ctx, "membership_queue", queuePrefix, prev, num)
 }
 
 // Get a list of all future members which are currently in the departing queue.
 func (m *MembershipDB) EnumerateDeQueuedMembers(
 	ctx context.Context, prev string, num int32) ([]*MemberWithKey, error) {
 	return m.enumerateQueuedMembersIn(
-		ctx, "membership_dequeue", dequeuePrefix, dequeueEnd, prev, num)
+		ctx, "membership_dequeue", dequeuePrefix, prev, num)
 }
 
 func (m *MembershipDB) enumerateQueuedMembersIn(
-	ctx context.Context, cf, prefix, end, prev string, num int32) (
+	ctx context.Context, cf, prefix, prev string, num int32) (
 	[]*MemberWithKey, error) {
-	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
-	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
-	var r *cassandra.KeyRange = cassandra.NewKeyRange()
-	var kss []*cassandra.KeySlice
-	var ks *cassandra.KeySlice
+	var stmt *gocql.Query
+	var iter *gocql.Iter
 	var rv []*MemberWithKey
+	var startKey []byte
 	var err error
 
-	// Fetch the protobuf column of the application column family.
-	cp.ColumnFamily = cf
-	pred.ColumnNames = [][]byte{
-		[]byte("pb_data"),
-	}
+	// Fetch the name, street, city and fee columns of the application column family.
 	if len(prev) > 0 {
-		var uuid cassandra.UUID
-		if uuid, err = cassandra.ParseUUID(prev); err != nil {
+		var uuid gocql.UUID
+		if uuid, err = gocql.ParseUUID(prev); err != nil {
 			return rv, err
 		}
-		r.StartKey = append([]byte(prefix), []byte(uuid)...)
+		startKey = append([]byte(prefix), []byte(uuid.Bytes())...)
 	} else {
-		r.StartKey = []byte(prefix)
-	}
-	r.EndKey = []byte(end)
-	r.Count = num
-
-	kss, err = m.conn.GetRangeSlices(
-		ctx, cp, pred, r, cassandra.ConsistencyLevel_ONE)
-	if err != nil {
-		return rv, err
+		startKey = []byte(prefix)
 	}
 
-	for _, ks = range kss {
-		var member *MemberWithKey
-		var scol *cassandra.ColumnOrSuperColumn
-		var uuid cassandra.UUID = cassandra.UUIDFromBytes(
-			ks.Key[len(prefix):])
+	stmt = m.sess.Query(
+		"SELECT key, pb_data FROM "+cf+" WHERE key > ? LIMIT "+strconv.Itoa(int(num))+
+			" ALLOW FILTERING", startKey).WithContext(ctx).Consistency(gocql.One)
+	defer stmt.Release()
 
-		if len(ks.Columns) == 0 {
+	iter = stmt.Iter()
+
+	for {
+		var member *MemberWithKey = new(MemberWithKey)
+		var agreement *MembershipAgreement = new(MembershipAgreement)
+		var key []byte
+		var encodedProto []byte
+		var uuid gocql.UUID
+		var done bool
+
+		done = iter.Scan(&key, &encodedProto)
+		if done {
+			break
+		}
+
+		uuid, err = gocql.UUIDFromBytes(key[len(applicationPrefix):])
+		if err != nil {
+			// FIXME: We should bump some form of counter here.
+			continue
+		} else {
+			member.Key = uuid.String()
+		}
+
+		err = proto.Unmarshal(encodedProto, agreement)
+		if err != nil {
+			// FIXME: We should bump some form of counter here.
 			continue
 		}
+		proto.Merge(&member.Member, agreement.GetMemberData())
 
-		for _, scol = range ks.Columns {
-			var col *cassandra.Column = scol.Column
+		rv = append(rv, member)
+	}
 
-			if string(col.Name) == "pb_data" {
-				var agreement = new(MembershipAgreement)
-				member = new(MemberWithKey)
-				err = proto.Unmarshal(col.Value, agreement)
-				proto.Merge(&member.Member, agreement.GetMemberData())
-				member.Key = uuid.String()
-			}
-		}
-
-		if member != nil {
-			rv = append(rv, member)
-		}
+	err = iter.Close()
+	if err != nil {
+		return rv, fmt.Errorf("Error fetching applicant overview: %s", err.Error())
 	}
 
 	return rv, nil
@@ -844,65 +691,7 @@ func (m *MembershipDB) enumerateQueuedMembersIn(
 // Get a list of all members which are currently in the trash.
 func (m *MembershipDB) EnumerateTrashedMembers(
 	ctx context.Context, prev string, num int32) ([]*MemberWithKey, error) {
-	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
-	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
-	var r *cassandra.KeyRange = cassandra.NewKeyRange()
-	var kss []*cassandra.KeySlice
-	var ks *cassandra.KeySlice
-	var rv []*MemberWithKey
-	var err error
-
-	// Fetch the protobuf column of the application column family.
-	cp.ColumnFamily = "membership_archive"
-	pred.ColumnNames = [][]byte{
-		[]byte("pb_data"),
-	}
-	if len(prev) > 0 {
-		var uuid cassandra.UUID
-		if uuid, err = cassandra.ParseUUID(prev); err != nil {
-			return rv, err
-		}
-		r.StartKey = append([]byte(archivePrefix), []byte(uuid)...)
-	} else {
-		r.StartKey = []byte(archivePrefix)
-	}
-	r.EndKey = []byte(archiveEnd)
-	r.Count = num
-
-	kss, err = m.conn.GetRangeSlices(
-		ctx, cp, pred, r, cassandra.ConsistencyLevel_ONE)
-	if err != nil {
-		return rv, err
-	}
-
-	for _, ks = range kss {
-		var member *MemberWithKey
-		var scol *cassandra.ColumnOrSuperColumn
-		var uuid cassandra.UUID = cassandra.UUIDFromBytes(
-			ks.Key[len(archivePrefix):])
-
-		if len(ks.Columns) == 0 {
-			continue
-		}
-
-		for _, scol = range ks.Columns {
-			var col *cassandra.Column = scol.Column
-
-			if string(col.Name) == "pb_data" {
-				var agreement = new(MembershipAgreement)
-				member = new(MemberWithKey)
-				err = proto.Unmarshal(col.Value, agreement)
-				proto.Merge(&member.Member, agreement.GetMemberData())
-				member.Key = uuid.String()
-			}
-		}
-
-		if member != nil {
-			rv = append(rv, member)
-		}
-	}
-
-	return rv, nil
+	return m.enumerateQueuedMembersIn(ctx, "membership_archive", archivePrefix, prev, num)
 }
 
 // Move a member record to the queue for getting their user account removed
@@ -912,74 +701,53 @@ func (m *MembershipDB) MoveMemberToTrash(
 	ctx context.Context, id, initiator, reason string) error {
 	var now time.Time = time.Now()
 	var now_long uint64 = uint64(now.Unix())
-	var uuid cassandra.UUID
-	var mmap map[string]map[string][]*cassandra.Mutation
+	var uuid gocql.UUID
 	var member *MembershipAgreement
-
-	var cp *cassandra.ColumnPath = cassandra.NewColumnPath()
-	var cos *cassandra.ColumnOrSuperColumn
-	var del *cassandra.Deletion = cassandra.NewDeletion()
-	var mu *cassandra.Mutation
-	var ts int64
+	var qstmt *gocql.Query
+	var batch *gocql.Batch
+	var encodedProto []byte
 
 	var err error
 
-	cp.ColumnFamily = "members"
-	cp.Column = []byte("pb_data")
+	qstmt = m.sess.Query(
+		"SELECT pb_data FROM members WHERE key = ?", append([]byte(memberPrefix),
+			[]byte(id)...)).WithContext(ctx).Consistency(gocql.Quorum)
+	defer qstmt.Release()
 
-	uuid, err = cassandra.GenTimeUUID(&now)
-	if err != nil {
-		return err
-	}
+	err = qstmt.Scan(&encodedProto)
 
-	cos, err = m.conn.Get(
-		ctx, []byte(memberPrefix+id), cp, cassandra.ConsistencyLevel_QUORUM)
-	if err != nil {
-		return err
-	}
+	uuid = gocql.UUIDFromTime(now)
 
 	member = new(MembershipAgreement)
-	err = proto.Unmarshal(cos.Column.Value, member)
+	err = proto.Unmarshal(encodedProto, member)
 	if err != nil {
-		return err
+		return grpc.Errorf(codes.DataLoss, "Error parsing member data: %s", err.Error())
 	}
-
-	del.Predicate = cassandra.NewSlicePredicate()
-	del.Predicate.ColumnNames = allColumns
-	del.Timestamp = cos.Column.Timestamp
-
-	mu = cassandra.NewMutation()
-	mu.Deletion = del
-
-	mmap = make(map[string]map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id] = make(map[string][]*cassandra.Mutation)
-	mmap[memberPrefix+id]["members"] = []*cassandra.Mutation{mu}
 
 	member.Metadata.GoodbyeInitiator = &initiator
 	member.Metadata.GoodbyeTimestamp = &now_long
 	member.Metadata.GoodbyeReason = &reason
 
-	ts = now.UnixNano()
-	cos.Column = cassandra.NewColumn()
-	cos.Column.Name = []byte("pb_data")
-	cos.Column.Timestamp = &ts
-	cos.Column.Value, err = proto.Marshal(member)
+	encodedProto, err = proto.Marshal(member)
 	if err != nil {
-		return err
+		return grpc.Errorf(codes.Internal, "Error encoding member data for deletion: %s",
+			err.Error())
 	}
 
-	mu = cassandra.NewMutation()
-	mu.ColumnOrSupercolumn = cos
+	batch = gocql.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query("INSERT INTO membership_dequeue (key, pb_data) VALUES (?, ?)",
+		uuid, encodedProto)
+	batch.Query("DELETE FROM members WHERE key = ?", append([]byte(memberPrefix),
+		[]byte(id)...))
 
-	mmap[dequeuePrefix+id] = make(map[string][]*cassandra.Mutation)
-	mmap[dequeuePrefix+string([]byte(uuid))] =
-		make(map[string][]*cassandra.Mutation)
-	mmap[dequeuePrefix+string([]byte(uuid))]["membership_dequeue"] =
-		[]*cassandra.Mutation{mu}
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return grpc.Errorf(codes.Internal,
+			"Error moving membership record to trash in Cassandra database: %s", err.Error())
+	}
 
-	err = m.conn.AtomicBatchMutate(
-		ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
-	return err
+	return nil
 }
 
 // Move the record of the given applicant to the queue of new users to be
@@ -1012,25 +780,24 @@ func (m *MembershipDB) moveRecordToTable(
 	ctx context.Context,
 	id, initiator, src_table, src_prefix, dst_table, dst_prefix string,
 	ttl int32) error {
-	var uuid cassandra.UUID
-	var bmods map[string]map[string][]*cassandra.Mutation
-	var now time.Time = time.Now()
 	var member *MembershipAgreement
-	var mutation *cassandra.Mutation = cassandra.NewMutation()
-	var value []byte
-	var timestamp int64
+	var qstmt *gocql.Query
+	var batch *gocql.Batch
+	var encodedProto []byte
+
 	var err error
 
-	uuid, err = cassandra.ParseUUID(id)
-	if err != nil {
-		return err
-	}
+	qstmt = m.sess.Query(
+		"SELECT pb_data FROM "+src_table+" WHERE key = ?", append([]byte(src_prefix),
+			[]byte(id)...)).WithContext(ctx).Consistency(gocql.Quorum)
+	defer qstmt.Release()
 
-	// First, retrieve the desired membership data.
-	member, timestamp, err = m.GetMembershipRequest(
-		ctx, id, src_table, src_prefix)
+	err = qstmt.Scan(&encodedProto)
+
+	member = new(MembershipAgreement)
+	err = proto.Unmarshal(encodedProto, member)
 	if err != nil {
-		return err
+		return grpc.Errorf(codes.DataLoss, "Error parsing member data: %s", err.Error())
 	}
 
 	if dst_table == "membership_queue" && len(member.AgreementPdf) == 0 {
@@ -1039,34 +806,28 @@ func (m *MembershipDB) moveRecordToTable(
 
 	// Fill in details concerning the approval.
 	member.Metadata.ApproverUid = proto.String(initiator)
-	member.Metadata.ApprovalTimestamp = proto.Uint64(uint64(now.Unix()))
+	member.Metadata.ApprovalTimestamp = proto.Uint64(uint64(time.Now().Unix()))
 
-	bmods = make(map[string]map[string][]*cassandra.Mutation)
-	bmods[dst_prefix+string(uuid)] = make(map[string][]*cassandra.Mutation)
-	bmods[dst_prefix+string(uuid)][dst_table] = make([]*cassandra.Mutation, 0)
-	bmods[src_prefix+string(uuid)] = make(map[string][]*cassandra.Mutation)
-	bmods[src_prefix+string(uuid)][src_table] = make([]*cassandra.Mutation, 0)
-
-	value, err = proto.Marshal(member)
+	encodedProto, err = proto.Marshal(member)
 	if err != nil {
-		return err
+		return grpc.Errorf(codes.Internal, "Error encoding member data for deletion: %s",
+			err.Error())
 	}
 
-	// Add the application protobuf to the membership data.
-	bmods[dst_prefix+string(uuid)][dst_table] = append(
-		bmods[dst_prefix+string(uuid)][dst_table],
-		newCassandraMutationBytes("pb_data", value, &now, ttl))
+	batch = gocql.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query("INSERT INTO "+dst_table+" (key, pb_data) VALUES (?, ?)",
+		append([]byte(dst_prefix), []byte(id)...), encodedProto)
+	batch.Query("DELETE FROM "+src_table+" WHERE key = ?", append([]byte(src_prefix),
+		[]byte(id)...))
 
-	// Delete the application data.
-	mutation.Deletion = cassandra.NewDeletion()
-	mutation.Deletion.Predicate = cassandra.NewSlicePredicate()
-	mutation.Deletion.Predicate.ColumnNames = allColumns
-	mutation.Deletion.Timestamp = &timestamp
-	bmods[src_prefix+string(uuid)][src_table] = append(
-		bmods[src_prefix+string(uuid)][src_table], mutation)
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return grpc.Errorf(codes.Internal,
+			"Error moving membership record to trash in Cassandra database: %s", err.Error())
+	}
 
-	return m.conn.AtomicBatchMutate(
-		ctx, bmods, cassandra.ConsistencyLevel_QUORUM)
+	return nil
 }
 
 // Add the membership agreement form scan to the given membership request
@@ -1074,18 +835,17 @@ func (m *MembershipDB) moveRecordToTable(
 func (m *MembershipDB) StoreMembershipAgreement(
 	ctx context.Context, id string, agreement_data []byte) error {
 	var agreement *MembershipAgreement
-	var bmods map[string]map[string][]*cassandra.Mutation
-	var now = time.Now()
-	var uuid cassandra.UUID
+	var batch *gocql.Batch
+	var uuid gocql.UUID
 	var buuid []byte
 	var value []byte
 	var err error
 
-	uuid, err = cassandra.ParseUUID(id)
+	uuid, err = gocql.ParseUUID(id)
 	if err != nil {
 		return err
 	}
-	buuid = append([]byte(applicationPrefix), []byte(uuid)...)
+	buuid = append([]byte(applicationPrefix), uuid.Bytes()...)
 
 	agreement, _, err = m.GetMembershipRequest(ctx, id, "application",
 		applicationPrefix)
@@ -1094,21 +854,22 @@ func (m *MembershipDB) StoreMembershipAgreement(
 	}
 
 	agreement.AgreementPdf = agreement_data
-
-	bmods = make(map[string]map[string][]*cassandra.Mutation)
-	bmods[string(buuid)] = make(map[string][]*cassandra.Mutation)
-	bmods[string(buuid)]["application"] = make([]*cassandra.Mutation, 0)
-
 	value, err = proto.Marshal(agreement)
 	if err != nil {
-		return err
+		return grpc.Errorf(codes.Internal, "Error encoding updated membership agreement: %s",
+			err.Error())
 	}
 
-	addMembershipRequestInfoBytes(bmods[string(buuid)],
-		"pb_data", value, &now)
-	addMembershipRequestInfoBytes(bmods[string(buuid)],
-		"application_pdf", agreement_data, &now)
+	batch = gocql.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query("UPDATE application SET pb_data = ?, application_pdf = ? WHERE key = ?",
+		value, agreement_data, buuid)
 
-	return m.conn.AtomicBatchMutate(
-		ctx, bmods, cassandra.ConsistencyLevel_QUORUM)
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return grpc.Errorf(codes.Internal,
+			"Error moving membership record to trash in Cassandra database: %s", err.Error())
+	}
+
+	return nil
 }

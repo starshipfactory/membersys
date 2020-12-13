@@ -1,9 +1,11 @@
+syntax = "proto2";
+
 package config;
 
 // Database configuration.
 message DatabaseConfig {
     // Host name of the Cassandra database server to use.
-    optional string database_server = 1 [default="localhost:9160"];
+    repeated string database_server = 1;
 
     // Name of the Cassandra database to use.
     optional string database_name = 2 [default="sfmembersys"];
