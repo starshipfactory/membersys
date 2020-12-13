@@ -56,3 +56,9 @@ create column family members
     {column_name: approval_ts, validation_class: LongType, index_type: KEYS},
     {column_name: agreement_pdf, validation_class: BytesType},
     {column_name: pb_data, validation_class: BytesType}];
+
+create column family member_agreements
+  with comparator = 'AsciiType'
+  and key_validation_class = 'AsciiType'
+  and column_metadata = [
+    {column_name: pb_data, validation_class: BytesType}];
