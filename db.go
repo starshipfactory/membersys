@@ -37,6 +37,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -532,6 +533,7 @@ func (m *MembershipDB) EnumerateMembershipRequests(
 	var stmt *gocql.Query
 	var iter *gocql.Iter
 	var rv []*MembershipAgreementWithKey
+	var lowerCriterion string = strings.ToLower(criterion)
 	var startKey []byte
 	var err error
 
@@ -581,7 +583,10 @@ func (m *MembershipDB) EnumerateMembershipRequests(
 		}
 		proto.Merge(&member.MembershipAgreement, agreement)
 
-		rv = append(rv, member)
+		if criterion == "" || strings.HasPrefix(
+			strings.ToLower(member.MemberData.GetName()), lowerCriterion) {
+			rv = append(rv, member)
+		}
 	}
 
 	err = iter.Close()
