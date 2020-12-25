@@ -35,8 +35,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"database/cassandra"
-	"encoding/binary"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -50,41 +48,6 @@ import (
 	"github.com/starshipfactory/membersys/config"
 	"gopkg.in/ldap.v2"
 )
-
-func makeMutation(mmap map[string][]*cassandra.Mutation, cf, name string,
-	value []byte, now time.Time) {
-	var m *cassandra.Mutation = cassandra.NewMutation()
-	var col *cassandra.Column = cassandra.NewColumn()
-
-	col.Name = []byte(name)
-	col.Value = value
-	col.Timestamp = proto.Int64(now.UnixNano())
-
-	m.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
-	m.ColumnOrSupercolumn.Column = col
-	mmap[cf] = append(mmap[cf], m)
-}
-
-func makeMutationString(mmap map[string][]*cassandra.Mutation,
-	cf, name, value string, now time.Time) {
-	makeMutation(mmap, cf, name, []byte(value), now)
-}
-
-func makeMutationLong(mmap map[string][]*cassandra.Mutation,
-	cf, name string, value uint64, now time.Time) {
-	var val []byte = make([]byte, 8)
-	binary.BigEndian.PutUint64(val, value)
-	makeMutation(mmap, cf, name, val, now)
-}
-
-func makeMutationBool(mmap map[string][]*cassandra.Mutation,
-	cf, name string, value bool, now time.Time) {
-	var b byte
-	if value {
-		b = 0x1
-	}
-	makeMutation(mmap, cf, name, []byte{b}, now)
-}
 
 func asciiFilter(in string) string {
 	var rv []rune
@@ -100,12 +63,10 @@ func asciiFilter(in string) string {
 }
 
 func main() {
-	var cf string = "members"
 	var config_file string
 	var config_contents []byte
 	var config config.MemberCreatorConfig
 	var greatestUid uint64 = 1000
-	var now time.Time
 	var noop, verbose bool
 	var welcome *membersys.WelcomeMail
 
@@ -115,14 +76,11 @@ func main() {
 	var entry *ldap.Entry
 	var tlsconfig tls.Config
 
-	var mmap map[string]map[string][]*cassandra.Mutation
-	var db *cassandra.RetryCassandraClient
-	var cp *cassandra.ColumnParent
-	var pred *cassandra.SlicePredicate
-	var kr *cassandra.KeyRange
-	var kss []*cassandra.KeySlice
-	var ks *cassandra.KeySlice
+	var db *membersys.MembershipDB
 	var batchOpTimeout time.Duration
+
+	var requests []*membersys.MemberWithKey
+	var request *membersys.MemberWithKey
 
 	var ctx context.Context
 	var cancel context.CancelFunc
@@ -184,8 +142,6 @@ func main() {
 		tlsconfig.RootCAs.AppendCertsFromPEM(certData)
 	}
 
-	now = time.Now()
-
 	if !noop {
 		ld, err = ldap.DialTLS("tcp", config.LdapConfig.GetServer(),
 			&tlsconfig)
@@ -232,357 +188,213 @@ func main() {
 	}
 
 	// Connect to Cassandra so we can get a list of records to be processed.
-	db, err = cassandra.NewRetryCassandraClient(
-		config.DatabaseConfig.GetDatabaseServer())
+	db, err = membersys.NewMembershipDB(
+		config.DatabaseConfig.GetDatabaseServer(),
+		config.DatabaseConfig.GetDatabaseName(),
+		time.Duration(config.DatabaseConfig.GetDatabaseTimeout())*time.Millisecond)
 	if err != nil {
 		log.Fatal("Error connecting to Cassandra database at ",
 			config.DatabaseConfig.GetDatabaseServer(), ": ", err)
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
-	err = db.SetKeyspace(ctx, config.DatabaseConfig.GetDatabaseName())
-	cancel()
-	if err != nil {
-		log.Fatal("Error setting keyspace: ", err)
-	}
-
-	cp = cassandra.NewColumnParent()
-	cp.ColumnFamily = "membership_queue"
-	pred = cassandra.NewSlicePredicate()
-	pred.ColumnNames = [][]byte{[]byte("pb_data")}
-	kr = cassandra.NewKeyRange()
-	kr.StartKey = []byte("queue:")
-	kr.EndKey = []byte("queue;")
-
 	ctx, cancel = context.WithTimeout(context.Background(), batchOpTimeout)
-	kss, err = db.GetRangeSlices(ctx, cp, pred, kr,
-		cassandra.ConsistencyLevel_QUORUM)
+	requests, err = db.EnumerateQueuedMembers(ctx, "", 0)
 	cancel()
 	if err != nil {
-		log.Fatal("Error getting range slice: ", err)
+		log.Fatal("Error listing membership requests: ", err)
 	}
 
-	for _, ks = range kss {
-		mmap = make(map[string]map[string][]*cassandra.Mutation)
-		var csc *cassandra.ColumnOrSuperColumn
-		for _, csc = range ks.Columns {
-			var col *cassandra.Column = csc.Column
-			var agreement membersys.MembershipAgreement
-			var m *cassandra.Mutation
+	for _, request = range requests {
+		if request.Username != nil {
+			var attrs *ldap.AddRequest
 
-			if col == nil {
-				continue
-			}
+			greatestUid++
 
-			if string(col.Name) != "pb_data" {
-				log.Print("Column selected was not as requested: ",
-					col.Name)
-				continue
-			}
+			attrs = ldap.NewAddRequest("uid=" +
+				asciiFilter(request.GetUsername()) + "," +
+				config.LdapConfig.GetNewUserSuffix() + "," +
+				config.LdapConfig.GetBase())
 
-			err = proto.Unmarshal(col.Value, &agreement)
-			if err != nil {
-				log.Print("Unable to parse column ", col.Name, " of ",
-					ks.Key, ": ", err)
-				continue
-			}
+			attrs.Attribute("uidNumber", []string{
+				strconv.FormatUint(greatestUid, 10)})
+			attrs.Attribute("gecos", []string{
+				asciiFilter(request.GetName())})
+			attrs.Attribute("shadowLastChange", []string{"11457"})
+			attrs.Attribute("shadowMax", []string{"9999"})
+			attrs.Attribute("shadowWarning", []string{"7"})
+			attrs.Attribute("gidNumber", []string{strconv.FormatUint(
+				uint64(config.LdapConfig.GetNewUserGid()), 10)})
+			attrs.Attribute("objectClass", []string{
+				"account", "posixAccount", "shadowAccount", "top",
+			})
+			attrs.Attribute("uid", []string{
+				asciiFilter(request.GetUsername())})
+			attrs.Attribute("cn", []string{
+				asciiFilter(request.GetUsername())})
+			attrs.Attribute("homeDirectory", []string{"/home/" +
+				asciiFilter(request.GetUsername())})
+			attrs.Attribute("loginShell", []string{
+				config.LdapConfig.GetNewUserShell()})
+			attrs.Attribute("userPassword", []string{
+				request.GetPwhash(),
+			})
 
-			if agreement.MemberData.Username != nil {
-				var attrs *ldap.AddRequest
-
-				greatestUid++
-
-				attrs = ldap.NewAddRequest("uid=" +
-					asciiFilter(agreement.MemberData.GetUsername()) + "," +
-					config.LdapConfig.GetNewUserSuffix() + "," +
+			request.Id = proto.Uint64(greatestUid)
+			if verbose {
+				log.Print("Creating user: uid=" +
+					request.GetUsername() +
+					"," + config.LdapConfig.GetNewUserSuffix() + "," +
 					config.LdapConfig.GetBase())
-
-				attrs.Attribute("uidNumber", []string{
-					strconv.FormatUint(greatestUid, 10)})
-				attrs.Attribute("gecos", []string{
-					asciiFilter(agreement.MemberData.GetName())})
-				attrs.Attribute("shadowLastChange", []string{"11457"})
-				attrs.Attribute("shadowMax", []string{"9999"})
-				attrs.Attribute("shadowWarning", []string{"7"})
-				attrs.Attribute("gidNumber", []string{strconv.FormatUint(
-					uint64(config.LdapConfig.GetNewUserGid()), 10)})
-				attrs.Attribute("objectClass", []string{
-					"account", "posixAccount", "shadowAccount", "top",
-				})
-				attrs.Attribute("uid", []string{
-					asciiFilter(agreement.MemberData.GetUsername())})
-				attrs.Attribute("cn", []string{
-					asciiFilter(agreement.MemberData.GetUsername())})
-				attrs.Attribute("homeDirectory", []string{"/home/" +
-					asciiFilter(agreement.MemberData.GetUsername())})
-				attrs.Attribute("loginShell", []string{
-					config.LdapConfig.GetNewUserShell()})
-				attrs.Attribute("userPassword", []string{
-					agreement.MemberData.GetPwhash(),
-				})
-
-				agreement.MemberData.Id = proto.Uint64(greatestUid)
-				if verbose {
-					log.Print("Creating user: uid=" +
-						agreement.MemberData.GetUsername() +
-						"," + config.LdapConfig.GetNewUserSuffix() + "," +
-						config.LdapConfig.GetBase())
-				}
-
-				if !noop {
-					var group string
-
-					err = ld.Add(attrs)
-					if err != nil {
-						log.Print("Unable to create LDAP Account ",
-							agreement.MemberData.GetUsername(), ": ", err)
-						continue
-					}
-
-					for _, group = range config.LdapConfig.GetNewUserGroup() {
-						var grpadd = ldap.NewModifyRequest("cn=" + group +
-							",ou=Groups," + config.LdapConfig.GetBase())
-
-						grpadd.Add("memberUid", []string{
-							agreement.MemberData.GetUsername()})
-
-						err = ld.Modify(grpadd)
-						if err != nil {
-							log.Print("Unable to add user ",
-								agreement.MemberData.GetUsername(),
-								" to group ", group, ": ",
-								err)
-						}
-					}
-				}
 			}
 
-			col.Value, err = proto.Marshal(&agreement)
-			if err != nil {
-				log.Print("Error marshalling agreement: ", err)
-				continue
-			}
+			if !noop {
+				var group string
 
-			mmap["member:"+string(agreement.MemberData.GetEmail())] =
-				make(map[string][]*cassandra.Mutation)
-			mmap["member:"+string(agreement.MemberData.GetEmail())][cf] =
-				make([]*cassandra.Mutation, 0)
-
-			makeMutation(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "pb_data", col.Value, now)
-			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "name", agreement.MemberData.GetName(), now)
-			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "street", agreement.MemberData.GetStreet(), now)
-			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "city", agreement.MemberData.GetCity(), now)
-			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "country", agreement.MemberData.GetCountry(), now)
-			makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "email", agreement.MemberData.GetEmail(), now)
-			if agreement.MemberData.Phone != nil {
-				makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
-					cf, "phone", agreement.MemberData.GetPhone(), now)
-			}
-			if agreement.MemberData.Username != nil {
-				makeMutationString(mmap["member:"+string(agreement.MemberData.GetEmail())],
-					cf, "username", agreement.MemberData.GetUsername(), now)
-			}
-			makeMutationLong(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "fee", agreement.MemberData.GetFee(), now)
-			makeMutationBool(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "fee_yearly", agreement.MemberData.GetFeeYearly(), now)
-			makeMutationLong(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "approval_ts", agreement.Metadata.GetApprovalTimestamp(),
-				now)
-			makeMutation(mmap["member:"+string(agreement.MemberData.GetEmail())],
-				cf, "agreement_pdf", agreement.AgreementPdf, now)
-
-			// Now, delete the original record.
-			m = cassandra.NewMutation()
-			m.Deletion = cassandra.NewDeletion()
-			m.Deletion.Predicate = cassandra.NewSlicePredicate()
-			m.Deletion.Predicate.ColumnNames = [][]byte{[]byte("pb_data")}
-			m.Deletion.Timestamp = col.Timestamp
-
-			mmap[string(ks.Key)] = make(map[string][]*cassandra.Mutation)
-			mmap[string(ks.Key)]["membership_queue"] = []*cassandra.Mutation{m}
-
-			// Write welcome e-mail to new member.
-			if welcome != nil {
-				err = welcome.SendMail(agreement.MemberData)
+				err = ld.Add(attrs)
 				if err != nil {
-					log.Print("Error sending welcome e-mail to ",
-						agreement.MemberData.GetEmail(), ": ", err)
+					log.Print("Unable to create LDAP Account ",
+						request.GetUsername(), ": ", err)
+					continue
+				}
+
+				for _, group = range config.LdapConfig.GetNewUserGroup() {
+					var grpadd = ldap.NewModifyRequest("cn=" + group +
+						",ou=Groups," + config.LdapConfig.GetBase())
+
+					grpadd.Add("memberUid", []string{
+						request.GetUsername()})
+
+					err = ld.Modify(grpadd)
+					if err != nil {
+						log.Print("Unable to add user ",
+							request.GetUsername(),
+							" to group ", group, ": ",
+							err)
+					}
 				}
 			}
 		}
 
-		// Apply all database mutations.
 		ctx, cancel = context.WithTimeout(context.Background(),
 			batchOpTimeout)
-		err = db.BatchMutate(ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
+		err = db.MoveNewMemberToFullMember(ctx, request)
 		cancel()
 		if err != nil {
-			log.Fatal("Error getting range slice: ", err)
+			log.Print("Error moving member to full membership: ", err)
+			continue
+		}
+
+		// Write welcome e-mail to new member.
+		if welcome != nil {
+			err = welcome.SendMail(&request.Member)
+			if err != nil {
+				log.Print("Error sending welcome e-mail to ",
+					request.GetEmail(), ": ", err)
+			}
 		}
 	}
 
 	// Delete parting members.
 	ctx, cancel = context.WithTimeout(context.Background(), batchOpTimeout)
-	cp.ColumnFamily = "membership_dequeue"
-	kr.StartKey = []byte("dequeue:")
-	kr.EndKey = []byte("dequeue;")
-	kss, err = db.GetRangeSlices(ctx, cp, pred, kr,
-		cassandra.ConsistencyLevel_QUORUM)
+	requests, err = db.EnumerateDeQueuedMembers(ctx, "", 0)
 	cancel()
 	if err != nil {
 		log.Fatal("Error getting range slice: ", err)
 	}
 
-	for _, ks = range kss {
-		var csc *cassandra.ColumnOrSuperColumn
-		mmap = make(map[string]map[string][]*cassandra.Mutation)
-		for _, csc = range ks.Columns {
-			var uuid cassandra.UUID
-			var ldapuser string
-			var col *cassandra.Column = csc.Column
-			var agreement membersys.MembershipAgreement
-			var attrs *ldap.ModifyRequest
-			var m *cassandra.Mutation
+	for _, request = range requests {
+		var ldapuser string
+		var attrs *ldap.ModifyRequest
 
-			if col == nil {
-				continue
-			}
+		ldapuser = "uid=" +
+			asciiFilter(request.GetUsername()) + "," +
+			config.LdapConfig.GetNewUserSuffix() + "," +
+			config.LdapConfig.GetBase()
+		if noop {
+			log.Print("Would remove user ", ldapuser)
+		} else {
+			var groups []string
+			var groups_differ bool
+			var entry *ldap.Entry
+			var group string
 
-			if string(col.Name) != "pb_data" {
-				log.Print("Column selected was not as requested: ",
-					col.Name)
-				continue
-			}
+			sreq = ldap.NewSearchRequest(
+				config.LdapConfig.GetBase(), ldap.ScopeWholeSubtree,
+				ldap.NeverDerefAliases, 1000, 90, false,
+				"(&(objectClass=posixGroup)(memberUid="+
+					asciiFilter(request.GetUsername())+"))",
+				[]string{"cn"}, []ldap.Control{})
 
-			err = proto.Unmarshal(col.Value, &agreement)
+			lres, err = ld.Search(sreq)
 			if err != nil {
-				log.Print("Unable to parse column ", ks.Key, ": ", err)
+				log.Print("Error searching groups for user ",
+					request.GetUsername(), ": ", err)
 				continue
 			}
 
-			if agreement.MemberData.Username == nil {
-				continue
-			}
+			for _, entry = range lres.Entries {
+				var cn string
+				var found bool
 
-			ldapuser = "uid=" +
-				asciiFilter(agreement.MemberData.GetUsername()) + "," +
-				config.LdapConfig.GetNewUserSuffix() + "," +
-				config.LdapConfig.GetBase()
-			if noop {
-				log.Print("Would remove user ", ldapuser)
-			} else {
-				var groups []string
-				var groups_differ bool
-				var entry *ldap.Entry
-				var group string
-
-				sreq = ldap.NewSearchRequest(
-					config.LdapConfig.GetBase(), ldap.ScopeWholeSubtree,
-					ldap.NeverDerefAliases, 1000, 90, false,
-					"(&(objectClass=posixGroup)(memberUid="+
-						asciiFilter(agreement.MemberData.GetUsername())+"))",
-					[]string{"cn"}, []ldap.Control{})
-
-				lres, err = ld.Search(sreq)
-				if err != nil {
-					log.Print("Error searching groups for user ",
-						agreement.MemberData.GetUsername(), ": ", err)
+				cn = entry.GetAttributeValue("cn")
+				if cn == "" {
+					log.Print("No group name set for ", request.GetUsername())
 					continue
 				}
+				groups = append(groups, cn)
 
-				for _, entry = range lres.Entries {
-					var cn string
-					var found bool
-
-					cn = entry.GetAttributeValue("cn")
-					if cn == "" {
-						log.Print("No group name set for ",
-							agreement.MemberData.GetUsername())
-						continue
-					}
-					groups = append(groups, cn)
-
-					for _, group = range config.LdapConfig.GetNewUserGroup() {
-						if cn == group {
-							found = true
-						}
-					}
-
-					for _, group = range config.LdapConfig.GetIgnoreUserGroup() {
-						if cn == group {
-							found = true
-						}
-					}
-
-					if !found {
-						groups_differ = true
+				for _, group = range config.LdapConfig.GetNewUserGroup() {
+					if cn == group {
+						found = true
 					}
 				}
 
-				if groups_differ {
-					log.Print("User is in other groups than expected: ",
-						strings.Join(groups, ", "))
-
-					for _, group = range config.LdapConfig.GetNewUserGroup() {
-						attrs = ldap.NewModifyRequest("cn=" + group +
-							",ou=Groups," + config.LdapConfig.GetBase())
-						attrs.Delete("memberUid", []string{
-							asciiFilter(agreement.MemberData.GetUsername())})
-						err = ld.Modify(attrs)
-						if err != nil {
-							log.Print("Error deleting ",
-								agreement.MemberData.GetUsername(), " from ",
-								group, ": ", err)
-						}
+				for _, group = range config.LdapConfig.GetIgnoreUserGroup() {
+					if cn == group {
+						found = true
 					}
-				} else {
-					var dr = ldap.NewDelRequest(ldapuser, []ldap.Control{})
-					// The user appears to be only in the groups given in
-					// the config.
-					err = ld.Del(dr)
+				}
+
+				if !found {
+					groups_differ = true
+				}
+			}
+
+			if groups_differ {
+				log.Print("User is in other groups than expected: ",
+					strings.Join(groups, ", "))
+
+				for _, group = range config.LdapConfig.GetNewUserGroup() {
+					attrs = ldap.NewModifyRequest("cn=" + group +
+						",ou=Groups," + config.LdapConfig.GetBase())
+					attrs.Delete("memberUid", []string{
+						asciiFilter(request.GetUsername())})
+					err = ld.Modify(attrs)
 					if err != nil {
-						log.Print("Unable to delete user ", ldapuser, ": ",
+						log.Print("Error deleting ",
+							request.GetUsername(), " from ", group, ": ",
 							err)
 					}
 				}
+			} else {
+				var dr = ldap.NewDelRequest(ldapuser, []ldap.Control{})
+				// The user appears to be only in the groups given in
+				// the config.
+				err = ld.Del(dr)
+				if err != nil {
+					log.Print("Unable to delete user ", ldapuser, ": ",
+						err)
+				}
 			}
-
-			m = cassandra.NewMutation()
-			m.Deletion = cassandra.NewDeletion()
-			m.Deletion.Predicate = pred
-			m.Deletion.Timestamp = col.Timestamp
-
-			mmap[string(ks.Key)] = make(map[string][]*cassandra.Mutation)
-			mmap[string(ks.Key)]["membership_dequeue"] = []*cassandra.Mutation{m}
-
-			// 2 years retention.
-			col.TTL = proto.Int32(720 * 24 * 3600)
-			col.Timestamp = proto.Int64(now.UnixNano())
-
-			uuid = cassandra.UUIDFromBytes(ks.Key[len("dequeue:"):])
-
-			m = cassandra.NewMutation()
-			m.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
-			m.ColumnOrSupercolumn.Column = col
-			mmap["archive:"+string([]byte(uuid))] = make(map[string][]*cassandra.Mutation)
-			mmap["archive:"+string([]byte(uuid))]["membership_archive"] =
-				[]*cassandra.Mutation{m}
 		}
 
-		// Apply all database mutations.
 		ctx, cancel = context.WithTimeout(context.Background(),
 			batchOpTimeout)
-		err = db.BatchMutate(ctx, mmap, cassandra.ConsistencyLevel_QUORUM)
+		err = db.MoveDeletedMemberToArchive(ctx, request)
 		cancel()
 		if err != nil {
-			log.Fatal("Error getting range slice: ", err)
+			log.Print("Error moving deleted member to archive: ", err)
+			continue
 		}
 	}
 

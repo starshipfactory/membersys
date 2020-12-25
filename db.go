@@ -749,6 +749,70 @@ func (m *MembershipDB) MoveMemberToTrash(
 	return nil
 }
 
+// Move the record of the given queued member from the queue of new users to
+// the list of active users. This method is to be used by the account creation
+// software.
+func (m *MembershipDB) MoveNewMemberToFullMember(
+	ctx context.Context, member *MemberWithKey) error {
+	var encodedProto []byte
+	var batch *gocql.Batch
+	var err error
+
+	encodedProto, err = proto.Marshal(member)
+	if err != nil {
+		return grpc.Errorf(codes.Internal, "Error encoding member data for creation: %s",
+			err.Error())
+	}
+
+	batch = gocql.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query("INSERT INTO members (key, pb_data) VALUES (?, ?)",
+		append([]byte(memberPrefix), []byte(member.GetEmail())...),
+		encodedProto)
+	batch.Query("DELETE FROM membership_queue WHERE key = ?",
+		append([]byte(queuePrefix), []byte(member.Key)...))
+
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return grpc.Errorf(codes.Internal,
+			"Error moving membership record to trash in Cassandra database: %s", err.Error())
+	}
+
+	return nil
+}
+
+// Move the record of the given dequeued member from the queue of deleted
+// users to the list of archived members. This method is to be used by the
+// account deletion software.
+func (m *MembershipDB) MoveDeletedMemberToArchive(
+	ctx context.Context, member *MemberWithKey) error {
+	var encodedProto []byte
+	var batch *gocql.Batch
+	var err error
+
+	encodedProto, err = proto.Marshal(member)
+	if err != nil {
+		return grpc.Errorf(codes.Internal, "Error encoding member data for creation: %s",
+			err.Error())
+	}
+
+	batch = gocql.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.Quorum)
+	batch.Query("INSERT INTO membership_archive (key, pb_data) VALUES (?, ?)",
+		append([]byte(archivePrefix),
+			[]byte(member.Key[len(dequeuePrefix)+1:])...), encodedProto)
+	batch.Query("DELETE FROM membership_dequeue WHERE key = ?",
+		append([]byte(dequeuePrefix), []byte(member.Key)...))
+
+	err = m.sess.ExecuteBatch(batch)
+	if err != nil {
+		return grpc.Errorf(codes.Internal,
+			"Error moving membership record to trash in Cassandra database: %s", err.Error())
+	}
+
+	return nil
+}
+
 // Move the record of the given applicant to the queue of new users to be
 // processed. The approver will be set to "initiator".
 func (m *MembershipDB) MoveApplicantToNewMember(
