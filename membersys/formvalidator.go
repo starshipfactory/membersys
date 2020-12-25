@@ -91,7 +91,7 @@ var phoneRe *regexp.Regexp
 // need to hold some state.
 type FormInputHandler struct {
 	applicationTmpl *template.Template
-	database        *membersys.MembershipDB
+	database        membersys.MembershipDB
 	passthrough     http.Handler
 	printTmpl       *template.Template
 	useProxyRealIP  bool

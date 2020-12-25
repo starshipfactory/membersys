@@ -11,7 +11,7 @@ import (
 // EndUserService provides an RPC interface for end user centric requests to
 // the user database.
 type EndUserService struct {
-	database *membersys.MembershipDB
+	database membersys.MembershipDB
 }
 
 // GetMemberDetailByUsername fetches the membership agreement for the

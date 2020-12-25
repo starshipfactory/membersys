@@ -42,12 +42,13 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"github.com/starshipfactory/membersys/config"
+	mdb "github.com/starshipfactory/membersys/db"
 )
 
 func main() {
 	var ctx context.Context
 	var cancel context.CancelFunc
-	var db *membersys.MembershipDB
+	var db membersys.MembershipDB
 	var agreement *membersys.MembershipAgreement
 	var config config.MemberCreatorConfig
 	var wm *membersys.WelcomeMail
@@ -84,7 +85,7 @@ func main() {
 		log.Fatal("Error parsing ", config_path, ": ", err)
 	}
 
-	db, err = membersys.NewMembershipDB(
+	db, err = mdb.NewCassandraDB(
 		config.DatabaseConfig.GetDatabaseServer(),
 		config.DatabaseConfig.GetDatabaseName(),
 		time.Duration(config.DatabaseConfig.GetDatabaseTimeout())*time.Millisecond)

@@ -44,7 +44,7 @@ import (
 type MemberTrashListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 	pagesize   int32
 }
 

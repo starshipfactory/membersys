@@ -44,7 +44,7 @@ import (
 // Handler object for displaying user takeout data.
 type TakeoutOverviewHandler struct {
 	auth                 *ancientauth.Authenticator
-	database             *membersys.MembershipDB
+	database             membersys.MembershipDB
 	uniqueMemberTemplate *template.Template
 }
 
@@ -79,7 +79,7 @@ func (m *TakeoutOverviewHandler) ServeHTTP(
 // Handler object for downloading the membership agreement PDF.
 type TakeoutPDFDownloadHandler struct {
 	auth     *ancientauth.Authenticator
-	database *membersys.MembershipDB
+	database membersys.MembershipDB
 }
 
 // Serve the membership agreement PDF of the requestor.
@@ -119,7 +119,7 @@ func (m *TakeoutPDFDownloadHandler) ServeHTTP(
 // Handler object for downloading the user data as VCF.
 type TakeoutVCFDownloadHandler struct {
 	auth        *ancientauth.Authenticator
-	database    *membersys.MembershipDB
+	database    membersys.MembershipDB
 	vcfTemplate *textTemplate.Template
 }
 

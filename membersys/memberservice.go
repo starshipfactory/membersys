@@ -45,6 +45,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"github.com/starshipfactory/membersys/config"
+	mdb "github.com/starshipfactory/membersys/db"
 )
 
 func main() {
@@ -57,7 +58,7 @@ func main() {
 	var authenticator *ancientauth.Authenticator
 	var debug_authenticator bool
 	var config config.MembersysConfig
-	var db *membersys.MembershipDB
+	var db membersys.MembershipDB
 	var err error
 
 	flag.BoolVar(&help, "help", false, "Display help")
@@ -138,7 +139,7 @@ func main() {
 		authenticator.Debug()
 	}
 
-	db, err = membersys.NewMembershipDB(
+	db, err = mdb.NewCassandraDB(
 		config.DatabaseConfig.GetDatabaseServer(),
 		config.DatabaseConfig.GetDatabaseName(),
 		time.Duration(config.DatabaseConfig.GetDatabaseTimeout())*time.Millisecond)

@@ -63,7 +63,7 @@ func init() {
 type TotalListHandler struct {
 	admingroup           string
 	auth                 *ancientauth.Authenticator
-	database             *membersys.MembershipDB
+	database             membersys.MembershipDB
 	pagesize             int32
 	template             *template.Template
 	uniqueMemberTemplate *template.Template
@@ -191,7 +191,7 @@ func (m *TotalListHandler) ServeHTTP(
 type MemberListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 	pagesize   int32
 }
 
@@ -238,7 +238,7 @@ func (m *MemberListHandler) ServeHTTP(
 type MemberGoodbyeHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberGoodbyeHandler) ServeHTTP(
@@ -289,7 +289,7 @@ func (m *MemberGoodbyeHandler) ServeHTTP(
 type MemberDetailHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberDetailHandler) ServeHTTP(
@@ -346,7 +346,7 @@ func (m *MemberDetailHandler) ServeHTTP(
 type MemberLongFieldHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberLongFieldHandler) ServeHTTP(
@@ -392,7 +392,7 @@ func (m *MemberLongFieldHandler) ServeHTTP(
 type MemberBoolFieldHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberBoolFieldHandler) ServeHTTP(
@@ -441,7 +441,7 @@ func (m *MemberBoolFieldHandler) ServeHTTP(
 type MemberTextFieldHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberTextFieldHandler) ServeHTTP(
@@ -479,7 +479,7 @@ func (m *MemberTextFieldHandler) ServeHTTP(
 type MemberFeeHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberFeeHandler) ServeHTTP(

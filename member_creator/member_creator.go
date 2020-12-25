@@ -46,6 +46,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"github.com/starshipfactory/membersys/config"
+	mdb "github.com/starshipfactory/membersys/db"
 	"gopkg.in/ldap.v2"
 )
 
@@ -76,7 +77,7 @@ func main() {
 	var entry *ldap.Entry
 	var tlsconfig tls.Config
 
-	var db *membersys.MembershipDB
+	var db membersys.MembershipDB
 	var batchOpTimeout time.Duration
 
 	var requests []*membersys.MemberWithKey
@@ -188,7 +189,7 @@ func main() {
 	}
 
 	// Connect to Cassandra so we can get a list of records to be processed.
-	db, err = membersys.NewMembershipDB(
+	db, err = mdb.NewCassandraDB(
 		config.DatabaseConfig.GetDatabaseServer(),
 		config.DatabaseConfig.GetDatabaseName(),
 		time.Duration(config.DatabaseConfig.GetDatabaseTimeout())*time.Millisecond)

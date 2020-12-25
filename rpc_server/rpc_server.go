@@ -11,6 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
 	"github.com/starshipfactory/membersys/config"
+	mdb "github.com/starshipfactory/membersys/db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
@@ -30,7 +31,7 @@ func main() {
 	var keyFile string
 	var caFile string
 
-	var db *membersys.MembershipDB
+	var db membersys.MembershipDB
 	var end_user_service *EndUserService
 	var err error
 
@@ -65,7 +66,7 @@ func main() {
 	}
 
 	// Connect to Cassandra.
-	db, err = membersys.NewMembershipDB(
+	db, err = mdb.NewCassandraDB(
 		config_data.DatabaseConfig.GetDatabaseServer(),
 		config_data.DatabaseConfig.GetDatabaseName(),
 		30*time.Second)

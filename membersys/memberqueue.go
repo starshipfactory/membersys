@@ -51,7 +51,7 @@ type queueListType struct {
 type MemberQueueListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 	pagesize   int32
 }
 
@@ -59,7 +59,7 @@ type MemberQueueListHandler struct {
 type MemberDeQueueListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 	pagesize   int32
 }
 
@@ -155,7 +155,7 @@ func (m *MemberDeQueueListHandler) ServeHTTP(
 type MemberQueueCancelHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberQueueCancelHandler) ServeHTTP(

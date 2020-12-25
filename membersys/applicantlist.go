@@ -57,7 +57,7 @@ type applicantListType struct {
 type ApplicantListHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 	pagesize   int32
 }
 
@@ -179,7 +179,7 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 type MemberAcceptHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberAcceptHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -229,7 +229,7 @@ func (m *MemberAcceptHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 type MemberRejectHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberRejectHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -277,7 +277,7 @@ func (m *MemberRejectHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 type MemberAgreementUploadHandler struct {
 	admingroup string
 	auth       *ancientauth.Authenticator
-	database   *membersys.MembershipDB
+	database   membersys.MembershipDB
 }
 
 func (m *MemberAgreementUploadHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
