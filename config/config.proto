@@ -4,15 +4,41 @@ package config;
 
 // Database configuration.
 message DatabaseConfig {
-    // Host name of the Cassandra database server to use.
-    repeated string database_server = 1;
+    // Database configuration for Cassandra databases.
+    message CassandraDBConfig {
+        // Host name of the Cassandra database server to use.
+        repeated string database_server = 1;
 
-    // Name of the Cassandra database to use.
-    optional string database_name = 2 [default="sfmembersys"];
+        // Name of the Cassandra database to use.
+        optional string database_name = 2 [default="sfmembersys"];
 
-    // Time (in milliseconds) to wait for a Cassandra connection,
-    // 0 means unlimited.
-    optional uint64 database_timeout = 3 [default=0];
+        // Time (in milliseconds) to wait for a Cassandra connection,
+        // 0 means unlimited.
+        optional uint64 database_timeout = 3 [default=0];
+    }
+
+    // Database configuration for PostgreSQL databases.
+    message PostgreSQLConfig {
+        // Host name of the PostgreSQL server to use.
+        optional string database_server = 1;
+
+        // Name of the PostgreSQL database to use.
+        optional string database_name = 2 [default="sfmembersys"];
+
+        // PostgreSQL user name.
+        optional string user = 3;
+
+        // PostgreSQL user password.
+        optional string password = 4;
+
+        // SSL connection.
+        optional bool ssl = 5 [default=false];
+    }
+
+    oneof db_config_oneof {
+        CassandraDBConfig cassandra = 1;
+        PostgreSQLConfig postgresql = 2;
+    }
 }
 
 // Configuration for the authentication system.

@@ -113,8 +113,8 @@ func (a *ApplicantListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 					req.FormValue("start") + ": " + err.Error()))
 				return
 			}
-			memberreq, _, err = a.database.GetMembershipRequest(
-				req.Context(), uuid.String(), "application", "applicant:")
+			memberreq, err = a.database.GetMembershipRequest(
+				req.Context(), uuid.String())
 			if err != nil {
 				rw.WriteHeader(http.StatusInternalServerError)
 				rw.Write([]byte("Unable to retrieve the membership request " +

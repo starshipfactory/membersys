@@ -32,7 +32,7 @@ type MembershipDB interface {
 	SetLongValue(context.Context, string, string, uint64) error
 	SetBoolValue(context.Context, string, string, bool) error
 	SetTextValue(context.Context, string, string, string) error
-	GetMembershipRequest(context.Context, string, string, string) (*MembershipAgreement, int64, error)
+	GetMembershipRequest(context.Context, string) (*MembershipAgreement, error)
 	EnumerateMembers(context.Context, string, int32) ([]*Member, error)
 	EnumerateMembershipRequests(context.Context, string, string, int32) ([]*MembershipAgreementWithKey, error)
 	EnumerateQueuedMembers(context.Context, string, int32) ([]*MemberWithKey, error)

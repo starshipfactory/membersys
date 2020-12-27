@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/membersys"
@@ -65,14 +64,10 @@ func main() {
 		log.Fatal("Unable to parse ", config_file, ": ", err)
 	}
 
-	// Connect to Cassandra.
-	db, err = mdb.NewCassandraDB(
-		config_data.DatabaseConfig.GetDatabaseServer(),
-		config_data.DatabaseConfig.GetDatabaseName(),
-		30*time.Second)
+	// Connect to database.
+	db, err = mdb.New(config_data.DatabaseConfig)
 	if err != nil {
-		log.Fatal("Error connecting to Cassandra database at ",
-			config_data.DatabaseConfig.GetDatabaseServer(), ": ", err)
+		log.Fatal("Error connecting to database: ", err)
 	}
 
 	end_user_service = &EndUserService{database: db}

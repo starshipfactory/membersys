@@ -188,14 +188,10 @@ func main() {
 		}
 	}
 
-	// Connect to Cassandra so we can get a list of records to be processed.
-	db, err = mdb.NewCassandraDB(
-		config.DatabaseConfig.GetDatabaseServer(),
-		config.DatabaseConfig.GetDatabaseName(),
-		time.Duration(config.DatabaseConfig.GetDatabaseTimeout())*time.Millisecond)
+	// Connect to the database so we can get a list of records to be processed.
+	db, err = mdb.New(config.DatabaseConfig)
 	if err != nil {
-		log.Fatal("Error connecting to Cassandra database at ",
-			config.DatabaseConfig.GetDatabaseServer(), ": ", err)
+		log.Fatal("Error connecting to database: ", err)
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), batchOpTimeout)

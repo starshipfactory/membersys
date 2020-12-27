@@ -464,52 +464,49 @@ func (m *CassandraDB) SetTextValue(
 }
 
 // Retrieve an individual applicants data.
-func (m *CassandraDB) GetMembershipRequest(
-	ctx context.Context, id, table, prefix string) (
-	*membersys.MembershipAgreement, int64, error) {
+func (m *CassandraDB) GetMembershipRequest(ctx context.Context, id string) (
+	*membersys.MembershipAgreement, error) {
 	var uuid gocql.UUID
 	var member *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
 	var encodedProto []byte
 	var stmt *gocql.Query
-	var timestamp int64
 	var err error
 
 	if uuid, err = gocql.ParseUUID(id); err != nil {
-		return nil, 0, grpc.Errorf(codes.Internal,
+		return nil, grpc.Errorf(codes.Internal,
 			"Cannot parse %s as an UUID: %s", id, err.Error())
 	}
 
 	// Retrieve the protobuf with all data from Cassandra.
 	stmt = m.sess.Query(
-		"SELECT pb_data, WRITETIME(pb_data) FROM "+table+" WHERE key = ?",
-		append([]byte(prefix), uuid.Bytes()...)).WithContext(ctx).
+		"SELECT pb_data FROM application WHERE key = ?",
+		append([]byte(applicationPrefix), uuid.Bytes()...)).WithContext(ctx).
 		Consistency(gocql.One)
 	defer stmt.Release()
 
-	err = stmt.Scan(&encodedProto, &timestamp)
+	err = stmt.Scan(&encodedProto)
 	if err == gocql.ErrNotFound {
-		return nil, 0, grpc.Errorf(codes.NotFound, "No member found for %s: %s",
+		return nil, grpc.Errorf(codes.NotFound, "No member found for %s: %s",
 			id, err.Error())
 	}
 	if err != nil {
-		return nil, 0, grpc.Errorf(codes.Internal, "Error running query: %s",
+		return nil, grpc.Errorf(codes.Internal, "Error running query: %s",
 			err.Error())
 	}
 
 	// Decode the protobuf which was written to the column.
 	err = proto.Unmarshal(encodedProto, member)
 	if err != nil {
-		return nil, 0, grpc.Errorf(codes.Internal,
+		return nil, grpc.Errorf(codes.Internal,
 			"Unable to parse membership data: %s", err.Error())
 	}
 
-	return member, timestamp, err
+	return member, err
 }
 
 // Get a list of all members currently in the database. Returns a set of
 // "num" entries beginning after "prev".
-// Returns a filled-out member structure and the timestamp when the
-// membership was approved.
+// Returns a filled-out member structure.
 func (m *CassandraDB) EnumerateMembers(
 	ctx context.Context, prev string, num int32) ([]*membersys.Member,
 	error) {
@@ -974,8 +971,7 @@ func (m *CassandraDB) StoreMembershipAgreement(
 	}
 	buuid = append([]byte(applicationPrefix), uuid.Bytes()...)
 
-	agreement, _, err = m.GetMembershipRequest(ctx, id, "application",
-		applicationPrefix)
+	agreement, err = m.GetMembershipRequest(ctx, id)
 	if err != nil {
 		return err
 	}

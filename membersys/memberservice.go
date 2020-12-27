@@ -39,7 +39,6 @@ import (
 	"net/http"
 	"os"
 	textTemplate "text/template"
-	"time"
 
 	"ancient-solutions.com/ancientauth"
 	"github.com/golang/protobuf/proto"
@@ -139,14 +138,9 @@ func main() {
 		authenticator.Debug()
 	}
 
-	db, err = mdb.NewCassandraDB(
-		config.DatabaseConfig.GetDatabaseServer(),
-		config.DatabaseConfig.GetDatabaseName(),
-		time.Duration(config.DatabaseConfig.GetDatabaseTimeout())*time.Millisecond)
+	db, err = mdb.New(config.DatabaseConfig)
 	if err != nil {
-		log.Fatal("Unable to connect to the cassandra DB ",
-			config.DatabaseConfig.GetDatabaseServer(), " at ",
-			config.DatabaseConfig.GetDatabaseName(), ": ", err)
+		log.Fatal("Unable to connect to the database server: ", err)
 	}
 
 	// Register the URL handlers to be invoked.
