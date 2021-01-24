@@ -648,15 +648,11 @@ func (m *CassandraDB) EnumerateMembers(
 	iter = stmt.Iter()
 
 	for {
-		var member *membersys.Member = new(membersys.Member)
-		var done bool
-
-		done = iter.Scan(member.Name, member.Street, member.City,
-			member.Country, member.Email, member.Phone, member.Username,
-			member.Fee, member.FeeYearly, member.HasKey,
-			member.PaymentsCaughtUpTo)
-		if !done {
-			rv = append(rv, member)
+		var row map[string]interface{} = make(map[string]interface{})
+		if iter.MapScan(row) {
+			rv = append(rv, memberFromRow(row))
+		} else {
+			break
 		}
 	}
 
@@ -669,6 +665,9 @@ func (m *CassandraDB) EnumerateMembers(
 	return rv, nil
 }
 
+// Streams a list of all members currently in the database to the channel
+// specified. Returns a set of "num" entries beginning after "prev".
+// Returns a filled-out member structure.
 func (m *CassandraDB) StreamingEnumerateMembers(
 	ctx context.Context, prev string, num int32,
 	members chan<- *membersys.Member, errors chan<- error) {
@@ -676,7 +675,6 @@ func (m *CassandraDB) StreamingEnumerateMembers(
 	var stmt *gocql.Query
 	var iter *gocql.Iter
 	var err error
-	var i int = 0
 
 	defer close(members)
 	defer close(errors)
@@ -705,8 +703,6 @@ func (m *CassandraDB) StreamingEnumerateMembers(
 		} else {
 			break
 		}
-		i++
-		log.Print("Row ", i, "/", iter.NumRows())
 	}
 
 	err = iter.Close()
@@ -851,14 +847,21 @@ func (m *CassandraDB) EnumerateMembershipRequests(
 	for {
 		var member *membersys.MembershipAgreementWithKey = new(membersys.MembershipAgreementWithKey)
 		var agreement *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
+		var row map[string]interface{}
 		var key []byte
 		var encodedProto []byte
 		var uuid gocql.UUID
-		var done bool
 
-		done = iter.Scan(&key, &encodedProto)
-		if done {
+		if !iter.MapScan(row) {
 			break
+		}
+
+		key = castBytes(row, "key")
+		encodedProto = castBytes(row, "pb_data")
+
+		if len(key) < len(applicationPrefix) {
+			// FIXME: We should bump some form of counter here.
+			continue
 		}
 
 		uuid, err = gocql.UUIDFromBytes(key[len(applicationPrefix):])
@@ -946,17 +949,25 @@ func (m *CassandraDB) enumerateQueuedMembersIn(
 	for {
 		var member *membersys.MemberWithKey = new(membersys.MemberWithKey)
 		var agreement *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
+		var row map[string]interface{}
 		var key []byte
 		var encodedProto []byte
 		var uuid gocql.UUID
-		var done bool
 
-		done = iter.Scan(&key, &encodedProto)
-		if done {
+		if !iter.MapScan(row) {
 			break
 		}
 
-		uuid, err = gocql.UUIDFromBytes(key[len(applicationPrefix):])
+		key = castBytes(row, "key")
+		encodedProto = castBytes(row, "pb_data")
+
+		if len(key) < len(prefix) {
+			return nil, grpc.Errorf(codes.Internal,
+				"Row with short key: %v", key)
+			continue
+		}
+
+		uuid, err = gocql.UUIDFromBytes(key[len(prefix):])
 		if err != nil {
 			// FIXME: We should bump some form of counter here.
 			continue
