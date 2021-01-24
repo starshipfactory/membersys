@@ -35,7 +35,9 @@ func main() {
 
 	var memberAgreementStream chan *membersys.MembershipAgreementWithKey = make(chan *membersys.MembershipAgreementWithKey)
 	var memberStream chan *membersys.Member = make(chan *membersys.Member)
+	var memberWithKeyStream chan *membersys.MemberWithKey = make(chan *membersys.MemberWithKey)
 	var member *membersys.Member
+	var memberWithKey *membersys.MemberWithKey
 	var memberAgreement *membersys.MembershipAgreementWithKey
 	var errorStream chan error = make(chan error)
 
@@ -153,5 +155,100 @@ func main() {
 	err = out.Close()
 	if err != nil {
 		log.Fatal("Error closing membership_requests.pb: ", err)
+	}
+
+	// Back up all queued members
+	out, err = os.Create("membership_queue.pb")
+	if err != nil {
+		log.Fatal("Error opening membership_queue.pb for writing: ", err)
+	}
+	writer = serialdata.NewSerialDataWriter(out)
+
+	errorStream = make(chan error)
+	go database.StreamingEnumerateQueuedMembers(
+		ctx, "", 0, memberWithKeyStream, errorStream)
+	go handleErrors(errorStream)
+
+	for memberWithKey = range memberWithKeyStream {
+		if memberWithKey == nil {
+			log.Print("Received nil membership queue record")
+		}
+		if verbose {
+			log.Print("Backing up membership queue record for ",
+				memberWithKey.GetName())
+		}
+		err = writer.WriteMessage(memberWithKey)
+		if err != nil {
+			log.Fatal("Error writing record to membership_queue.pb: ", err)
+		}
+	}
+
+	err = out.Close()
+	if err != nil {
+		log.Fatal("Error closing membership_queue.pb: ", err)
+	}
+
+	// Back up all de-queued members
+	out, err = os.Create("membership_dequeue.pb")
+	if err != nil {
+		log.Fatal("Error opening membership_dequeue.pb for writing: ", err)
+	}
+	writer = serialdata.NewSerialDataWriter(out)
+
+	errorStream = make(chan error)
+	memberWithKeyStream = make(chan *membersys.MemberWithKey)
+	go database.StreamingEnumerateDeQueuedMembers(
+		ctx, "", 0, memberWithKeyStream, errorStream)
+	go handleErrors(errorStream)
+
+	for memberWithKey = range memberWithKeyStream {
+		if memberWithKey == nil {
+			log.Print("Received nil membership de-queue record")
+		}
+		if verbose {
+			log.Print("Backing up membership de-queue record for ",
+				memberWithKey.GetName())
+		}
+		err = writer.WriteMessage(memberWithKey)
+		if err != nil {
+			log.Fatal("Error writing record to membership_dequeue.pb: ", err)
+		}
+	}
+
+	err = out.Close()
+	if err != nil {
+		log.Fatal("Error closing membership_dequeue.pb: ", err)
+	}
+
+	// Back up all arcguved members
+	out, err = os.Create("membership_archive.pb")
+	if err != nil {
+		log.Fatal("Error opening membership_archive.pb for writing: ", err)
+	}
+	writer = serialdata.NewSerialDataWriter(out)
+
+	errorStream = make(chan error)
+	memberWithKeyStream = make(chan *membersys.MemberWithKey)
+	go database.StreamingEnumerateTrashedMembers(
+		ctx, "", 0, memberWithKeyStream, errorStream)
+	go handleErrors(errorStream)
+
+	for memberWithKey = range memberWithKeyStream {
+		if memberWithKey == nil {
+			log.Print("Received nil membership archive record")
+		}
+		if verbose {
+			log.Print("Backing up membership archive record for ",
+				memberWithKey.GetName())
+		}
+		err = writer.WriteMessage(memberWithKey)
+		if err != nil {
+			log.Fatal("Error writing record to membership_archive.pb: ", err)
+		}
+	}
+
+	err = out.Close()
+	if err != nil {
+		log.Fatal("Error closing membership_archive.pb: ", err)
 	}
 }
