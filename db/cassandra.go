@@ -34,6 +34,8 @@ package db
 import (
 	"context"
 	"encoding/hex"
+	"log"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -56,6 +58,117 @@ var queuePrefix string = "queue:"
 var dequeuePrefix string = "dequeue:"
 var archivePrefix string = "archive:"
 var memberPrefix string = "member:"
+
+// castString extracts the data for the string with the given key from the
+// map, and returns nil if there is no such data.
+func castString(input map[string]interface{}, key string) *string {
+	var intf interface{}
+	var rv string
+	var ok bool
+
+	intf, ok = input[key]
+	if !ok {
+		return nil
+	}
+
+	rv, ok = intf.(string)
+	if !ok {
+		log.Print("WARNING: type mismatch for field ", key,
+			". Expected string, found ", reflect.TypeOf(intf).Name())
+		return nil
+	}
+
+	return proto.String(rv)
+}
+
+// castBool extracts the data for the boolean with the given key from the
+// map, and returns nil if there is no such data.
+func castBool(input map[string]interface{}, key string) *bool {
+	var intf interface{}
+	var rv bool
+	var ok bool
+
+	intf, ok = input[key]
+	if !ok {
+		return nil
+	}
+
+	rv, ok = intf.(bool)
+	if !ok {
+		log.Print("WARNING: type mismatch for field ", key,
+			". Expected bool, found ", reflect.TypeOf(intf).Name())
+		return nil
+	}
+
+	return proto.Bool(rv)
+}
+
+// castInt64AsUint64 extracts the data for the int64 with the given key from
+// the map, converting it to uint64, and returns nil if there is no such data.
+func castInt64AsUint64(input map[string]interface{}, key string) *uint64 {
+	var intf interface{}
+	var rv int64
+	var ok bool
+
+	intf, ok = input[key]
+	if !ok {
+		return nil
+	}
+
+	rv, ok = intf.(int64)
+	if !ok {
+		log.Print("WARNING: type mismatch for field ", key,
+			". Expected int64, found ", reflect.TypeOf(intf).Name())
+		return nil
+	}
+
+	return proto.Uint64(uint64(rv))
+}
+
+// castBytes extracts the raw bytes from the given key in the map, and returns
+// an empty slice if there is no such data.
+func castBytes(input map[string]interface{}, key string) []byte {
+	var intf interface{}
+	var rv []byte
+	var ok bool
+
+	intf, ok = input[key]
+	if !ok {
+		return nil
+	}
+
+	rv, ok = intf.([]byte)
+	if !ok {
+		log.Print("WARNING: type mismatch for field ", key,
+			". Expected []byte, found ", reflect.TypeOf(intf).Name())
+		return nil
+	}
+
+	return rv
+}
+
+// memberFromRow extracts the Member protocol buffer from the data in the
+// given row, and returns it.
+func memberFromRow(row map[string]interface{}) *membersys.Member {
+	return &membersys.Member{
+		Id:            castInt64AsUint64(row, "id"),
+		Name:          castString(row, "name"),
+		Street:        castString(row, "street"),
+		City:          castString(row, "city"),
+		Zipcode:       castString(row, "zipcode"),
+		Country:       castString(row, "country"),
+		Email:         castString(row, "email"),
+		EmailVerified: castBool(row, "email_verified"),
+		Phone:         castString(row, "phone"),
+		Fee:           castInt64AsUint64(row, "fee"),
+		Username:      castString(row, "username"),
+		Pwhash:        castString(row, "pwhash"),
+		FeeYearly:     castBool(row, "fee_yearly"),
+		HasKey:        castBool(row, "has_key"),
+		PaymentsCaughtUpTo: castInt64AsUint64(
+			row, "payments_caught_up_to"),
+	}
+}
 
 // Create a new connection to the membership database on the given "host".
 // Will set the keyspace to "dbname".
@@ -563,6 +676,7 @@ func (m *CassandraDB) StreamingEnumerateMembers(
 	var stmt *gocql.Query
 	var iter *gocql.Iter
 	var err error
+	var i int = 0
 
 	defer close(members)
 	defer close(errors)
@@ -585,16 +699,14 @@ func (m *CassandraDB) StreamingEnumerateMembers(
 	iter = stmt.Iter()
 
 	for {
-		var member *membersys.Member = new(membersys.Member)
-		var done bool
-
-		done = iter.Scan(member.Name, member.Street, member.City,
-			member.Country, member.Email, member.Phone, member.Username,
-			member.Fee, member.FeeYearly, member.HasKey,
-			member.PaymentsCaughtUpTo)
-		if !done {
-			members <- member
+		var row map[string]interface{} = make(map[string]interface{})
+		if iter.MapScan(row) {
+			members <- memberFromRow(row)
+		} else {
+			break
 		}
+		i++
+		log.Print("Row ", i, "/", iter.NumRows())
 	}
 
 	err = iter.Close()
@@ -646,14 +758,22 @@ func (m *CassandraDB) StreamingEnumerateMembershipRequests(
 	for {
 		var member *membersys.MembershipAgreementWithKey = new(membersys.MembershipAgreementWithKey)
 		var agreement *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
+		var row map[string]interface{} = make(map[string]interface{})
 		var key []byte
 		var encodedProto []byte
 		var uuid gocql.UUID
-		var done bool
 
-		done = iter.Scan(&key, &encodedProto)
-		if done {
+		if !iter.MapScan(row) {
 			break
+		}
+
+		key = castBytes(row, "key")
+		encodedProto = castBytes(row, "pb_data")
+
+		if len(key) < len(applicationPrefix) {
+			errorStream <- grpc.Errorf(codes.Internal,
+				"Row with short key: %v", key)
+			continue
 		}
 
 		uuid, err = gocql.UUIDFromBytes(key[len(applicationPrefix):])
