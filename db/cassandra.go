@@ -850,7 +850,7 @@ func (m *CassandraDB) EnumerateMembershipRequests(
 	for {
 		var member *membersys.MembershipAgreementWithKey = new(membersys.MembershipAgreementWithKey)
 		var agreement *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
-		var row map[string]interface{}
+		var row map[string]interface{} = make(map[string]interface{})
 		var key []byte
 		var encodedProto []byte
 		var uuid gocql.UUID
@@ -952,7 +952,7 @@ func (m *CassandraDB) enumerateQueuedMembersIn(
 	for {
 		var member *membersys.MemberWithKey = new(membersys.MemberWithKey)
 		var agreement *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
-		var row map[string]interface{}
+		var row map[string]interface{} = make(map[string]interface{})
 		var key []byte
 		var encodedProto []byte
 		var uuid gocql.UUID
@@ -1046,7 +1046,7 @@ func (m *CassandraDB) streamingEnumerateQueuedMembersIn(
 	for {
 		var member *membersys.MemberWithKey = new(membersys.MemberWithKey)
 		var agreement *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
-		var row map[string]interface{}
+		var row map[string]interface{} = make(map[string]interface{})
 		var key []byte
 		var encodedProto []byte
 		var uuid gocql.UUID
