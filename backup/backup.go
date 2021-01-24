@@ -32,6 +32,7 @@ func main() {
 	var chdirPath string
 	var database membersys.MembershipDB
 	var verbose bool
+	var i int
 
 	var memberAgreementStream chan *membersys.MembershipAgreementWithKey = make(chan *membersys.MembershipAgreementWithKey)
 	var memberStream chan *membersys.Member = make(chan *membersys.Member)
@@ -119,12 +120,17 @@ func main() {
 		if err != nil {
 			log.Fatal("Error writing record to members.pb: ", err)
 		}
+		i++
 	}
 
 	err = out.Close()
 	if err != nil {
 		log.Fatal("Error closing members.pb: ", err)
 	}
+	if verbose {
+		log.Print(i, " members backed up")
+	}
+	i = 0
 
 	// Back up all membership requests
 	out, err = os.Create("membership_requests.pb")
@@ -150,12 +156,17 @@ func main() {
 		if err != nil {
 			log.Fatal("Error writing record to membership_requests.pb: ", err)
 		}
+		i++
 	}
 
 	err = out.Close()
 	if err != nil {
 		log.Fatal("Error closing membership_requests.pb: ", err)
 	}
+	if verbose {
+		log.Print(i, " membership requests backed up")
+	}
+	i = 0
 
 	// Back up all queued members
 	out, err = os.Create("membership_queue.pb")
@@ -181,12 +192,17 @@ func main() {
 		if err != nil {
 			log.Fatal("Error writing record to membership_queue.pb: ", err)
 		}
+		i++
 	}
 
 	err = out.Close()
 	if err != nil {
 		log.Fatal("Error closing membership_queue.pb: ", err)
 	}
+	if verbose {
+		log.Print(i, " queued members backed up")
+	}
+	i = 0
 
 	// Back up all de-queued members
 	out, err = os.Create("membership_dequeue.pb")
@@ -213,12 +229,17 @@ func main() {
 		if err != nil {
 			log.Fatal("Error writing record to membership_dequeue.pb: ", err)
 		}
+		i++
 	}
 
 	err = out.Close()
 	if err != nil {
 		log.Fatal("Error closing membership_dequeue.pb: ", err)
 	}
+	if verbose {
+		log.Print(i, " de-queued members backed up")
+	}
+	i = 0
 
 	// Back up all arcguved members
 	out, err = os.Create("membership_archive.pb")
@@ -245,10 +266,14 @@ func main() {
 		if err != nil {
 			log.Fatal("Error writing record to membership_archive.pb: ", err)
 		}
+		i++
 	}
 
 	err = out.Close()
 	if err != nil {
 		log.Fatal("Error closing membership_archive.pb: ", err)
+	}
+	if verbose {
+		log.Print(i, " archived members backed up")
 	}
 }
