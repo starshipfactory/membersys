@@ -14,6 +14,16 @@ import (
 	"github.com/starshipfactory/membersys/db"
 )
 
+func handleErrors(errors <-chan error) {
+	var err error
+
+	for err = range errors {
+		log.Fatal("Error: ", err)
+	}
+
+	log.Print("No errors detected")
+}
+
 func main() {
 	var ctx context.Context
 	var configData config.DatabaseConfig
@@ -25,8 +35,9 @@ func main() {
 
 	var memberAgreementStream chan *membersys.MembershipAgreementWithKey = make(chan *membersys.MembershipAgreementWithKey)
 	var memberStream chan *membersys.Member = make(chan *membersys.Member)
+	var member *membersys.Member
+	var memberAgreement *membersys.MembershipAgreementWithKey
 	var errorStream chan error = make(chan error)
-	var moreData bool
 
 	var out *os.File
 	var writer *serialdata.SerialDataWriter
@@ -81,29 +92,30 @@ func main() {
 	if err != nil {
 		log.Fatal("Error connecting to database: ", err)
 	}
+	if database == nil {
+		log.Fatal("database = nil")
+	}
+
+	if verbose {
+		log.Print("Database connection established")
+	}
 
 	ctx = context.Background()
 
 	go database.StreamingEnumerateMembers(ctx, "", 0, memberStream, errorStream)
+	go handleErrors(errorStream)
 
-	moreData = true
-	for moreData {
-		var member *membersys.Member
-		select {
-		case member = <-memberStream:
-			if verbose {
-				log.Print("Backing up member ", member.GetName())
-			}
-			err = writer.WriteMessage(member)
-			if err != nil {
-				log.Fatal("Error writing record to members.pb: ", err)
-			}
-		case err = <-errorStream:
-			log.Fatal("Error enumerating members: ", err)
-		default:
-			log.Print("All members backed up.")
-			moreData = false
-			break
+	for member = range memberStream {
+		if member == nil {
+			log.Print("Received nil member")
+			continue
+		}
+		if verbose {
+			log.Print("Backing up member ", member.GetName())
+		}
+		err = writer.WriteMessage(member)
+		if err != nil {
+			log.Fatal("Error writing record to members.pb: ", err)
 		}
 	}
 
@@ -119,29 +131,22 @@ func main() {
 	}
 	writer = serialdata.NewSerialDataWriter(out)
 
+	errorStream = make(chan error)
 	go database.StreamingEnumerateMembershipRequests(
 		ctx, "", "", 0, memberAgreementStream, errorStream)
+	go handleErrors(errorStream)
 
-	moreData = true
-	for moreData {
-		var memberAgreement *membersys.MembershipAgreementWithKey
-		select {
-		case memberAgreement = <-memberAgreementStream:
-			if verbose {
-				log.Print("Backing up membership request for ",
-					memberAgreement.MemberData.GetName())
-			}
-			err = writer.WriteMessage(memberAgreement)
-			if err != nil {
-				log.Fatal("Error writing record to membership_requests.pb: ", err)
-			}
-
-		case err = <-errorStream:
-			log.Fatal("Error enumerating membership agreements: ", err)
-		default:
-			log.Print("All membership agreements backed up.")
-			moreData = false
-			break
+	for memberAgreement = range memberAgreementStream {
+		if memberAgreement == nil {
+			log.Print("Received nil membership agreement")
+		}
+		if verbose {
+			log.Print("Backing up membership request for ",
+				memberAgreement.MemberData.GetName())
+		}
+		err = writer.WriteMessage(memberAgreement)
+		if err != nil {
+			log.Fatal("Error writing record to membership_requests.pb: ", err)
 		}
 	}
 
