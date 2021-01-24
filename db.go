@@ -33,7 +33,9 @@ type MembershipDB interface {
 	SetBoolValue(context.Context, string, string, bool) error
 	SetTextValue(context.Context, string, string, string) error
 	GetMembershipRequest(context.Context, string) (*MembershipAgreement, error)
+	StreamingEnumerateMembers(context.Context, string, int32, chan<- *Member, chan<- error)
 	EnumerateMembers(context.Context, string, int32) ([]*Member, error)
+	StreamingEnumerateMembershipRequests(context.Context, string, string, int32, chan<- *MembershipAgreementWithKey, chan<- error)
 	EnumerateMembershipRequests(context.Context, string, string, int32) ([]*MembershipAgreementWithKey, error)
 	EnumerateQueuedMembers(context.Context, string, int32) ([]*MemberWithKey, error)
 	EnumerateDeQueuedMembers(context.Context, string, int32) ([]*MemberWithKey, error)

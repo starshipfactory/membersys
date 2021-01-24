@@ -1,0 +1,11 @@
+FROM fedora:33
+LABEL maintainer Caoimhe Chaos <caoimhechaos@protonmail.com>
+
+COPY backup /go/bin/backup
+
+RUN ["/usr/sbin/adduser", "--system", "--home", "/backup", "--no-create-home", "--comment", "Starship Factory Membership Management System Backups", "--user-group", "sf-membersys-backups"]
+RUN ["/usr/bin/install", "-m", "0755", "-o", "sf-membersys-backups", "-g", "sf-membersys-backups", "-d", "/backup"]
+VOLUME ["/etc/membersys", "/tls", "/backup"]
+USER sf-membersys-backups
+ENTRYPOINT ["/go/bin/backup"]
+CMD ["--config=/etc/membersys/database.conf", "--chdir=/backup"]

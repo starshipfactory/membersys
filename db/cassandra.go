@@ -510,16 +510,24 @@ func (m *CassandraDB) GetMembershipRequest(ctx context.Context, id string) (
 func (m *CassandraDB) EnumerateMembers(
 	ctx context.Context, prev string, num int32) ([]*membersys.Member,
 	error) {
+	// TODO: invoke StreamingEnumerateMembers().
+	var query string
 	var stmt *gocql.Query
 	var iter *gocql.Iter
 	var rv []*membersys.Member
 	var err error
 
-	stmt = m.sess.Query(
-		"SELECT name, street, city, country, email, phone, username, fee, "+
-			"fee_yearly, has_key, payments_caught_up_to FROM members WHERE "+
-			"key > ? AND email > '' LIMIT "+strconv.Itoa(int(num))+
-			" ALLOW FILTERING",
+	query = "SELECT name, street, city, country, email, phone, username, " +
+		"fee, fee_yearly, has_key, payments_caught_up_to FROM members " +
+		"WHERE key > ? AND email > ''"
+
+	if num > 0 {
+		query += " LIMIT " + strconv.Itoa(int(num))
+	}
+
+	query += " ALLOW FILTERING"
+
+	stmt = m.sess.Query(query,
 		append([]byte(memberPrefix), []byte(prev)...)).WithContext(ctx).
 		Consistency(gocql.One)
 	defer stmt.Release()
@@ -548,12 +556,143 @@ func (m *CassandraDB) EnumerateMembers(
 	return rv, nil
 }
 
+func (m *CassandraDB) StreamingEnumerateMembers(
+	ctx context.Context, prev string, num int32,
+	members chan<- *membersys.Member, errors chan<- error) {
+	var query string
+	var stmt *gocql.Query
+	var iter *gocql.Iter
+	var err error
+
+	defer close(members)
+	defer close(errors)
+
+	query = "SELECT name, street, city, country, email, phone, username, " +
+		"fee, fee_yearly, has_key, payments_caught_up_to FROM members " +
+		"WHERE key > ? AND email > ''"
+
+	if num > 0 {
+		query += " LIMIT " + strconv.Itoa(int(num))
+	}
+
+	query += " ALLOW FILTERING"
+
+	stmt = m.sess.Query(query,
+		append([]byte(memberPrefix), []byte(prev)...)).WithContext(ctx).
+		Consistency(gocql.One)
+	defer stmt.Release()
+
+	iter = stmt.Iter()
+
+	for {
+		var member *membersys.Member = new(membersys.Member)
+		var done bool
+
+		done = iter.Scan(member.Name, member.Street, member.City,
+			member.Country, member.Email, member.Phone, member.Username,
+			member.Fee, member.FeeYearly, member.HasKey,
+			member.PaymentsCaughtUpTo)
+		if !done {
+			members <- member
+		}
+	}
+
+	err = iter.Close()
+	if err != nil {
+		errors <- grpc.Errorf(codes.Internal,
+			"Error fetching member overview: %s", err.Error())
+	}
+}
+
+func (m *CassandraDB) StreamingEnumerateMembershipRequests(
+	ctx context.Context, criterion, prev string, num int32,
+	agreementStream chan<- *membersys.MembershipAgreementWithKey,
+	errorStream chan<- error) {
+	var query string
+	var stmt *gocql.Query
+	var iter *gocql.Iter
+	var lowerCriterion string = strings.ToLower(criterion)
+	var startKey []byte
+	var err error
+
+	// Fetch the name, street, city and fee columns of the application column
+	// family.
+	if len(prev) > 0 {
+		var uuid gocql.UUID
+		if uuid, err = gocql.ParseUUID(prev); err != nil {
+			errorStream <- err
+			return
+		}
+		startKey = append([]byte(applicationPrefix), []byte(uuid.Bytes())...)
+	} else {
+		startKey = []byte(applicationPrefix)
+	}
+
+	query = "SELECT key, pb_data FROM application WHERE key > ?"
+
+	if num > 0 {
+		query += " LIMIT " + strconv.Itoa(int(num)) + " ALLOW FILTERING"
+		stmt = m.sess.Query(query, startKey)
+	} else {
+		query += " AND key < ? ALLOW FILTERING"
+		stmt = m.sess.Query(query, startKey, applicationEnd)
+	}
+
+	stmt = stmt.WithContext(ctx).Consistency(gocql.One)
+	defer stmt.Release()
+
+	iter = stmt.Iter()
+
+	for {
+		var member *membersys.MembershipAgreementWithKey = new(membersys.MembershipAgreementWithKey)
+		var agreement *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
+		var key []byte
+		var encodedProto []byte
+		var uuid gocql.UUID
+		var done bool
+
+		done = iter.Scan(&key, &encodedProto)
+		if done {
+			break
+		}
+
+		uuid, err = gocql.UUIDFromBytes(key[len(applicationPrefix):])
+		if err != nil {
+			// FIXME: We should bump some form of counter here.
+			errorStream <- err
+			continue
+		} else {
+			member.Key = uuid.String()
+		}
+
+		err = proto.Unmarshal(encodedProto, agreement)
+		if err != nil {
+			// FIXME: We should bump some form of counter here.
+			errorStream <- err
+			continue
+		}
+		proto.Merge(&member.MembershipAgreement, agreement)
+
+		if criterion == "" || strings.HasPrefix(
+			strings.ToLower(member.MemberData.GetName()), lowerCriterion) {
+			agreementStream <- member
+		}
+	}
+
+	err = iter.Close()
+	if err != nil {
+		errorStream <- grpc.Errorf(codes.Internal,
+			"Error fetching applicant overview: %s", err.Error())
+	}
+}
+
 // Get a list of all membership applications currently in the database.
 // Returns a set of "num" entries beginning after "prev". If "criterion" is
 // given, it will be compared against the name of the member.
 func (m *CassandraDB) EnumerateMembershipRequests(
 	ctx context.Context, criterion, prev string, num int32) (
 	[]*membersys.MembershipAgreementWithKey, error) {
+	// TODO: invoke StreamingEnumerateMembershipRequests().
 	var query string
 	var stmt *gocql.Query
 	var iter *gocql.Iter
@@ -652,6 +791,7 @@ func (m *CassandraDB) EnumerateDeQueuedMembers(
 func (m *CassandraDB) enumerateQueuedMembersIn(
 	ctx context.Context, cf, prefix, prev string, num int32) (
 	[]*membersys.MemberWithKey, error) {
+	var query string
 	var stmt *gocql.Query
 	var iter *gocql.Iter
 	var rv []*membersys.MemberWithKey
@@ -670,9 +810,14 @@ func (m *CassandraDB) enumerateQueuedMembersIn(
 		startKey = []byte(prefix)
 	}
 
-	stmt = m.sess.Query(
-		"SELECT key, pb_data FROM "+cf+" WHERE key > ? LIMIT "+
-			strconv.Itoa(int(num))+" ALLOW FILTERING", startKey).
+	query = "SELECT key, pb_data FROM " + cf + " WHERE key > ?"
+
+	if num > 0 {
+		query += " LIMIT " + strconv.Itoa(int(num))
+	}
+	query += " ALLOW FILTERING"
+
+	stmt = m.sess.Query(query, startKey).
 		WithContext(ctx).Consistency(gocql.One)
 	defer stmt.Release()
 

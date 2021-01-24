@@ -346,18 +346,21 @@ func (p *PostgreSQLDB) GetMembershipRequest(ctx context.Context, id string) (
 }
 
 func (p *PostgreSQLDB) enumerateMembersOfState(
-	ctx context.Context, state, criterion, prev string, num int32) (
-	[]*membersys.MembershipAgreement, error) {
-	var members []*membersys.MembershipAgreement = make([]*membersys.MembershipAgreement, 0)
+	ctx context.Context, state, criterion, prev string, num int32,
+	members chan<- *membersys.MembershipAgreement, errors chan<- error) {
 	var prevId int64
 	var rows *sql.Rows
 	var err error
 
+	defer close(members)
+	defer close(errors)
+
 	if prev != "" {
 		prevId, err = strconv.ParseInt(prev, 10, 64)
 		if err != nil {
-			return nil, grpc.Errorf(codes.Internal,
+			errors <- grpc.Errorf(codes.Internal,
 				"Cannot parse \"%s\" as a number", prev)
+			return
 		}
 	}
 
@@ -372,8 +375,9 @@ func (p *PostgreSQLDB) enumerateMembersOfState(
 			state, num)
 	}
 	if err != nil {
-		return nil, grpc.Errorf(codes.Internal,
+		errors <- grpc.Errorf(codes.Internal,
 			"Error fetching member list: %s", err.Error())
+		return
 	}
 
 	for rows.Next() {
@@ -381,13 +385,27 @@ func (p *PostgreSQLDB) enumerateMembersOfState(
 		var row *sql.Row
 		member, _, err = fullRowToMembershipAgreement(row)
 		if err != nil {
-			return nil, grpc.Errorf(codes.Internal,
+			errors <- grpc.Errorf(codes.Internal,
 				"Error fetching member by user name: %s", err.Error())
+		} else {
+			members <- member
 		}
-		members = append(members, member)
 	}
+}
 
-	return members, nil
+func (p *PostgreSQLDB) StreamingEnumerateMembers(
+	ctx context.Context, prev string, num int32,
+	members chan<- *membersys.Member, errors chan<- error) {
+	var agreements chan *membersys.MembershipAgreement = make(chan *membersys.MembershipAgreement, cap(members))
+	defer close(members)
+	go func() {
+		var agreement *membersys.MembershipAgreement
+
+		for agreement = range agreements {
+			members <- agreement.MemberData
+		}
+	}()
+	p.enumerateMembersOfState(ctx, "ACTIVE", "", prev, num, agreements, errors)
 }
 
 // Get a list of all members currently in the database. Returns a set of
@@ -396,21 +414,45 @@ func (p *PostgreSQLDB) enumerateMembersOfState(
 func (p *PostgreSQLDB) EnumerateMembers(
 	ctx context.Context, prev string, num int32) ([]*membersys.Member,
 	error) {
-	var agreements []*membersys.MembershipAgreement
-	var members []*membersys.Member
-	var agreement *membersys.MembershipAgreement
+	var members chan *membersys.Member = make(chan *membersys.Member)
+	var errors chan error = make(chan error)
+	var memberList []*membersys.Member
+	var member *membersys.Member
 	var err error
 
-	agreements, err = p.enumerateMembersOfState(ctx, "ACTIVE", "", prev, num)
-	if err != nil {
-		return nil, err
-	}
+	go p.StreamingEnumerateMembers(ctx, prev, num, members, errors)
 
-	for _, agreement = range agreements {
-		members = append(members, agreement.MemberData)
+	for {
+		select {
+		case member = <-members:
+			memberList = append(memberList, member)
+		case err = <-errors:
+		default:
+			return memberList, err
+		}
 	}
+}
 
-	return members, nil
+func (p *PostgreSQLDB) StreamingEnumerateMembershipRequests(
+	ctx context.Context, criterion, prev string, num int32,
+	agreementsWithKey chan<- *membersys.MembershipAgreementWithKey,
+	errors chan<- error) {
+	var agreements chan *membersys.MembershipAgreement = make(chan *membersys.MembershipAgreement, cap(agreementsWithKey))
+	defer close(agreementsWithKey)
+	go func() {
+		var agreement *membersys.MembershipAgreement
+		var agreementWithKey *membersys.MembershipAgreementWithKey
+
+		for agreement = range agreements {
+			agreementWithKey = new(membersys.MembershipAgreementWithKey)
+			proto.Merge(&agreementWithKey.MembershipAgreement, agreement)
+			agreementWithKey.Key = strconv.FormatUint(
+				agreement.MemberData.GetId(), 10)
+			agreementsWithKey <- agreementWithKey
+		}
+	}()
+	p.enumerateMembersOfState(ctx, "APPLICATION", criterion, prev, num,
+		agreements, errors)
 }
 
 // Get a list of all membership applications currently in the database.
@@ -419,54 +461,90 @@ func (p *PostgreSQLDB) EnumerateMembers(
 func (p *PostgreSQLDB) EnumerateMembershipRequests(
 	ctx context.Context, criterion, prev string, num int32) (
 	[]*membersys.MembershipAgreementWithKey, error) {
-	var agreements []*membersys.MembershipAgreement
+	var agreements chan *membersys.MembershipAgreementWithKey = make(chan *membersys.MembershipAgreementWithKey)
+	var errors chan error = make(chan error)
 	var agreementsWithKey []*membersys.MembershipAgreementWithKey
-	var agreement *membersys.MembershipAgreement
 	var agreementWithKey *membersys.MembershipAgreementWithKey
 	var err error
 
-	agreements, err = p.enumerateMembersOfState(ctx, "APPLICATION", criterion,
-		prev, num)
-	if err != nil {
-		return nil, err
-	}
+	go p.StreamingEnumerateMembershipRequests(
+		ctx, criterion, prev, num, agreements, errors)
 
-	for _, agreement = range agreements {
-		agreementWithKey = new(membersys.MembershipAgreementWithKey)
-		proto.Merge(&agreementWithKey.MembershipAgreement, agreement)
-		agreementWithKey.Key = strconv.FormatUint(
-			agreement.MemberData.GetId(), 10)
-		agreementsWithKey = append(agreementsWithKey, agreementWithKey)
+	for {
+		select {
+		case agreementWithKey = <-agreements:
+			agreementsWithKey = append(agreementsWithKey, agreementWithKey)
+		case err = <-errors:
+		default:
+			return agreementsWithKey, err
+		}
 	}
+}
 
-	return agreementsWithKey, nil
+func (p *PostgreSQLDB) StreamingEnumerateQueuedMembers(
+	ctx context.Context, prev string, num int32,
+	queued chan<- *membersys.MemberWithKey, errors chan<- error) {
+	var agreements chan *membersys.MembershipAgreement = make(chan *membersys.MembershipAgreement, cap(queued))
+	defer close(queued)
+	go func() {
+		var current *membersys.MembershipAgreement
+		var currentWithKey *membersys.MemberWithKey
+
+		for current = range agreements {
+			currentWithKey = new(membersys.MemberWithKey)
+			proto.Merge(&currentWithKey.Member, current.MemberData)
+			currentWithKey.Key = strconv.FormatUint(
+				current.MemberData.GetId(), 10)
+			queued <- currentWithKey
+		}
+	}()
+	p.enumerateMembersOfState(ctx, "IN_CREATION", "", prev, num,
+		agreements, errors)
 }
 
 // Get a list of all future members which are currently in the queue.
 func (p *PostgreSQLDB) EnumerateQueuedMembers(
 	ctx context.Context, prev string, num int32) ([]*membersys.MemberWithKey,
 	error) {
-	var agreements []*membersys.MembershipAgreement
-	var members []*membersys.MemberWithKey
-	var agreement *membersys.MembershipAgreement
-	var member *membersys.MemberWithKey
+	var memberStream chan *membersys.MemberWithKey = make(chan *membersys.MemberWithKey)
+	var errors chan error = make(chan error)
+	var membersWithKey []*membersys.MemberWithKey
+	var memberWithKey *membersys.MemberWithKey
 	var err error
 
-	agreements, err = p.enumerateMembersOfState(ctx, "IN_CREATION", "", prev,
-		num)
-	if err != nil {
-		return nil, err
-	}
+	go p.StreamingEnumerateQueuedMembers(
+		ctx, prev, num, memberStream, errors)
 
-	for _, agreement = range agreements {
-		member = new(membersys.MemberWithKey)
-		proto.Merge(&member.Member, agreement.MemberData)
-		member.Key = strconv.FormatUint(
-			agreement.MemberData.GetId(), 10)
-		members = append(members, member)
+	for {
+		select {
+		case memberWithKey = <-memberStream:
+			membersWithKey = append(membersWithKey, memberWithKey)
+		case err = <-errors:
+		default:
+			return membersWithKey, err
+		}
 	}
+}
 
-	return members, nil
+func (p *PostgreSQLDB) StreamingEnumerateDeQueuedMembers(
+	ctx context.Context, prev string, num int32,
+	queued chan<- *membersys.MemberWithKey, errors chan<- error) {
+	var agreements chan *membersys.MembershipAgreement = make(chan *membersys.MembershipAgreement, cap(queued))
+	defer close(queued)
+	go func() {
+		var current *membersys.MembershipAgreement
+		var currentWithKey *membersys.MemberWithKey
+
+		for current = range agreements {
+			currentWithKey = new(membersys.MemberWithKey)
+			proto.Merge(&currentWithKey.Member, current.MemberData)
+			currentWithKey.Key = strconv.FormatUint(
+				current.MemberData.GetId(), 10)
+			queued <- currentWithKey
+		}
+	}()
+	p.enumerateMembersOfState(ctx, "IN_DELETION", "", prev, num,
+		agreements, errors)
 }
 
 // Get a list of all former members which are currently in the departing
@@ -474,54 +552,69 @@ func (p *PostgreSQLDB) EnumerateQueuedMembers(
 func (p *PostgreSQLDB) EnumerateDeQueuedMembers(
 	ctx context.Context, prev string, num int32) ([]*membersys.MemberWithKey,
 	error) {
-	var agreements []*membersys.MembershipAgreement
-	var members []*membersys.MemberWithKey
-	var agreement *membersys.MembershipAgreement
-	var member *membersys.MemberWithKey
+	var memberStream chan *membersys.MemberWithKey = make(chan *membersys.MemberWithKey)
+	var errors chan error = make(chan error)
+	var membersWithKey []*membersys.MemberWithKey
+	var memberWithKey *membersys.MemberWithKey
 	var err error
 
-	agreements, err = p.enumerateMembersOfState(ctx, "IN_DELETION", "", prev,
-		num)
-	if err != nil {
-		return nil, err
-	}
+	go p.StreamingEnumerateDeQueuedMembers(
+		ctx, prev, num, memberStream, errors)
 
-	for _, agreement = range agreements {
-		member = new(membersys.MemberWithKey)
-		proto.Merge(&member.Member, agreement.MemberData)
-		member.Key = strconv.FormatUint(
-			agreement.MemberData.GetId(), 10)
-		members = append(members, member)
+	for {
+		select {
+		case memberWithKey = <-memberStream:
+			membersWithKey = append(membersWithKey, memberWithKey)
+		case err = <-errors:
+		default:
+			return membersWithKey, err
+		}
 	}
+}
 
-	return members, nil
+func (p *PostgreSQLDB) StreamingEnumerateTrashedMembers(
+	ctx context.Context, prev string, num int32,
+	queued chan<- *membersys.MemberWithKey, errors chan<- error) {
+	var agreements chan *membersys.MembershipAgreement = make(chan *membersys.MembershipAgreement, cap(queued))
+	defer close(queued)
+	go func() {
+		var current *membersys.MembershipAgreement
+		var currentWithKey *membersys.MemberWithKey
+
+		for current = range agreements {
+			currentWithKey = new(membersys.MemberWithKey)
+			proto.Merge(&currentWithKey.Member, current.MemberData)
+			currentWithKey.Key = strconv.FormatUint(
+				current.MemberData.GetId(), 10)
+			queued <- currentWithKey
+		}
+	}()
+	p.enumerateMembersOfState(ctx, "ARCHIVED", "", prev, num,
+		agreements, errors)
 }
 
 // Get a list of all members which are currently in the trash.
 func (p *PostgreSQLDB) EnumerateTrashedMembers(
 	ctx context.Context, prev string, num int32) ([]*membersys.MemberWithKey,
 	error) {
-	var agreements []*membersys.MembershipAgreement
-	var members []*membersys.MemberWithKey
-	var agreement *membersys.MembershipAgreement
-	var member *membersys.MemberWithKey
+	var memberStream chan *membersys.MemberWithKey = make(chan *membersys.MemberWithKey)
+	var errors chan error = make(chan error)
+	var membersWithKey []*membersys.MemberWithKey
+	var memberWithKey *membersys.MemberWithKey
 	var err error
 
-	agreements, err = p.enumerateMembersOfState(ctx, "ARCHIVED", "", prev,
-		num)
-	if err != nil {
-		return nil, err
-	}
+	go p.StreamingEnumerateTrashedMembers(
+		ctx, prev, num, memberStream, errors)
 
-	for _, agreement = range agreements {
-		member = new(membersys.MemberWithKey)
-		proto.Merge(&member.Member, agreement.MemberData)
-		member.Key = strconv.FormatUint(
-			agreement.MemberData.GetId(), 10)
-		members = append(members, member)
+	for {
+		select {
+		case memberWithKey = <-memberStream:
+			membersWithKey = append(membersWithKey, memberWithKey)
+		case err = <-errors:
+		default:
+			return membersWithKey, err
+		}
 	}
-
-	return members, nil
 }
 
 // Move a member record to the queue for getting their user account removed

@@ -23,6 +23,7 @@ _testmain.go
 *.exe
 
 # Executables
+backup/backup
 get_column_binary/get_column_binary
 member_creator/member_creator
 member_list/member_list
