@@ -37,8 +37,11 @@ type MembershipDB interface {
 	EnumerateMembers(context.Context, string, int32) ([]*Member, error)
 	StreamingEnumerateMembershipRequests(context.Context, string, string, int32, chan<- *MembershipAgreementWithKey, chan<- error)
 	EnumerateMembershipRequests(context.Context, string, string, int32) ([]*MembershipAgreementWithKey, error)
+	StreamingEnumerateQueuedMembers(context.Context, string, int32, chan<- *MemberWithKey, chan<- error)
 	EnumerateQueuedMembers(context.Context, string, int32) ([]*MemberWithKey, error)
+	StreamingEnumerateDeQueuedMembers(context.Context, string, int32, chan<- *MemberWithKey, chan<- error)
 	EnumerateDeQueuedMembers(context.Context, string, int32) ([]*MemberWithKey, error)
+	StreamingEnumerateTrashedMembers(context.Context, string, int32, chan<- *MemberWithKey, chan<- error)
 	EnumerateTrashedMembers(context.Context, string, int32) ([]*MemberWithKey, error)
 	MoveMemberToTrash(context.Context, string, string, string) error
 	MoveNewMemberToFullMember(context.Context, *MemberWithKey) error

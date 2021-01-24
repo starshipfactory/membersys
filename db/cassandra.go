@@ -1002,6 +1002,112 @@ func (m *CassandraDB) EnumerateTrashedMembers(
 		archivePrefix, prev, num)
 }
 
+func (m *CassandraDB) streamingEnumerateQueuedMembersIn(
+	ctx context.Context, cf, prefix, prev string, num int32,
+	queued chan<- *membersys.MemberWithKey, errors chan<- error) {
+	var query string
+	var stmt *gocql.Query
+	var iter *gocql.Iter
+	var startKey []byte
+	var err error
+
+	// Fetch the name, street, city and fee columns of the application column
+	// family.
+	if len(prev) > 0 {
+		var uuid gocql.UUID
+		if uuid, err = gocql.ParseUUID(prev); err != nil {
+			errors <- err
+			return
+		}
+		startKey = append([]byte(prefix), []byte(uuid.Bytes())...)
+	} else {
+		startKey = []byte(prefix)
+	}
+
+	query = "SELECT key, pb_data FROM " + cf + " WHERE key > ?"
+
+	if num > 0 {
+		query += " LIMIT " + strconv.Itoa(int(num))
+	}
+	query += " ALLOW FILTERING"
+
+	stmt = m.sess.Query(query, startKey).
+		WithContext(ctx).Consistency(gocql.One)
+	defer stmt.Release()
+
+	iter = stmt.Iter()
+
+	for {
+		var member *membersys.MemberWithKey = new(membersys.MemberWithKey)
+		var agreement *membersys.MembershipAgreement = new(membersys.MembershipAgreement)
+		var row map[string]interface{}
+		var key []byte
+		var encodedProto []byte
+		var uuid gocql.UUID
+
+		if !iter.MapScan(row) {
+			break
+		}
+
+		key = castBytes(row, "key")
+		encodedProto = castBytes(row, "pb_data")
+
+		if len(key) < len(prefix) {
+			errors <- grpc.Errorf(codes.Internal,
+				"Row with short key: %v", key)
+			continue
+		}
+
+		uuid, err = gocql.UUIDFromBytes(key[len(prefix):])
+		if err != nil {
+			errors <- err
+			continue
+		} else {
+			member.Key = uuid.String()
+		}
+
+		err = proto.Unmarshal(encodedProto, agreement)
+		if err != nil {
+			errors <- err
+			continue
+		}
+		proto.Merge(&member.Member, agreement.GetMemberData())
+
+		queued <- member
+	}
+
+	err = iter.Close()
+	if err != nil {
+		errors <- grpc.Errorf(codes.Internal,
+			"Error fetching applicant overview: %s", err.Error())
+	}
+}
+
+// Get a list of all future members which are currently in the queue.
+func (m *CassandraDB) StreamingEnumerateQueuedMembers(
+	ctx context.Context, prev string, num int32,
+	queued chan<- *membersys.MemberWithKey, errors chan<- error) {
+	m.streamingEnumerateQueuedMembersIn(
+		ctx, "membership_queue", queuePrefix, prev, num, queued, errors)
+}
+
+// Get a list of all former members which are currently in the departing
+// members queue.
+func (m *CassandraDB) StreamingEnumerateDeQueuedMembers(
+	ctx context.Context, prev string, num int32,
+	queued chan<- *membersys.MemberWithKey, errors chan<- error) {
+	m.streamingEnumerateQueuedMembersIn(
+		ctx, "membership_dequeue", dequeuePrefix, prev, num, queued, errors)
+}
+
+// Get a list of all members which are currently in the trash.
+func (m *CassandraDB) StreamingEnumerateTrashedMembers(
+	ctx context.Context, prev string, num int32,
+	queued chan<- *membersys.MemberWithKey, errors chan<- error) {
+	m.streamingEnumerateQueuedMembersIn(ctx, "membership_archive",
+		archivePrefix, prev, num, queued, errors)
+}
+
 // Move a member record to the queue for getting their user account removed
 // (e.g. when they leave us).
 func (m *CassandraDB) MoveMemberToTrash(
