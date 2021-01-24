@@ -723,6 +723,9 @@ func (m *CassandraDB) StreamingEnumerateMembershipRequests(
 	var startKey []byte
 	var err error
 
+	defer close(agreementStream)
+	defer close(errorStream)
+
 	// Fetch the name, street, city and fee columns of the application column
 	// family.
 	if len(prev) > 0 {
@@ -1010,6 +1013,9 @@ func (m *CassandraDB) streamingEnumerateQueuedMembersIn(
 	var iter *gocql.Iter
 	var startKey []byte
 	var err error
+
+	defer close(queued)
+	defer close(errors)
 
 	// Fetch the name, street, city and fee columns of the application column
 	// family.
